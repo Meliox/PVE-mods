@@ -8,4 +8,4 @@ This bash script installs a modification to the Proxmox Virtual Environment (PVE
 
 The script provides two options: `install` and `uninstall`. The `install` option installs the modification, while the `uninstall` option removes it by copying the backup files to their original location. The script also restarts the `pveproxy` service to apply the changes.
 
-![alt text](https://github.com/Meliox/PVE-mods/blob/aster/pve-mod-temp.png?raw=true)
+![alt text](https://github.com/Meliox/PVE-mods/blob/master/pve-mod-temp.png)
