@@ -18,6 +18,38 @@ function usage {
   exit 1
 }
 
+#!/bin/bash
+
+# Define a function to install packages
+install_packages () {
+  # Check if the 'sensors' command is available on the system
+  if ! command -v sensors &> /dev/null; then
+    # If the 'sensors' command is not available, prompt the user to install lm-sensors
+    read -p "lm-sensors is not installed. Would you like to install it? (y/n) " choice
+    case "$choice" in
+      y|Y )
+        # If the user chooses to install lm-sensors, update the package list and install the package
+        apt-get update
+        apt-get install lm-sensors
+        ;;
+      n|N )
+        # If the user chooses not to install lm-sensors, exit the script with a zero status code
+        echo "Decided to not install lm-sensors. The mod cannot run without"
+        exit 0
+        ;;
+      * )
+        # If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+        echo "Invalid input. Exiting..."
+        exit 1
+        ;;
+    esac
+  fi
+}
+
+# Call the 'install_packages' function to check if lm-sensors is installed and install it if necessary
+install_packages
+
+
 # Function to install the modification
 function install_mod {
   # Create backup of original files
@@ -134,6 +166,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     install)
       echo "Installing the mod..."
+      install_packages
       install_mod
       ;;
     uninstall)
