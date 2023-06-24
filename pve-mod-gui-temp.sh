@@ -76,7 +76,7 @@ function install_mod {
     # Expand space in StatusView
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
       s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
-      s/\(height:\) [0-9]\+/\1 360/}" "$pvemanagerlib"
+      s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/}" "$pvemanagerlib"
 
     echo "Expanded space in $pvemanagerlib"
 
