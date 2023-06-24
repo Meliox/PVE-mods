@@ -109,7 +109,7 @@ function install_mod {
                   coreKeys.forEach((coreKey, index) => \{\n\
                       try \{\n\
                           let temp = items[itemPrefix + index][\`temp\$\{tempInputOffset + index\}_input\`];\n\
-                          temps.push(\`Core \$\{index\}: \$\{temp\} C\`);\n\
+                          temps.push(\`Core \$\{index\}: \$\{temp\}&deg;C\`);\n\
                       \} catch(e) \{ /*_*/ \}\n\
                   });\n\
 \n\
@@ -137,7 +137,7 @@ function install_mod {
                 nvmeKeys.forEach((nvmeKey, index) => \{\n\
                   try \{\n\
                     let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`]\n\
-                    temps.push(\`Drive \$\{index\}: \$\{temp\} C\`);\n\
+                    temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
                   \} catch(e) \{ /*_*/ \}\n\
                 \});\n\
 \n\
