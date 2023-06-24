@@ -96,11 +96,27 @@ function install_mod {
             textField: 'thermalstate',\n\
             renderer: function(value){\n\
               let objValue = JSON.parse(value);\n\
-              let core0 = objValue[\"coretemp-isa-0000\"][\"Core 0\"][\"temp2_input\"];\n\
-              let core1 = objValue[\"coretemp-isa-0000\"][\"Core 1\"][\"temp3_input\"];\n\
-              let core2 = objValue[\"coretemp-isa-0000\"][\"Core 2\"][\"temp4_input\"];\n\
-              let core3 = objValue[\"coretemp-isa-0000\"][\"Core 3\"][\"temp5_input\"];\n\
-              return \`Core 0: \$\{core0\} C | Core 1: \$\{core1\} C | Core 2: \$\{core2\} C | Core 3: \$\{core3\} C\`\n\
+              const address = \"coretemp-isa-0000\";\n\
+              if(objValue.hasOwnProperty(address)) \{\n\
+                  const items = objValue[address],\n\
+                    itemPrefix = \"Core \",\n\
+                    coreKeys = Object.keys(items).filter(item => \{\n\
+                      return String(item).startsWith(itemPrefix);\n\
+                    \}),\n\
+                    tempInputOffset = 2; // see tempN_input for \"Core 0\"\n\
+\n\
+                  let temps = [];\n\
+                  coreKeys.forEach((coreKey, index) => \{\n\
+                      try \{\n\
+                          let temp = items[itemPrefix + index][\`temp\$\{tempInputOffset + index\}_input\`];\n\
+                          temps.push(\`Core \$\{index\}: \$\{temp\} C\`);\n\
+                      \} catch(e) \{ /*_*/ \}\n\
+                  });\n\
+\n\
+                  const cols = 4,\n\
+                    result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % cols === 0 ? '<br>' : ' | ') : '')});\n\
+                  return result.join('');\n\
+              \}\n\
             }\n\
         },\n\
         {\n\
@@ -112,9 +128,23 @@ function install_mod {
             textField: 'thermalstate2',\n\
             renderer: function(value){\n\
               let objValue = JSON.parse(value);\n\
-              let temp0 = objValue[\"nvme-pci-0100\"][\"Composite\"][\"temp1_input\"];\n\
-              return \`NVME: \$\{temp0\} C\`\n\
-            }\n\
+              const addressPrefix = \"nvme-pci-\",\n\
+                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \}),\n\
+                sensorName = \"Composite\",\n\
+                tempInputNo = 1;\n\
+\n\
+                let temps = [];\n\
+                nvmeKeys.forEach((nvmeKey, index) => \{\n\
+                  try \{\n\
+                    let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`]\n\
+                    temps.push(\`Drive \$\{index\}: \$\{temp\} C\`);\n\
+                  \} catch(e) \{ /*_*/ \}\n\
+                \});\n\
+\n\
+                const cols = 4,\n\
+                  result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % cols === 0 ? '<br>' : ' | ') : '')\});\n\
+                return result.join('');\n\
+            \}\n\
         },
     }" $pvemanagerlib
     echo "Added new item to the items array in $pvemanagerlib"
