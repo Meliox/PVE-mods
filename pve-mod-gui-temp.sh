@@ -96,15 +96,19 @@ function install_mod {
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
             textField: 'thermalstate',\n\
             renderer: function(value){\n\
-              let objValue = JSON.parse(value);\n\
-              const address = \"coretemp-isa-0000\";\n\
+              // sensors configuration\n\
+              const address = \"coretemp-isa-0000\",\n\
+                itemPrefix = \"Core \",\n\
+                tempInputOffset = 2; // see tempN_input for \"Core 0\"\n\
+              // display configuration\n\
+              const coresPerRow = 4;\n\
+\n\
+              const objValue = JSON.parse(value);\n\
               if(objValue.hasOwnProperty(address)) \{\n\
                   const items = objValue[address],\n\
-                    itemPrefix = \"Core \",\n\
                     coreKeys = Object.keys(items).filter(item => \{\n\
                       return String(item).startsWith(itemPrefix);\n\
-                    \}),\n\
-                    tempInputOffset = 2; // see tempN_input for \"Core 0\"\n\
+                    \});\n\
 \n\
                   let temps = [];\n\
                   coreKeys.forEach((coreKey, index) => \{\n\
@@ -114,8 +118,7 @@ function install_mod {
                       \} catch(e) \{ /*_*/ \}\n\
                   });\n\
 \n\
-                  const cols = 4,\n\
-                    result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % cols === 0 ? '<br>' : ' | ') : '')});\n\
+                  const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % coresPerRow === 0 ? '<br>' : ' | ') : '')});\n\
                   return result.join('');\n\
               \}\n\
             }\n\
@@ -128,22 +131,25 @@ function install_mod {
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
             textField: 'thermalstate2',\n\
             renderer: function(value){\n\
-              let objValue = JSON.parse(value);\n\
+              // sensors configuration\n\
               const addressPrefix = \"nvme-pci-\",\n\
-                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \}),\n\
                 sensorName = \"Composite\",\n\
                 tempInputNo = 1;\n\
+              // display configuration\n\
+              const driversPerRow = 4;\n\
 \n\
-                let temps = [];\n\
-                nvmeKeys.forEach((nvmeKey, index) => \{\n\
-                  try \{\n\
-                    let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`]\n\
-                    temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
-                  \} catch(e) \{ /*_*/ \}\n\
-                \});\n\
+              const objValue = JSON.parse(value),\n\
+                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \});\n\
 \n\
-                const cols = 4,\n\
-                  result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % cols === 0 ? '<br>' : ' | ') : '')\});\n\
+              let temps = [];\n\
+              nvmeKeys.forEach((nvmeKey, index) => \{\n\
+                try \{\n\
+                  let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`]\n\
+                  temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
+                \} catch(e) \{ /*_*/ \}\n\
+              \});\n\
+\n\
+                const result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % driversPerRow === 0 ? '<br>' : ' | ') : '')\});\n\
                 return result.join('');\n\
             \}\n\
         },
