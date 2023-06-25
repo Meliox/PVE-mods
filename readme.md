@@ -1,6 +1,8 @@
 # Proxmox mods and script
 A small collection of script and mods for Proxmox
 
+If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
+
 ## Node temperature view
 (compatible with at least version 7.4-3)
 
@@ -21,10 +23,6 @@ wget https://github.com/Meliox/PVE-mods/blob/main/pve-mod-gui-temp.sh
 ```
 
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-temp.png?raw=true)
-
-
-If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
-
 
 ## Scrip to update all containers
 (compatible with all)
