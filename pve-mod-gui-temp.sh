@@ -72,7 +72,7 @@ function install_mod {
     # Create backup of original file
     cp "$pvemanagerlib" "$backuplocation/pvemanagerlib.js.$timestamp"
     echo "Backup of $pvemanagerlib saved to $backuplocation/pvemanagerlib.js.$timestamp"
-    
+
     # Expand space in StatusView
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
       s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
@@ -106,9 +106,7 @@ function install_mod {
               const objValue = JSON.parse(value);\n\
               if(objValue.hasOwnProperty(address)) \{\n\
                   const items = objValue[address],\n\
-                    coreKeys = Object.keys(items).filter(item => \{\n\
-                      return String(item).startsWith(itemPrefix);\n\
-                    \});\n\
+                    coreKeys = Object.keys(items).filter(item => \{ return String(item).startsWith(itemPrefix); \}).sort();\n\
 \n\
                   let temps = [];\n\
                   coreKeys.forEach((coreKey, index) => \{\n\
@@ -119,7 +117,7 @@ function install_mod {
                   });\n\
 \n\
                   const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % coresPerRow === 0 ? '<br>' : ' | ') : '')});\n\
-                  return result.join('');\n\
+                  return result.length > 0 ? result.join('') : 'N/A';\n\
               \}\n\
             }\n\
         },\n\
@@ -136,22 +134,57 @@ function install_mod {
                 sensorName = \"Composite\",\n\
                 tempInputNo = 1;\n\
               // display configuration\n\
-              const driversPerRow = 4;\n\
+              const drivesPerRow = 4;\n\
 \n\
               const objValue = JSON.parse(value),\n\
-                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \});\n\
+                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \}).sort();\n\
 \n\
               let temps = [];\n\
               nvmeKeys.forEach((nvmeKey, index) => \{\n\
                 try \{\n\
-                  let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`]\n\
+                  let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`];\n\
                   temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
                 \} catch(e) \{ /*_*/ \}\n\
               \});\n\
 \n\
-                const result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % driversPerRow === 0 ? '<br>' : ' | ') : '')\});\n\
-                return result.join('');\n\
+              const result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : '')\});\n\
+              return result.length > 0 ? result.join('') : 'N/A';\n\
             \}\n\
+        },\n\
+        {\n\
+            xtype: 'box',\n\
+            colspan: 1,\n\
+            padding: '0 0 20 0',\n\
+        },\n\
+        {\n\
+            itemId: 'thermal3',\n\
+            colspan: 1,\n\
+            printBar: false,\n\
+            title: gettext('HDD/SSD Thermal State'),\n\
+            iconCls: 'fa fa-fw fa-thermometer-half',\n\
+            textField: 'thermalstate2',\n\
+            renderer: function(value){\n\
+              // sensors configuration\n\
+              const addressPrefix = \"drivetemp-scsi-\",\n\
+                sensorName = \"temp1\",\n\
+                tempInputNo = 1;\n\
+              // display configuration\n\
+              const drivesPerRow = 4;\n\
+\n\
+              const objValue = JSON.parse(value),\n\
+                drvKeys = Object.keys(objValue).filter(item => { return String(item).startsWith(addressPrefix); }).sort();\n\
+\n\
+              let temps = [];\n\
+              drvKeys.forEach((drvKey, index) => {\n\
+                try {\n\
+                  let temp = objValue[drvKey][sensorName][\`temp\${tempInputNo}_input\`];\n\
+                  temps.push(\`Drive \${index}: \${temp}&deg;C\`);\n\
+                } catch(e) { /*_*/ }\n\
+              });\n\
+\n\
+              const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : '')});\n\
+              return result.length > 0 ? result.join('') : 'N/A';\n\
+            }\n\
         },
     }" $pvemanagerlib
     echo "Added new item to the items array in $pvemanagerlib"
