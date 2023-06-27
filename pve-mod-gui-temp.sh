@@ -5,7 +5,6 @@
 pvemanagerlib="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 backuplocation="/root/backup"
-timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 # Sensor configuration
 # CPU. See tempN_in put for "Core 0" using sensor -j
@@ -17,6 +16,8 @@ HDDPerRow="4";
 NVMEPerRow="4";
 
 ################### code below #############
+timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+
 echo ""
 
 # Function to display usage information
@@ -26,12 +27,10 @@ function usage {
   exit 1
 }
 
-#!/bin/bash
-
 # Define a function to install packages
 install_packages () {
   # Check if the 'sensors' command is available on the system
-  if ! command -v sensors &> /dev/null; then
+  if (! command -v sensors &> /dev/null); then
     # If the 'sensors' command is not available, prompt the user to install lm-sensors
     read -p "lm-sensors is not installed. Would you like to install it? (y/n) " choice
     case "$choice" in
@@ -221,19 +220,19 @@ function uninstall_mod {
   fi
 
   # Remove the latest Nodes.pm file
-  echo cp "$latest_Nodes_pm" "$nodespm"
+  cp "$latest_Nodes_pm" "$nodespm"
   echo "Copied latest backup to $nodespm"
 
   # Find the latest pvemanagerlib file using the find command
   latest_pvemanagerlib_js=$(find "$backuplocation" -name "pvemanagerlib.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
   if [ -z "$latest_pvemanagerlib_js" ]; then
-          echo "No latest_pvemanagerlib_js files found"
-          exit 1
+    echo "No latest_pvemanagerlib_js files found"
+    exit 1
   fi
 
   # Remove the latest Nodes.pm file
-  echo cp "$latest_pvemanagerlib_js" "$pvemanagerlib"
+  cp "$latest_pvemanagerlib_js" "$pvemanagerlib"
   echo "Copied latest backup to $pvemanagerlib"
 
   # Restart pveproxy
@@ -242,7 +241,7 @@ function uninstall_mod {
 
 # If no arguments were provided or all arguments have been processed, print the usage message
 if [[ $# -eq 0 ]]; then
-	usage
+    usage
 fi
 
 # Process the arguments using a while loop and a case statement
