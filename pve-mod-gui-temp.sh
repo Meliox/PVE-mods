@@ -7,6 +7,14 @@ nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 backuplocation="/root/backup"
 timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
+# Sensor configuration
+# CPU. See tempN_in put for "Core 0" using sensor -j
+CPUtempInputOffset="2";
+
+# Display configuration for HDD, NVME, CPU
+CPUPerRow="4";
+HDDPerRow="4";
+NVMEPerRow="4";
 
 ################### code below #############
 echo ""
@@ -44,11 +52,17 @@ install_packages () {
         ;;
     esac
   fi
+
+  # Check if kernal module drivetemp is installed
+  if (lsmod | grep -wq "drivetemp"); then
+    echo "The drivetemp kernel module is installed."
+  else
+    echo "Warning: The drivetemp kernel module is not installed. HDD temps will not be available"
+  fi
 }
 
 # Call the 'install_packages' function to check if lm-sensors is installed and install it if necessary
 install_packages
-
 
 # Function to install the modification
 function install_mod {
@@ -61,7 +75,7 @@ function install_mod {
     cp "$nodespm" "$backuplocation/Nodes.pm.$timestamp"
     echo "Backup of $nodespm saved to $backuplocation/Nodes.pm.$timestamp"
 
-    sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n'$'\t''$res->{thermalstate2} = `sensors -j`;\n' "$nodespm"
+    sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
     echo "Added thermalstate to $nodespm"
   else
     echo "Thermalstate already added to $nodespm"
@@ -99,9 +113,9 @@ function install_mod {
               // sensors configuration\n\
               const address = \"coretemp-isa-0000\",\n\
                 itemPrefix = \"Core \",\n\
-                tempInputOffset = 2; // see tempN_input for \"Core 0\"\n\
+                tempInputOffset = $CPUtempInputOffset; // see tempN_input for \"Core 0\"\n\
               // display configuration\n\
-              const coresPerRow = 4;\n\
+              const coresPerRow = $CPUPerRow;\n\
 \n\
               const objValue = JSON.parse(value);\n\
               if(objValue.hasOwnProperty(address)) \{\n\
@@ -127,14 +141,14 @@ function install_mod {
             printBar: false,\n\
             title: gettext('NVME Thermal State'),\n\
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
-            textField: 'thermalstate2',\n\
+            textField: 'thermalstate',\n\
             renderer: function(value){\n\
               // sensors configuration\n\
               const addressPrefix = \"nvme-pci-\",\n\
                 sensorName = \"Composite\",\n\
                 tempInputNo = 1;\n\
               // display configuration\n\
-              const drivesPerRow = 4;\n\
+              const drivesPerRow = $NVMEPerRow;\n\
 \n\
               const objValue = JSON.parse(value),\n\
                 nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \}).sort();\n\
@@ -162,14 +176,14 @@ function install_mod {
             printBar: false,\n\
             title: gettext('HDD/SSD Thermal State'),\n\
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
-            textField: 'thermalstate2',\n\
+            textField: 'thermalstate',\n\
             renderer: function(value){\n\
               // sensors configuration\n\
               const addressPrefix = \"drivetemp-scsi-\",\n\
                 sensorName = \"temp1\",\n\
                 tempInputNo = 1;\n\
               // display configuration\n\
-              const drivesPerRow = 4;\n\
+              const drivesPerRow = $HDDPerRow;\n\
 \n\
               const objValue = JSON.parse(value),\n\
                 drvKeys = Object.keys(objValue).filter(item => { return String(item).startsWith(addressPrefix); }).sort();\n\
