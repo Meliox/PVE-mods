@@ -7,6 +7,14 @@ nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 backuplocation="/root/backup"
 timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
+# Sensor configuration
+# CPU. See tempN_in put for "Core 0" using sensor -j
+CPUtempInputOffset="2";
+
+# Display configuration for HDD, NVME, CPU
+CPUPerRow="4";
+HDDPerRow="4";
+NVMEPerRow="4";
 
 ################### code below #############
 echo ""
@@ -44,11 +52,17 @@ install_packages () {
         ;;
     esac
   fi
+
+  # Check if kernal module drivetemp is installed
+  if (lsmod | grep -wq "drivetemp"); then
+    echo "The drivetemp kernel module is installed."
+  else
+    echo "Warning: The drivetemp kernel module is not installed. HDD temps will not be available"
+  fi
 }
 
 # Call the 'install_packages' function to check if lm-sensors is installed and install it if necessary
 install_packages
-
 
 # Function to install the modification
 function install_mod {
@@ -61,7 +75,7 @@ function install_mod {
     cp "$nodespm" "$backuplocation/Nodes.pm.$timestamp"
     echo "Backup of $nodespm saved to $backuplocation/Nodes.pm.$timestamp"
 
-    sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n'$'\t''$res->{thermalstate2} = `sensors -j`;\n' "$nodespm"
+    sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
     echo "Added thermalstate to $nodespm"
   else
     echo "Thermalstate already added to $nodespm"
@@ -72,11 +86,12 @@ function install_mod {
     # Create backup of original file
     cp "$pvemanagerlib" "$backuplocation/pvemanagerlib.js.$timestamp"
     echo "Backup of $pvemanagerlib saved to $backuplocation/pvemanagerlib.js.$timestamp"
-    
+
     # Expand space in StatusView
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
       s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
-      s/\(height:\) [0-9]\+/\1 360/}" "$pvemanagerlib"
+      s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/
+      s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/}" "$pvemanagerlib"
 
     echo "Expanded space in $pvemanagerlib"
 
@@ -95,12 +110,29 @@ function install_mod {
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
             textField: 'thermalstate',\n\
             renderer: function(value){\n\
-              let objValue = JSON.parse(value);\n\
-              let core0 = objValue[\"coretemp-isa-0000\"][\"Core 0\"][\"temp2_input\"];\n\
-              let core1 = objValue[\"coretemp-isa-0000\"][\"Core 1\"][\"temp3_input\"];\n\
-              let core2 = objValue[\"coretemp-isa-0000\"][\"Core 2\"][\"temp4_input\"];\n\
-              let core3 = objValue[\"coretemp-isa-0000\"][\"Core 3\"][\"temp5_input\"];\n\
-              return \`Core 0: \$\{core0\} C | Core 1: \$\{core1\} C | Core 2: \$\{core2\} C | Core 3: \$\{core3\} C\`\n\
+              // sensors configuration\n\
+              const address = \"coretemp-isa-0000\",\n\
+                itemPrefix = \"Core \",\n\
+                tempInputOffset = $CPUtempInputOffset; // see tempN_input for \"Core 0\"\n\
+              // display configuration\n\
+              const coresPerRow = $CPUPerRow;\n\
+\n\
+              const objValue = JSON.parse(value);\n\
+              if(objValue.hasOwnProperty(address)) \{\n\
+                  const items = objValue[address],\n\
+                    coreKeys = Object.keys(items).filter(item => \{ return String(item).startsWith(itemPrefix); \}).sort();\n\
+\n\
+                  let temps = [];\n\
+                  coreKeys.forEach((coreKey, index) => \{\n\
+                      try \{\n\
+                          let temp = items[itemPrefix + index][\`temp\$\{tempInputOffset + index\}_input\`];\n\
+                          temps.push(\`Core \$\{index\}: \$\{temp\}&deg;C\`);\n\
+                      \} catch(e) \{ /*_*/ \}\n\
+                  });\n\
+\n\
+                  const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % coresPerRow === 0 ? '<br>' : ' | ') : '')});\n\
+                  return result.length > 0 ? result.join('') : 'N/A';\n\
+              \}\n\
             }\n\
         },\n\
         {\n\
@@ -109,11 +141,63 @@ function install_mod {
             printBar: false,\n\
             title: gettext('NVME Thermal State'),\n\
             iconCls: 'fa fa-fw fa-thermometer-half',\n\
-            textField: 'thermalstate2',\n\
+            textField: 'thermalstate',\n\
             renderer: function(value){\n\
-              let objValue = JSON.parse(value);\n\
-              let temp0 = objValue[\"nvme-pci-0100\"][\"Composite\"][\"temp1_input\"];\n\
-              return \`NVME: \$\{temp0\} C\`\n\
+              // sensors configuration\n\
+              const addressPrefix = \"nvme-pci-\",\n\
+                sensorName = \"Composite\",\n\
+                tempInputNo = 1;\n\
+              // display configuration\n\
+              const drivesPerRow = $NVMEPerRow;\n\
+\n\
+              const objValue = JSON.parse(value),\n\
+                nvmeKeys = Object.keys(objValue).filter(item => \{ return String(item).startsWith(addressPrefix); \}).sort();\n\
+\n\
+              let temps = [];\n\
+              nvmeKeys.forEach((nvmeKey, index) => \{\n\
+                try \{\n\
+                  let temp = objValue[nvmeKey][sensorName][\`temp\$\{tempInputNo\}_input\`];\n\
+                  temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
+                \} catch(e) \{ /*_*/ \}\n\
+              \});\n\
+\n\
+              const result = temps.map((strTemp, index, arr) => \{ return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : '')\});\n\
+              return result.length > 0 ? result.join('') : 'N/A';\n\
+            \}\n\
+        },\n\
+        {\n\
+            xtype: 'box',\n\
+            colspan: 1,\n\
+            padding: '0 0 20 0',\n\
+        },\n\
+        {\n\
+            itemId: 'thermal3',\n\
+            colspan: 1,\n\
+            printBar: false,\n\
+            title: gettext('HDD/SSD Thermal State'),\n\
+            iconCls: 'fa fa-fw fa-thermometer-half',\n\
+            textField: 'thermalstate',\n\
+            renderer: function(value){\n\
+              // sensors configuration\n\
+              const addressPrefix = \"drivetemp-scsi-\",\n\
+                sensorName = \"temp1\",\n\
+                tempInputNo = 1;\n\
+              // display configuration\n\
+              const drivesPerRow = $HDDPerRow;\n\
+\n\
+              const objValue = JSON.parse(value),\n\
+                drvKeys = Object.keys(objValue).filter(item => { return String(item).startsWith(addressPrefix); }).sort();\n\
+\n\
+              let temps = [];\n\
+              drvKeys.forEach((drvKey, index) => {\n\
+                try {\n\
+                  let temp = objValue[drvKey][sensorName][\`temp\${tempInputNo}_input\`];\n\
+                  temps.push(\`Drive \${index}: \${temp}&deg;C\`);\n\
+                } catch(e) { /*_*/ }\n\
+              });\n\
+\n\
+              const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : '')});\n\
+              return result.length > 0 ? result.join('') : 'N/A';\n\
             }\n\
         },
     }" $pvemanagerlib
