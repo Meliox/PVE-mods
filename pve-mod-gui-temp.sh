@@ -187,7 +187,6 @@ function install_mod {
             // sensors configuration\n\
             const addressPrefix = \"nvme-pci-\";\n\
             const sensorName = \"Composite\";\n\
-            const tempInputNo = 1;\n\
             // display configuration\n\
             const drivesPerRow = ${NVMEPerRow};\n\
             objValue = JSON.parse(value);\n\
@@ -234,7 +233,6 @@ function install_mod {
             // sensors configuration\n\
             const addressPrefix = \"drivetemp-scsi-\";\n\
             const sensorName = \"temp1\";\n\
-            const tempInputNo = 1;\n\
             // display configuration\n\
             const drivesPerRow = ${HDDPerRow};\n\
             objValue = JSON.parse(value);\n\
