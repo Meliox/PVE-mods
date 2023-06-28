@@ -176,37 +176,37 @@ function install_mod {
           /thermal.*},/!{N;bb;}
           a\
           \\
-            {\n\
-                itemId: 'thermal2',\n\
-                colspan: 1,\n\
-                printBar: false,\n\
-                title: gettext('NVME Thermal State'),\n\
-                iconCls: 'fa fa-fw fa-thermometer-half',\n\
-                textField: 'thermalstate',\n\
-                renderer: function(value) {\n\
-                // sensors configuration\n\
-                const addressPrefix = \"nvme-pci-\";\n\
-                const sensorName = \"Composite\";\n\
-                const tempInputNo = 1;\n\
-                // display configuration\n\
-                const drivesPerRow = ${NVMEPerRow};\n\
-                objValue = JSON.parse(value);\n\
-                nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
-                let temps = [];\n\
-                nvmeKeys.forEach((nvmeKey, index) => {\n\
-                    try {\n\
-                        Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
-                            if (secondLevelKey.includes('_input')) {\n\
-                                let temp = objValue[nvmeKey][sensorName][secondLevelKey];\n\
-                                temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
-                            }\n\
-                        })\n\
-                    } catch(e) { /*_*/ }\n\
-                });\n\
-                result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
-                return result.length > 0 ? result.join('') : 'N/A';\n\
-                \}\n\
-            },
+        {\n\
+            itemId: 'thermal2',\n\
+            colspan: 1,\n\
+            printBar: false,\n\
+            title: gettext('NVME Thermal State'),\n\
+            iconCls: 'fa fa-fw fa-thermometer-half',\n\
+            textField: 'thermalstate',\n\
+            renderer: function(value) {\n\
+            // sensors configuration\n\
+            const addressPrefix = \"nvme-pci-\";\n\
+            const sensorName = \"Composite\";\n\
+            const tempInputNo = 1;\n\
+            // display configuration\n\
+            const drivesPerRow = ${NVMEPerRow};\n\
+            objValue = JSON.parse(value);\n\
+            nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
+            let temps = [];\n\
+            nvmeKeys.forEach((nvmeKey, index) => {\n\
+                try {\n\
+                    Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
+                        if (secondLevelKey.includes('_input')) {\n\
+                            let temp = objValue[nvmeKey][sensorName][secondLevelKey];\n\
+                            temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
+                        }\n\
+                    })\n\
+                } catch(e) { /*_*/ }\n\
+            });\n\
+            result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
+            return result.length > 0 ? result.join('') : 'N/A';\n\
+            \}\n\
+        },
         }" $pvemanagerlib
     fi
 
@@ -218,42 +218,42 @@ function install_mod {
           /thermal2.*},/!{N;bb;}
           a\
           \\
-            {\n\
-                xtype: 'box',\n\
-                colspan: 1,\n\
-                padding: '0 0 20 0',\n\
-            },\n\
-            {\n\
-                itemId: 'thermal3',\n\
-                colspan: 1,\n\
-                printBar: false,\n\
-                title: gettext('HDD/SSD Thermal State'),\n\
-                iconCls: 'fa fa-fw fa-thermometer-half',\n\
-                textField: 'thermalstate',\n\
-                renderer: function(value) {\n\
-                // sensors configuration\n\
-                const addressPrefix = \"drivetemp-scsi-\";\n\
-                const sensorName = \"temp1\";\n\
-                const tempInputNo = 1;\n\
-                // display configuration\n\
-                const drivesPerRow = ${HDDPerRow};\n\
-                objValue = JSON.parse(value);\n\
-                drvKeys  = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
-                let temps = [];\n\
-                drvKeys .forEach((drvKey, index) => {\n\
-                    try {\n\
-                        Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
-                            if (secondLevelKey.includes('_input')) {\n\
-                                let temp = objValue[drvKey][sensorName][secondLevelKey];\n\
-                                temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
-                            }\n\
-                        })\n\
-                    } catch(e) { /*_*/ }\n\
-                });\n\
-                result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
-                return result.length > 0 ? result.join('') : 'N/A';\n\
-                \}\n\
-            },
+        {\n\
+            xtype: 'box',\n\
+            colspan: 1,\n\
+            padding: '0 0 20 0',\n\
+        },\n\
+        {\n\
+            itemId: 'thermal3',\n\
+            colspan: 1,\n\
+            printBar: false,\n\
+            title: gettext('HDD/SSD Thermal State'),\n\
+            iconCls: 'fa fa-fw fa-thermometer-half',\n\
+            textField: 'thermalstate',\n\
+            renderer: function(value) {\n\
+            // sensors configuration\n\
+            const addressPrefix = \"drivetemp-scsi-\";\n\
+            const sensorName = \"temp1\";\n\
+            const tempInputNo = 1;\n\
+            // display configuration\n\
+            const drivesPerRow = ${HDDPerRow};\n\
+            objValue = JSON.parse(value);\n\
+            drvKeys  = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
+            let temps = [];\n\
+            drvKeys .forEach((drvKey, index) => {\n\
+                try {\n\
+                    Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
+                        if (secondLevelKey.includes('_input')) {\n\
+                            let temp = objValue[drvKey][sensorName][secondLevelKey];\n\
+                            temps.push(\`Drive \$\{index\}: \$\{temp\}&deg;C\`);\n\
+                        }\n\
+                    })\n\
+                } catch(e) { /*_*/ }\n\
+            });\n\
+            result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
+            return result.length > 0 ? result.join('') : 'N/A';\n\
+            \}\n\
+        },
         }" $pvemanagerlib
     fi
 
