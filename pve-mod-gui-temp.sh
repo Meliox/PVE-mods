@@ -142,7 +142,7 @@ function install_mod {
             textField: 'thermalstate',\n\
             renderer: function(value){\n\
             // sensors configuration\n\
-            const cpu_address = \"$cpu_address\",\n\
+            const cpu_address = \"$cpu_address\";\n\
             const cpu_item_Prefix = \"$cpu_item_prefix\";\n\
             // display configuration\n\
             const coresPerRow = $CPUPerRow;\n\\n\
