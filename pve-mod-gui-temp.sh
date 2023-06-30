@@ -98,13 +98,13 @@ function configure {
 # Function to install the modification
 function install_mod {
   # Create backup of original files
-  mkdir -p $backupLocation
+  mkdir -p "$backupLocation"
 
   # Add new line to Nodes.pm file
   if [[ -z $(cat $nodespm | grep -e "$res->{thermalstate}") ]]; then
     # Create backup of original file
     cp "$nodespm" "$backupLocation/Nodes.pm.$timestamp"
-    echo "Backup of $nodespm saved to $backupLocation/Nodes.pm.$timestamp"
+    echo "Backup of \"$nodespm\" saved to \"$backupLocation/Nodes.pm.$timestamp\""
 
     sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
     echo "Added thermalstate to $nodespm"
@@ -116,7 +116,7 @@ function install_mod {
   if [[ -z $(cat "$pvemanagerlib" | grep -e "itemId: 'thermal'") ]]; then
     # Create backup of original file
     cp "$pvemanagerlib" "$backupLocation/pvemanagerlib.js.$timestamp"
-    echo "Backup of $pvemanagerlib saved to $backupLocation/pvemanagerlib.js.$timestamp"
+    echo "Backup of \"$pvemanagerlib\" saved to \"$backupLocation/pvemanagerlib.js.$timestamp\""
 
     # Expand space in StatusView
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -124,7 +124,7 @@ function install_mod {
       s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/
       s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/}" "$pvemanagerlib"
 
-    echo "Expanded space in $pvemanagerlib"
+    echo "Expanded space in \"$pvemanagerlib\""
 
     sed -i "/^Ext.define('PVE.node.StatusView',/ {
       :a;
@@ -166,7 +166,7 @@ function install_mod {
               \}\n\
             }\n\
         },
-    }" $pvemanagerlib
+    }" "$pvemanagerlib"
 
     if [ $enableNvmeTemp = true ]; then
         sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -206,7 +206,7 @@ function install_mod {
             return result.length > 0 ? result.join('') : 'N/A';\n\
             \}\n\
         },
-        }" $pvemanagerlib
+        }" "$pvemanagerlib"
     fi
 
     if [ $enableHddSsdTemp = true ]; then
@@ -252,12 +252,12 @@ function install_mod {
             return result.length > 0 ? result.join('') : 'N/A';\n\
             \}\n\
         },
-        }" $pvemanagerlib
+        }" "$pvemanagerlib"
     fi
 
-    echo "Added new item to the items array in $pvemanagerlib"
+    echo "Added new item to the items array in \"$pvemanagerlib\""
   else
-    echo "New item already added to items array $pvemanagerlib"
+    echo "New item already added to items array \"$pvemanagerlib\""
   fi
 
   # Restart pveproxy
@@ -282,13 +282,13 @@ function uninstall_mod {
   latest_pvemanagerlib_js=$(find "$backupLocation" -name "pvemanagerlib.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
   if [ -z "$latest_pvemanagerlib_js" ]; then
-    echo "No latest_pvemanagerlib_js files found"
+    echo "No pvemanagerlib.js files found"
     exit 1
   fi
 
   # Remove the latest Nodes.pm file
   cp "$latest_pvemanagerlib_js" "$pvemanagerlib"
-  echo "Copied latest backup to $pvemanagerlib"
+  echo "Copied latest backup to \"$pvemanagerlib\""
 
   # Restart pveproxy
   systemctl restart pveproxy
