@@ -71,6 +71,7 @@ function configure {
   if (lsmod | grep -wq "drivetemp"); then
       # Check if SDD/HDD data is available
       if (echo "$sensorOutput" | grep -q "drivetemp-scsi-" ); then
+        echo "Found SSD/HDD temp sensor: $(echo "$sensorOutput" | grep -o '"drivetemp-scsi[^"]*"'| sed 's/"//g')"
         enableHddSsdTemp=true
       else
         enableHddSsdTemp=false
@@ -81,6 +82,7 @@ function configure {
 
   # Check if NVME data is available
    if (echo "$sensorOutput" | grep -q "nvme-" ); then
+     echo "Found nvme temp sensor: $(echo "$sensorOutput" | grep -o '"nvme[^"]*"'| sed 's/"//g')"
      enableNvmeTemp=true
    else
      enableNvmeTemp=false
@@ -128,6 +130,7 @@ function configure {
    if [[ -z "$cpuItemPrefix" || -z "$cpuItemPrefix" ]]; then
     echo "Warning: The cpu configuration is not set. Temps will not be available"
    fi
+   exit
 }
 
 # Function to install the modification
