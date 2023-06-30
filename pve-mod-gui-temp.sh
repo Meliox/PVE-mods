@@ -4,16 +4,16 @@
 # Filepaths
 pvemanagerlib="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
-backuplocation="/root/backup"
+backupLocation="/root/backup"
 
 # Sensor configuration
 # CPU. See tempN_in put for "Core 0" using sensor -j
-CPUtempInputOffset="2";
+cpuTempInputOffset="2";
 
 # Display configuration for HDD, NVME, CPU
-CPUPerRow="4";
-HDDPerRow="4";
-NVMEPerRow="4";
+cpuPerRow="4";
+hddPerRow="4";
+nvmePerRow="4";
 
 ################### code below #############
 timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
@@ -66,19 +66,19 @@ function configure {
   if (lsmod | grep -wq "drivetemp"); then
       # Check if SDD/HDD data is available
       if (sensors -j | grep -q "drivetemp-scsi-" ); then
-        enable_hddssd_temp=true
+        enableHddSsdTemp=true
       else
-        enable_hddssd_temp=false
+        enableHddSsdTemp=false
       fi
   else
-    enable_hddssd_temp=false
+    enableHddSsdTemp=false
   fi
 
   # Check if NVME data is available
    if (sensors -j | grep -q "nvme-" ); then
-     enable_nvme_temp=true
+     enableNvmeTemp=true
    else
-     enable_nvme_temp=false
+     enableNvmeTemp=false
    fi
 
    # Ask user for CPU information
@@ -98,13 +98,13 @@ function configure {
 # Function to install the modification
 function install_mod {
   # Create backup of original files
-  mkdir -p $backuplocation
+  mkdir -p $backupLocation
 
   # Add new line to Nodes.pm file
   if [[ -z $(cat $nodespm | grep -e "$res->{thermalstate}") ]]; then
     # Create backup of original file
-    cp "$nodespm" "$backuplocation/Nodes.pm.$timestamp"
-    echo "Backup of $nodespm saved to $backuplocation/Nodes.pm.$timestamp"
+    cp "$nodespm" "$backupLocation/Nodes.pm.$timestamp"
+    echo "Backup of $nodespm saved to $backupLocation/Nodes.pm.$timestamp"
 
     sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
     echo "Added thermalstate to $nodespm"
@@ -115,8 +115,8 @@ function install_mod {
   # Add new item to the items array in PVE.node.StatusView
   if [[ -z $(cat "$pvemanagerlib" | grep -e "itemId: 'thermal'") ]]; then
     # Create backup of original file
-    cp "$pvemanagerlib" "$backuplocation/pvemanagerlib.js.$timestamp"
-    echo "Backup of $pvemanagerlib saved to $backuplocation/pvemanagerlib.js.$timestamp"
+    cp "$pvemanagerlib" "$backupLocation/pvemanagerlib.js.$timestamp"
+    echo "Backup of $pvemanagerlib saved to $backupLocation/pvemanagerlib.js.$timestamp"
 
     # Expand space in StatusView
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -142,14 +142,14 @@ function install_mod {
             textField: 'thermalstate',\n\
             renderer: function(value){\n\
             // sensors configuration\n\
-            const cpu_address = \"$cpu_address\";\n\
-            const cpu_item_Prefix = \"$cpu_item_prefix\";\n\
+            const cpuAddress = \"$cpu_address\";\n\
+            const cpuItemPrefix = \"$cpu_item_prefix\";\n\
             // display configuration\n\
-            const coresPerRow = $CPUPerRow;\n\\n\
-            objValue = JSON.parse(value);\n\
-            if(objValue.hasOwnProperty(cpu_address)) \{\n\
-            	items = objValue[cpu_address],\n\
-                coreKeys = Object.keys(items).filter(item => \{ return String(item).includes(cpu_item_Prefix); \}).sort();\n\\n\
+            const coresPerRow = $cpuPerRow;\n\\n\
+            const objValue = JSON.parse(value);\n\
+            if(objValue.hasOwnProperty(cpuAddress)) \{\n\
+            	items = objValue[cpuAddress],\n\
+                coreKeys = Object.keys(items).filter(item => \{ return String(item).includes(cpuItemPrefix); \}).sort();\n\\n\
                 let temps = [];\n\
                 coreKeys.forEach((coreKey, index) => \{\n\
                     try \{\n\
@@ -161,14 +161,14 @@ function install_mod {
                         })\n\
                     \} catch(e) \{ /*_*/ \}\n\
                   });\n\\n\
-            	result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % coresPerRow === 0 ? '<br>' : ' | ') : '')});\n\
+            	const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % coresPerRow === 0 ? '<br>' : ' | ') : '')});\n\
                 return result.length > 0 ? result.join('') : 'N/A';\n\
               \}\n\
             }\n\
         },
     }" $pvemanagerlib
 
-    if [ $enable_nvme_temp = true ]; then
+    if [ $enableNvmeTemp = true ]; then
         sed -i "/^Ext.define('PVE.node.StatusView',/ {
           :a;
           /items:/!{N;ba;}
@@ -188,8 +188,8 @@ function install_mod {
             const addressPrefix = \"nvme-pci-\";\n\
             const sensorName = \"Composite\";\n\
             // display configuration\n\
-            const drivesPerRow = ${NVMEPerRow};\n\
-            objValue = JSON.parse(value);\n\
+            const drivesPerRow = ${nvmePerRow};\n\
+            const objValue = JSON.parse(value);\n\
             nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
             let temps = [];\n\
             nvmeKeys.forEach((nvmeKey, index) => {\n\
@@ -202,14 +202,14 @@ function install_mod {
                     })\n\
                 } catch(e) { /*_*/ }\n\
             });\n\
-            result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
+            const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
             return result.length > 0 ? result.join('') : 'N/A';\n\
             \}\n\
         },
         }" $pvemanagerlib
     fi
 
-    if [ $enable_hddssd_temp = true ]; then
+    if [ $enableHddSsdTemp = true ]; then
         sed -i "/^Ext.define('PVE.node.StatusView',/ {
           :a;
           /items:/!{N;ba;}
@@ -234,8 +234,8 @@ function install_mod {
             const addressPrefix = \"drivetemp-scsi-\";\n\
             const sensorName = \"temp1\";\n\
             // display configuration\n\
-            const drivesPerRow = ${HDDPerRow};\n\
-            objValue = JSON.parse(value);\n\
+            const drivesPerRow = ${hddPerRow};\n\
+            const objValue = JSON.parse(value);\n\
             drvKeys  = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
             let temps = [];\n\
             drvKeys .forEach((drvKey, index) => {\n\
@@ -248,7 +248,7 @@ function install_mod {
                     })\n\
                 } catch(e) { /*_*/ }\n\
             });\n\
-            result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
+            const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % drivesPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
             return result.length > 0 ? result.join('') : 'N/A';\n\
             \}\n\
         },
@@ -267,7 +267,7 @@ function install_mod {
 # Function to uninstall the modification
 function uninstall_mod {
   # Find the latest Nodes.pm file using the find command
-  latest_Nodes_pm=$(find "$backuplocation" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
+  latest_Nodes_pm=$(find "$backupLocation" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
   if [ -z "$latest_Nodes_pm" ]; then
     echo "No Nodes.pm files found"
@@ -279,7 +279,7 @@ function uninstall_mod {
   echo "Copied latest backup to $nodespm"
 
   # Find the latest pvemanagerlib file using the find command
-  latest_pvemanagerlib_js=$(find "$backuplocation" -name "pvemanagerlib.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
+  latest_pvemanagerlib_js=$(find "$backupLocation" -name "pvemanagerlib.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
   if [ -z "$latest_pvemanagerlib_js" ]; then
     echo "No latest_pvemanagerlib_js files found"
