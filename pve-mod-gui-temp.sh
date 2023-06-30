@@ -15,6 +15,9 @@ cpuPerRow="4";
 hddPerRow="4";
 nvmePerRow="4";
 
+# Known CPU sensor names. If new are added, also update logic in configure section
+knownCpuSensors=("coretemp-isa-0000" "k10temp-pci-00c3")
+
 ################### code below #############
 timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
@@ -61,11 +64,13 @@ install_packages () {
 }
 
 function configure {
-    
+   
+  sensorOutput=$(sensors -j)
+
   # Check if kernal module drivetemp is installed
   if (lsmod | grep -wq "drivetemp"); then
       # Check if SDD/HDD data is available
-      if (sensors -j | grep -q "drivetemp-scsi-" ); then
+      if (echo "$sensorOutput" | grep -q "drivetemp-scsi-" ); then
         enableHddSsdTemp=true
       else
         enableHddSsdTemp=false
@@ -75,24 +80,54 @@ function configure {
   fi
 
   # Check if NVME data is available
-   if (sensors -j | grep -q "nvme-" ); then
+   if (echo "$sensorOutput" | grep -q "nvme-" ); then
      enableNvmeTemp=true
    else
      enableNvmeTemp=false
    fi
 
-   # Ask user for CPU information
-   # Inform the user and prompt them to press any key to continue
-  read -rsp $'Sensor output will be presented. Press any key to continue...\n' -n1 key
+   # Check if CPU is part of known list for autoconfiguration
+   for item in "${knownCpuSensors[@]}"; do
+       case "$sensorOutput" in
+        *"coretemp-isa-0000"*)
+          echo "Found known cpu sensor: coretemp-isa-0000"
+          cpuAddress="coretemp-isa-0000"
+          cpuItemPrefix="Core"
+          break
+          ;;
+        *"k10temp-pci-00c3"*)
+          echo "Found known cpu sensor: k10temp-pci-00c3"
+          cpuAddress="k10temp-pci-00c3"
+          cpuItemPrefix="Tccd"
+          break
+          ;;
+        *)
+          continue
+          ;;
+      esac
+   done
 
-  # Print the output to the user
-  echo "Sensor Output:"
-  sensors -j
+   # If cpu is not known, ask the user for input
+   if [ -z "$cpuItemPrefix" ]; then
+      echo "Warning: Could not automatically determine CPU sensor. Please configure it manually."
+      # Ask user for CPU information
+      # Inform the user and prompt them to press any key to continue
+      read -rsp $'Sensor output will be presented. Press any key to continue...\n' -n1 key
 
-  # Prompt the user for adapter name and item name
-  read -p "Enter the cpu adapter name: " cpu_address
-  read -p "Enter the cpu item prefix: " cpu_item_prefix
+      # Print the output to the user
+      echo "Sensor Output:"
+      echo "$sensorOutput"
 
+      echo "Example: cpu address: coretemp-isa-0000 and cpuItemPrefix Core."
+
+      # Prompt the user for adapter name and item name
+      read -p "Enter the cpu address: " cpuAddress
+      read -p "Enter the cpu item prefix: " cpuItemPrefix
+   fi
+   
+   if [[ -z "$cpuItemPrefix" || -z "$cpuItemPrefix" ]]; then
+    echo "Warning: The cpu configuration is not set. Temps will not be available"
+   fi
 }
 
 # Function to install the modification
@@ -303,13 +338,13 @@ fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     install)
-      echo "Installing the mod..."
+      echo "Installing the proxmox temp mod..."
       install_packages
       configure
       install_mod
       ;;
     uninstall)
-      echo "Uninstalling the mod..."
+      echo "Uninstalling the proxmox temp mod..."
       uninstall_mod
       ;;
     *)
