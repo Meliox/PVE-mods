@@ -130,7 +130,6 @@ function configure {
    if [[ -z "$cpuItemPrefix" || -z "$cpuItemPrefix" ]]; then
     echo "Warning: The cpu configuration is not set. Temps will not be available"
    fi
-   exit
 }
 
 # Function to install the modification
