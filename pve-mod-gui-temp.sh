@@ -218,11 +218,13 @@ function install_mod {
 				const items = objValue[cpuAddress],\n\
 					itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
 				let temps = [];\n\
-				itemKeys.forEach((coreKey, index) => {\n\
+				itemKeys.forEach((coreKey) => {\n\
 					try {\n\
 						Object.keys(items[coreKey]).forEach((secondLevelKey) => {\n\
 							if (secondLevelKey.includes('_input')) {\n\
 								let temp = items[coreKey][secondLevelKey];\n\
+								let index = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
+								index = (index !== null && index.length > 1) ? index[1] : '?';\n\
 								temps.push(\`\${cpuTempCaption} \${index}: \${temp}&deg;C\`);\n\
 							}\n\
 						})\n\
