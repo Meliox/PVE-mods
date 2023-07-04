@@ -216,7 +216,7 @@ function install_mod {
 			const objValue = JSON.parse(value);\n\
 			if(objValue.hasOwnProperty(cpuAddress)) {\n\
 				const items = objValue[cpuAddress],\n\
-					itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); }).sort();\n\
+					itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
 				let temps = [];\n\
 				itemKeys.forEach((coreKey, index) => {\n\
 					try {\n\
