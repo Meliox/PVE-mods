@@ -243,14 +243,9 @@ function install_mod {
 				:a;
 				/items:/!{N;ba;}
 				:b;
-				/thermal.*},/!{N;bb;}
+				/'thermal.*},/!{N;bb;}
 				a\
 				\\
-	{\n\
-		xtype: 'box',\n\
-		colspan: 1,\n\
-		padding: '0 0 20 0',\n\
-	},\n\
 	{\n\
 		itemId: 'thermalHdd',\n\
 		colspan: 1,\n\
@@ -290,7 +285,7 @@ function install_mod {
 				:a;
 				/items:/!{N;ba;}
 				:b;
-				/thermal.*},/!{N;bb;}
+				/'thermal.*},/!{N;bb;}
 				a\
 				\\
 	{\n\
@@ -325,6 +320,20 @@ function install_mod {
 		}\n\
 	},
 			}" "$pvemanagerlibjs"
+		fi
+
+		if [ $enableNvmeTemp = true -a $enableHddTemp = true ]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+			:a;
+			/^.*{.*'thermalNvme'.*},/!{N;ba;}
+			a\
+			\\
+	{\n\
+		xtype: 'box',\n\
+		colspan: 1,\n\
+		padding: '0 0 20 0',\n\
+	},
+		}" "$pvemanagerlibjs"
 		fi
 
 		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
