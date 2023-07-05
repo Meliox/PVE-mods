@@ -91,6 +91,8 @@ function configure {
 			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
 			enableHddTemp=false
 		fi
+	else
+		enableHddTemp=false
 	fi
 
 	# Check if NVMe data is available
