@@ -93,7 +93,7 @@ function configure {
 		fi
 	fi
 
-	# Check if NVME data is available
+	# Check if NVMe data is available
 	msg "\nDetecting support for NVMe temperature sensors..."
 	if (echo "$sensorOutput" | grep -q "nvme-" ); then
 		msg "Detected sensors:\n$(echo "$sensorOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
@@ -225,7 +225,7 @@ function install_mod {
 								let temp = items[coreKey][secondLevelKey];\n\
 								let index = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
 								index = (index !== null && index.length > 1) ? index[1] : '?';\n\
-								temps.push(\`\${cpuTempCaption} \${index}: \${temp}&deg;C\`);\n\
+								temps.push(\`\${cpuTempCaption}&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
 							}\n\
 						})\n\
 					} catch(e) { /*_*/ }\n\
@@ -270,7 +270,7 @@ function install_mod {
 					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.includes('_input')) {\n\
 							let temp = objValue[drvKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive \${index}: \${temp}&deg;C\`);\n\
+							temps.push(\`Drive&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
 						}\n\
 					})\n\
 				} catch(e) { /*_*/ }\n\
@@ -294,7 +294,7 @@ function install_mod {
 		itemId: 'thermalNvme',\n\
 		colspan: 1,\n\
 		printBar: false,\n\
-		title: gettext('NVME Thermal State'),\n\
+		title: gettext('NVMe Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
 		textField: 'thermalstate',\n\
 		renderer: function(value) {\n\
@@ -312,7 +312,7 @@ function install_mod {
 					Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.includes('_input')) {\n\
 							let temp = objValue[nvmeKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive \${index}: \${temp}&deg;C\`);\n\
+							temps.push(\`Drive&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
 						}\n\
 					})\n\
 				} catch(e) { /*_*/ }\n\
