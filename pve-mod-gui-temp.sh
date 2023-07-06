@@ -272,7 +272,7 @@ function install_mod {
 					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.includes('_input')) {\n\
 							let temp = objValue[drvKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
+							temps.push(\`Drive&nbsp;\${index + 1}:&nbsp;\${temp}&deg;C\`);\n\
 						}\n\
 					})\n\
 				} catch(e) { /*_*/ }\n\
@@ -314,7 +314,7 @@ function install_mod {
 					Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.includes('_input')) {\n\
 							let temp = objValue[nvmeKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
+							temps.push(\`Drive&nbsp;\${index + 1}:&nbsp;\${temp}&deg;C\`);\n\
 						}\n\
 					})\n\
 				} catch(e) { /*_*/ }\n\
