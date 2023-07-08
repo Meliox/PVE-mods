@@ -371,7 +371,7 @@ function uninstall_mod {
 		exit 1
 	fi
 
-	# Remove the latest Nodes.pm file
+	# Remove the latest pvemanagerlib.js file
 	cp "$latest_pvemanagerlibjs" "$pvemanagerlibjs"
 	msg "Copied latest backup to \"$pvemanagerlibjs\"."
 
