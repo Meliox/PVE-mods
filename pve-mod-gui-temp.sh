@@ -160,6 +160,9 @@ function configure {
 function install_mod {
 	msg "\nPreparing mod installation..."
 
+	# Provide sensor configuration
+	configure
+
 	# Create backup of original files
 	mkdir -p "$BACKUP_DIR"
 
@@ -179,9 +182,6 @@ function install_mod {
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		# Provide sensor configuration
-		configure
-
 		# Create backup of original file
 		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
 		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
@@ -343,6 +343,8 @@ function install_mod {
 		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
 
 		restart_proxy
+
+		msg "Installation completed"
 	else
 		warn "New temperature display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
@@ -354,28 +356,29 @@ function uninstall_mod {
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
-	if [ -z "$latest_nodes_pm" ]; then
+	if [ -n "$latest_nodes_pm" ]; then
+		# Remove the latest Nodes.pm file
+		cp "$latest_nodes_pm" "$nodespm"
+		msg "Copied latest backup to $nodespm."
+	else
 		warn "No Nodes.pm files found."
-		exit 1
 	fi
-
-	# Remove the latest Nodes.pm file
-	cp "$latest_nodes_pm" "$nodespm"
-	msg "Copied latest backup to $nodespm."
 
 	# Find the latest pvemanagerlib.js file using the find command
 	local latest_pvemanagerlibjs=$(find "$BACKUP_DIR" -name "pvemanagerlib.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
-	if [ -z "$latest_pvemanagerlibjs" ]; then
+	if [ -n "$latest_pvemanagerlibjs" ]; then
+		# Remove the latest pvemanagerlib.js file
+		cp "$latest_pvemanagerlibjs" "$pvemanagerlibjs"
+		msg "Copied latest backup to \"$pvemanagerlibjs\"."
+	else
 		warn "No pvemanagerlib.js files found."
-		exit 1
 	fi
 
-	# Remove the latest pvemanagerlib.js file
-	cp "$latest_pvemanagerlibjs" "$pvemanagerlibjs"
-	msg "Copied latest backup to \"$pvemanagerlibjs\"."
-
-	restart_proxy
+    if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
+        # At least one of the variables is not empty, restart the proxy
+        restart_proxy
+    fi
 }
 
 function restart_proxy {
