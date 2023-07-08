@@ -21,8 +21,9 @@ For HDDs/SSDs readings to work, the kernal module drivetemp must be installed.
 ### Install
 ```
 apt-get install lm-sensors
-wget https://github.com/Meliox/PVE-mods/blob/main/pve-mod-gui-temp.sh
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-gui-temp.sh
 ```
+Or use git clone.
 
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-temp.png?raw=true)
 
@@ -37,6 +38,7 @@ Each container's log file is stored in $log_path and the main script log file is
 
 ### Install
 ```
-wget https://github.com/Meliox/PVE-mods/blob/main/updateallcontainers.sh
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/updateallcontainers.sh
 ```
+Or use git clone.
 Can be added to cron for e.g. monthly update: ```0 6 1 * * /root/scripts/updateallcontainers.sh```
