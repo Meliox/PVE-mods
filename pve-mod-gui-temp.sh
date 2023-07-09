@@ -177,7 +177,7 @@ function install_mod {
 		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
 		msg "Added thermalstate to $nodespm."
 	else
-		warn "Thermalstate already added to \"$nodespm.\""
+		warn "Thermalstate already added to \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
