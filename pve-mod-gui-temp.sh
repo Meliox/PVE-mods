@@ -177,7 +177,7 @@ function install_mod {
 		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
 		msg "Added thermalstate to $nodespm."
 	else
-		warn "Thermalstate already added to $nodespm."
+		warn "Thermalstate already added to \"$nodespm.\""
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
@@ -190,7 +190,8 @@ function install_mod {
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
 			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/
-			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/}" "$pvemanagerlibjs"
+			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
+		}" "$pvemanagerlibjs"
 		msg "Expanded space in \"$pvemanagerlibjs\"."
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
