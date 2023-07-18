@@ -1,10 +1,10 @@
-# Proxmox mods and script
+# Proxmox mods and scripts
 A small collection of script and mods for Proxmox
 
 If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
 
 ## Node temperature view
-(Test compatibility against 7.x & 8.0)
+(Tested compatibility: 7.x & 8.0)
 
 This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display temperature information in a flexible manner for CPU, NVME and HDDs/SSDs.
 
@@ -29,8 +29,21 @@ Or use git clone.
 
 Adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
 
-## Scrip to update all containers
-(compatible with all)
+## Nag screen deactivation
+(Tested compatibility: 7.x & 8.0)
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) which deactivates the subscription nag screen.
+
+The script provides two options: `install` and `uninstall`. The `install` option installs the modification, while the `uninstall` option removes it by copying the backup files to their original location.
+
+### Install
+```
+apt-get install lm-sensors
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-nag-screen.sh
+```
+Or use git clone.
+
+## Script to update all containers
+(Tested compatibility: 7.x & 8.0)
 
 This script updates all running Proxmox containers, skipping specified excluded containers, and generates a separate log file for each container.
 The script first updates the Proxmox host system, then iterates through each container, updates the container, and reboots it if necessary.
