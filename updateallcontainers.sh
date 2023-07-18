@@ -3,16 +3,21 @@
 # The script first updates the Proxmox host system, then iterates through each container, updates the container, and reboots it if necessary.
 # Each container's log file is stored in $log_path and the main script log file is named container-upgrade-main.log.
 
-# list of container ids we need to iterate through
-containers=$(pct list | tail -n +2 | cut -f1 -d' ')
-
+# Path where logs are saved
 log_path="/root/scripts"
 
 # array of container ids to exclude from updates
 exclude_containers=("106")
 
+# path to programs
+pct="/usr/sbin/pct"
+
+# list of container ids we need to iterate through
+containers=$($pct list | tail -n +2 | cut -f1 -d' ')
+
 #### CODE BELOW #########
 container_main_log_file="${log_path}/container-upgrade-main.log"
+
 echo "[Info] Updating proxmox containers at $(date)" 
 echo "[Info] Updating proxmox containers at $(date)" >> $container_main_log_file
 
@@ -26,7 +31,7 @@ function update_container() {
   echo "[Info] Starting update for container $container at $(date)" >> $container_log_file
   
   # perform the update
-  /usr/sbin/pct exec $container -- bash -c "apt update && apt upgrade -y && apt autoremove -y && reboot" >> $container_log_file 2>&1
+  $pct exec $container -- bash -c "apt update && apt upgrade -y && apt autoremove -y && reboot" >> $container_log_file 2>&1
   
   # log completion of update
   echo "[Info] Completed update for $container at $(date)" >> $container_log_file
@@ -41,7 +46,7 @@ for container in $containers; do
     continue
   fi
   
-  status=$(/usr/sbin/pct status $container)
+  status=$($pct status $container)
   if [ "$status" == "status: stopped" ]; then
     echo "[Info] Skipping offline container, $container"
     echo "[Info] Skipping offline container, $container" >> $container_main_log_file
