@@ -37,7 +37,6 @@ The script provides two options: `install` and `uninstall`. The `install` option
 
 ### Install
 ```
-apt-get install lm-sensors
 wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-nag-screen.sh
 ```
 Or use git clone.
