@@ -225,10 +225,17 @@ function install_mod {
 					try {\n\
 						Object.keys(items[coreKey]).forEach((secondLevelKey) => {\n\
 							if (secondLevelKey.includes('_input')) {\n\
+								let tempStr = '';\n\
 								let temp = items[coreKey][secondLevelKey];\n\
 								let index = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
-								index = (index !== null && index.length > 1) ? index[1] : '?';\n\
-								temps.push(\`\${cpuTempCaption}&nbsp;\${index}:&nbsp;\${temp}&deg;C\`);\n\
+								if(index !== null && index.length > 1) {\n\
+									index = index[1];\n\
+									tempStr = \`\${cpuTempCaption}&nbsp;\${index}:&nbsp;\${temp}&deg;C\`;\n\
+								}\n\
+								else {\n\
+									tempStr = \`\${cpuTempCaption}:&nbsp;\${temp}&deg;C\`;\n\
+								}\n\
+								temps.push(tempStr);\n\
 							}\n\
 						})\n\
 					} catch(e) { /*_*/ }\n\
