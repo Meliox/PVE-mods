@@ -359,6 +359,8 @@ function install_mod {
 			lastItemId="thermalHdd"
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
+		else
+			lastItemId="thermalCpu"
 		fi
 		
 		if [ -n "$lastItemId" ]; then
@@ -374,6 +376,38 @@ function install_mod {
 	},
 		}" "$pvemanagerlibjs"
 		fi
+		
+		# Move the node summary box into its own container
+		sed -i "/^\s*nodeStatus: nodeStatus,/ {
+			:a
+			/items: \[/ !{N;ba;}
+			a\
+			\\
+		{\n\
+		    xtype: 'container',\n\
+		    itemId: 'summarycontainer',\n\
+		    layout: 'column',\n\
+		    minWidth: 700,\n\
+		    defaults: {\n\
+				minHeight: 350,\n\
+				padding: 5,\n\
+				columnWidth: 1,\n\
+		    },\n\
+		    items: [\n\
+				nodeStatus,\n\
+		    ]\n\
+		},
+		}" "$pvemanagerlibjs"
+		
+		# Deactivate the original box instance
+		sed -i "/^\s*nodeStatus: nodeStatus,/ {
+			:a
+			/itemId: 'itemcontainer',/ !{N;ba;}
+			n;
+			:b
+			/nodeStatus,/ !{N;bb;}
+			s/nodeStatus/\/\/nodeStatus/
+		}" "$pvemanagerlibjs"
 
 		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
 
