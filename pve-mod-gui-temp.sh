@@ -6,9 +6,10 @@
 ################### Configuration #############
 
 # Display configuration for HDD, NVME, CPU
-CPU_ITEMS_PER_ROW=4;
-NVME_ITEMS_PER_ROW=4;
-HDD_ITEMS_PER_ROW=4;
+# Set to 0 to disable line breaks
+CPU_ITEMS_PER_ROW=0;
+NVME_ITEMS_PER_ROW=0;
+HDD_ITEMS_PER_ROW=0;
 
 # Known CPU sensor names. They can be full or partial but should ensure unambiguous identification.
 # Should new ones be added, also update logic in configure() function.
@@ -198,12 +199,12 @@ function install_mod {
 			:a;
 			/items:/!{N;ba;}
 			:b;
-			/swap.*},/!{N;bb;}
+			/cpus.*},/!{N;bb;}
 			a\
 			\\
 	{\n\
 		itemId: 'thermalCpu',\n\
-		colspan: 1,\n\
+		colspan: 2,\n\
 		printBar: false,\n\
 		title: gettext('CPU Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
@@ -240,8 +241,8 @@ function install_mod {
 						})\n\
 					} catch(e) { /*_*/ }\n\
 				});\n\
-				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : ' | ') : '')});\n\
-				return result.length > 0 ? result.join('') : 'N/A';\n\
+				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : '')});\n\
+				return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 			}\n\
 		}\n\
 	},
@@ -260,7 +261,7 @@ function install_mod {
 				\\
 	{\n\
 		itemId: 'thermalHdd',\n\
-		colspan: 1,\n\
+		colspan: 2,\n\
 		printBar: false,\n\
 		title: gettext('HDD/SSD Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
@@ -285,8 +286,8 @@ function install_mod {
 					})\n\
 				} catch(e) { /*_*/ }\n\
 			});\n\
-			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
-			return result.length > 0 ? result.join('') : 'N/A';\n\
+			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
 		}" "$pvemanagerlibjs"
@@ -302,7 +303,7 @@ function install_mod {
 				\\
 	{\n\
 		itemId: 'thermalNvme',\n\
-		colspan: 1,\n\
+		colspan: 2,\n\
 		printBar: false,\n\
 		title: gettext('NVMe Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
@@ -327,26 +328,86 @@ function install_mod {
 					})\n\
 				} catch(e) { /*_*/ }\n\
 			});\n\
-			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : ' | ') : ''); });\n\
-			return result.length > 0 ? result.join('') : 'N/A';\n\
+			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
 			}" "$pvemanagerlibjs"
 		fi
 
-		if [ $enableNvmeTemp = true -a $enableHddTemp = true ]; then
+		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
-			/^.*{.*'thermalNvme'.*},/!{N;ba;}
+				/items:/!{N;ba;}
+				:b;
+				/'thermal.*},/!{N;bb;}
 			a\
 			\\
 	{\n\
 		xtype: 'box',\n\
-		colspan: 1,\n\
+		colspan: 2,\n\
+		html: gettext('Drive(s)'),\n\
+	},
+		}" "$pvemanagerlibjs"
+		fi
+		
+
+		# Add an empty line to separate modified items as a visual group
+		# NOTE: Check for the presence of items in the reverse order of display
+		local lastItemId=""
+		if [ $enableHddTemp = true ]; then
+			lastItemId="thermalHdd"
+		elif [ $enableNvmeTemp = true ]; then
+			lastItemId="thermalNvme"
+		else
+			lastItemId="thermalCpu"
+		fi
+		
+		if [ -n "$lastItemId" ]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+			:a;
+			/^.*{.*'$lastItemId'.*},/!{N;ba;}
+			a\
+			\\
+	{\n\
+		xtype: 'box',\n\
+		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
 		}" "$pvemanagerlibjs"
 		fi
+		
+		# Move the node summary box into its own container
+		sed -i "/^\s*nodeStatus: nodeStatus,/ {
+			:a
+			/items: \[/ !{N;ba;}
+			a\
+			\\
+		{\n\
+		    xtype: 'container',\n\
+		    itemId: 'summarycontainer',\n\
+		    layout: 'column',\n\
+		    minWidth: 700,\n\
+		    defaults: {\n\
+				minHeight: 350,\n\
+				padding: 5,\n\
+				columnWidth: 1,\n\
+		    },\n\
+		    items: [\n\
+				nodeStatus,\n\
+		    ]\n\
+		},
+		}" "$pvemanagerlibjs"
+		
+		# Deactivate the original box instance
+		sed -i "/^\s*nodeStatus: nodeStatus,/ {
+			:a
+			/itemId: 'itemcontainer',/ !{N;ba;}
+			n;
+			:b
+			/nodeStatus,/ !{N;bb;}
+			s/nodeStatus/\/\/nodeStatus/
+		}" "$pvemanagerlibjs"
 
 		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
 
