@@ -379,7 +379,7 @@ function install_mod {
 				html: gettext('Fan Speed(s)'),
 			},	
 			{
-				itemId: 'thermalFan',
+				itemId: 'FanSpeed',
 				colspan: 2,
 				printBar: false,
 				title: gettext(' '),
@@ -421,6 +421,8 @@ function install_mod {
 		local lastItemId=""
 		if [ $enableHddTemp = true ]; then
 			lastItemId="thermalHdd"
+		elif [ $enableFanSpeed = true ]; then
+			lastItemId="FanSpeed"			
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
 		else
