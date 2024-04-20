@@ -157,6 +157,16 @@ function configure {
 		warn "The CPU configuration is not complete. Temperatures will not be available."
 	fi
 
+	# Look for fan speeds
+	msg "\nDetecting support for Fan speeds..."
+	if (echo "$sensorOutput" | grep -q "fan[0-9]*_input" ); then
+		msg "Fan speeds detected:\n$(echo "$sensorOutput" | grep -o 'fan[0-9]*_input[^"]*')"
+		enableFanSpeed=true
+	else
+		warn "No Fan speeds found."
+		enableFanSpeed=false
+	fi	
+
 	echo # add a new line
 }
 
@@ -353,13 +363,66 @@ function install_mod {
 	},
 		}" "$pvemanagerlibjs"
 		fi
-		
+
+		if [ $enableFanSpeed = true ]; then
+			# Add fan speeds display
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/items:/!{N;ba;}
+				:b;
+				/'thermal.*},/!{N;bb;}
+				a\
+				\\
+			{
+				xtype: 'box',
+				colspan: 2,
+				html: gettext('Fan Speed(s)'),
+			},	
+			{
+				itemId: 'FanSpeed',
+				colspan: 2,
+				printBar: false,
+				title: gettext(' '),
+				iconCls: 'fa fa-fw fa-solid fa-fan',
+				textField: 'thermalstate',
+				renderer: function(value){
+					const objValue = JSON.parse(value);
+
+					let speeds = [];
+
+					// Loop through the parent keys
+					Object.keys(objValue).forEach(parentKey => {
+						const parentObj = objValue[parentKey];
+						
+						// Filter and sort fan keys for each parent object
+						const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();
+
+						fanKeys.forEach((fanKey) => {
+							try {
+								const fanSpeed = parentObj[fanKey][`${fanKey}_input`];
+								const fanNumber = fanKey.replace('fan', '');  // Extract fan number from the key
+								if (fanSpeed !== undefined) {
+									speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed} RPM`);
+								}
+							} catch(e) {
+								console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e);  // Debug: Log specific error
+							}
+						});
+					});
+
+					return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+				}
+			},
+			}" "$pvemanagerlibjs"
+		fi
 
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
-		if [ $enableHddTemp = true ]; then
-			lastItemId="thermalHdd"
+		if [ $enableFanSpeed = true ]; then
+			lastItemId="FanSpeed"
+		elif [ $enableHddTemp = true ]; then
+			lastItemId="thermalHdd"			
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
 		else
@@ -412,7 +475,7 @@ function install_mod {
 			s/nodeStatus/\/\/nodeStatus/
 		}" "$pvemanagerlibjs"
 
-		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
+		msg "New information display items added to the summary panel in \"$pvemanagerlibjs\"."
 
 		restart_proxy
 
