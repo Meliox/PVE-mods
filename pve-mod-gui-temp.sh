@@ -419,10 +419,10 @@ function install_mod {
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
-		if [ $enableHddTemp = true ]; then
-			lastItemId="thermalHdd"
-		elif [ $enableFanSpeed = true ]; then
-			lastItemId="FanSpeed"			
+		if [ $enableFanSpeed = true ]; then
+			lastItemId="FanSpeed"
+		elif [ $enableHddTemp = true ]; then
+			lastItemId="thermalHdd"			
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
 		else
