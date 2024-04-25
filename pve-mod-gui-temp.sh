@@ -163,7 +163,7 @@ function configure {
 		msg "Fan speeds detected:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
 		enableFanSpeed=true
 	else
-		warn "No Fan speeds found."
+		warn "No fan speeds found."
 		enableFanSpeed=false
 	fi	
 
@@ -373,45 +373,45 @@ function install_mod {
 				/'thermal.*},/!{N;bb;}
 				a\
 				\\
-			{
-				xtype: 'box',
-				colspan: 2,
-				html: gettext('Fan Speed(s)'),
-			},	
-			{
-				itemId: 'speedFan',
-				colspan: 2,
-				printBar: false,
-				title: gettext(' '),
-				iconCls: 'fa fa-fw fa-solid fa-fan',
-				textField: 'sensorsOutput',
-				renderer: function(value){
-					const objValue = JSON.parse(value);
-
-					let speeds = [];
-
-					// Loop through the parent keys
-					Object.keys(objValue).forEach(parentKey => {
-						const parentObj = objValue[parentKey];
-						
-						// Filter and sort fan keys for each parent object
-						const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();
-
-						fanKeys.forEach((fanKey) => {
-							try {
-								const fanSpeed = parentObj[fanKey][`${fanKey}_input`];
-								const fanNumber = fanKey.replace('fan', '');  // Extract fan number from the key
-								if (fanSpeed !== undefined) {
-									speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed} RPM`);
-								}
-							} catch(e) {
-								console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e);  // Debug: Log specific error
-							}
-						});
-					});
-
-					return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
-				}
+	{\n\
+		xtype: 'box',\n\
+		colspan: 2,\n\
+		html: gettext('Cooling'),\n\
+	},\n\
+	{\n\
+		itemId: 'speedFan',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('Fan Speed(s)'),\n\
+		iconCls: 'fa fa-fw fa-snowflake-o',\n\
+		textField: 'sensorsOutput',\n\
+		renderer: function(value) {\n\
+			const objValue = JSON.parse(value);\n\
+\n\
+			let speeds = [];\n\
+\n\
+			// Loop through the parent keys\n\
+			Object.keys(objValue).forEach(parentKey => {\n\
+				const parentObj = objValue[parentKey];\n\
+\n\
+				// Filter and sort fan keys for each parent object\n\
+				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();\n\
+\n\
+				fanKeys.forEach((fanKey) => {\n\
+					try {\n\
+						const fanSpeed = parentObj[fanKey][\`\${fanKey}_input\`];\n\
+						const fanNumber = fanKey.replace('fan', '');  // Extract fan number from the key\n\
+						if (fanSpeed !== undefined) {\n\
+							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
+						}\n\
+					} catch(e) {\n\
+						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e);  // Debug: Log specific error\n\
+					}\n\
+				});\n\
+			});\n\
+\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
+		}\n\
 			},
 			}" "$pvemanagerlibjs"
 		fi
