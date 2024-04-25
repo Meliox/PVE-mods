@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display temperature information.
+# This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensors information.
 #
 
 ################### Configuration #############
@@ -173,15 +173,15 @@ function install_mod {
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 	# Add new line to Nodes.pm file
-	if [[ -z $(cat $nodespm | grep -e "$res->{thermalstate}") ]]; then
+	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]]; then
 		# Create backup of original file
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{thermalstate} = `sensors -j`;\n' "$nodespm"
-		msg "Added thermalstate to $nodespm."
+		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `sensors -j`;\n' "$nodespm"
+		msg "Sensors' output added to \"$nodespm\"."
 	else
-		warn "Thermalstate already added to \"$nodespm\"."
+		warn "Sensors' output already integrated in in \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
@@ -211,7 +211,7 @@ function install_mod {
 		printBar: false,\n\
 		title: gettext('CPU Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'thermalstate',\n\
+		textField: 'sensorsOutput',\n\
 		renderer: function(value){\n\
 			// sensors configuration\n\
 			const cpuAddress = \"$CPU_ADDRESS\";\n\
@@ -268,7 +268,7 @@ function install_mod {
 		printBar: false,\n\
 		title: gettext('HDD/SSD Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'thermalstate',\n\
+		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
 			// sensors configuration\n\
 			const addressPrefix = \"drivetemp-scsi-\";\n\
@@ -310,7 +310,7 @@ function install_mod {
 		printBar: false,\n\
 		title: gettext('NVMe Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'thermalstate',\n\
+		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
 			// sensors configuration\n\
 			const addressPrefix = \"nvme-pci-\";\n\
@@ -412,13 +412,13 @@ function install_mod {
 			s/nodeStatus/\/\/nodeStatus/
 		}" "$pvemanagerlibjs"
 
-		msg "New temperature display items added to the summary panel in \"$pvemanagerlibjs\"."
+		msg "Sensor display items added to the summary panel in \"$pvemanagerlibjs\"."
 
 		restart_proxy
 
 		msg "Installation completed"
 	else
-		warn "New temperature display items already added to the summary panel in \"$pvemanagerlibjs\"."
+		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
 }
 
@@ -465,14 +465,14 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		install)
 			executed=$(($executed + 1))
-			msgb "\nInstalling the Proxmox VE temperatures display mod..."
+			msgb "\nInstalling the Proxmox VE sensors display mod..."
 			install_packages
 			install_mod
 			echo # add a new line
 			;;
 		uninstall)
 			executed=$(($executed + 1))
-			msgb "\nUninstalling the Proxmox VE temperatures display mod..."
+			msgb "\nUninstalling the Proxmox VE sensors display mod..."
 			uninstall_mod
 			echo # add a new line
 			;;

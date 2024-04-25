@@ -4,7 +4,7 @@ A small collection of script and mods for Proxmox
 If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
 
 ## Node temperature view
-(Tested compatibility: 7.x, 8.0.x, 8.1.x)
+(Tested compatibility: 7.x, 8.0.x, 8.1.x, 8.2.x)
 
 This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display temperature information in a flexible manner for CPU, NVME and HDDs/SSDs.
 
@@ -30,7 +30,7 @@ Or use git clone.
 Adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
 
 ## Nag screen deactivation
-(Tested compatibility: 7.x, 8.0.x, 8.1.x)
+(Tested compatibility: 7.x, 8.0.x, 8.1.x, 8.2.x)
 This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) which deactivates the subscription nag screen.
 
 The script provides two options: `install` and `uninstall`. The `install` option installs the modification, while the `uninstall` option removes it by copying the backup files to their original location.
