@@ -6,7 +6,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 ## Node temperature view
 (Tested compatibility: 7.x, 8.0.x, 8.1.x, 8.2.x)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display temperature information in a flexible manner for CPU, NVME and HDDs/SSDs.
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display temperature information in a flexible manner for CPU, NVME and HDDs/SSDs. Fanspeeds are also displayed, if available.
 
 The modification includes three main steps:
 
