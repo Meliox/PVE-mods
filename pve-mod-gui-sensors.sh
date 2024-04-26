@@ -8,9 +8,9 @@
 # Display configuration for HDD, NVME, CPU
 # Set to 0 to disable line breaks
 # Note: use these settings only if the displayed layout is broken
-CPU_ITEMS_PER_ROW=0;
-NVME_ITEMS_PER_ROW=0;
-HDD_ITEMS_PER_ROW=0;
+CPU_ITEMS_PER_ROW=0
+NVME_ITEMS_PER_ROW=0
+HDD_ITEMS_PER_ROW=0
 
 # Known CPU sensor names. They can be full or partial but should ensure unambiguous identification.
 # Should new ones be added, also update logic in configure() function.
@@ -30,7 +30,7 @@ nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 # Helper functions
 function msg {
-    echo -e "\e[0m$1\e[0m"
+	echo -e "\e[0m$1\e[0m"
 }
 
 #echo message in bold
@@ -39,12 +39,12 @@ function msgb {
 }
 
 function warn {
-    echo -e "\e[0;33m[warning] $1\e[0m"
+	echo -e "\e[0;33m[warning] $1\e[0m"
 }
 
 function err {
-    echo -e "\e[0;31m[error] $1\e[0m"
-    exit 1
+	echo -e "\e[0;31m[error] $1\e[0m"
+	exit 1
 }
 # End of helper functions
 
@@ -57,21 +57,21 @@ function usage {
 # Define a function to install packages
 function install_packages {
 	# Check if the 'sensors' command is available on the system
-	if (! command -v sensors &> /dev/null); then
+	if (! command -v sensors &>/dev/null); then
 		# If the 'sensors' command is not available, prompt the user to install lm-sensors
 		read -p "lm-sensors is not installed. Would you like to install it? (y/n) " choice
 		case "$choice" in
-			y|Y )
+			y | Y)
 				# If the user chooses to install lm-sensors, update the package list and install the package
 				apt-get update
 				apt-get install lm-sensors
 				;;
-			n|N )
+			n | N)
 				# If the user chooses not to install lm-sensors, exit the script with a zero status code
 				msg "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
 				exit 0
 				;;
-				* )
+			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
 				err "Invalid input. Exiting..."
 				;;
@@ -89,7 +89,7 @@ function configure {
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
 	if (lsmod | grep -wq "drivetemp"); then
 		# Check if SDD/HDD data is available
-		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-" ); then
+		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
 			enableHddTemp=true
 		else
@@ -102,7 +102,7 @@ function configure {
 
 	# Check if NVMe data is available
 	msg "\nDetecting support for NVMe temperature sensors..."
-	if (echo "$sensorsOutput" | grep -q "nvme-" ); then
+	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
 		enableNvmeTemp=true
 	else
@@ -160,7 +160,7 @@ function configure {
 
 	# Look for fan speeds
 	msg "\nDetecting support for fan speeds..."
-	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input" ); then
+	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Fan speeds detected:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
 		enableFanSpeed=true
 	else
@@ -232,30 +232,44 @@ function install_mod {
 			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
 			// ---\n\
 			const objValue = JSON.parse(value);\n\
-			if(objValue.hasOwnProperty(cpuAddress)) {\n\
-				const items = objValue[cpuAddress],\n\
-					itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
+			if (objValue.hasOwnProperty(cpuAddress)) {\n\
+				const items = objValue[cpuAddress];\n\
+				const itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
 				let temps = [];\n\
 				itemKeys.forEach((coreKey) => {\n\
 					try {\n\
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 						Object.keys(items[coreKey]).forEach((secondLevelKey) => {\n\
-							if (secondLevelKey.includes('_input')) {\n\
-								let tempStr = '';\n\
-								let temp = items[coreKey][secondLevelKey];\n\
-								let index = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
-								if(index !== null && index.length > 1) {\n\
-									index = index[1];\n\
-									tempStr = \`\${cpuTempCaption}&nbsp;\${index}:&nbsp;\${temp}&deg;C\`;\n\
-								}\n\
-								else {\n\
-									tempStr = \`\${cpuTempCaption}:&nbsp;\${temp}&deg;C\`;\n\
-								}\n\
-								temps.push(tempStr);\n\
+							if (secondLevelKey.endsWith('_input')) {\n\
+								tempVal = parseFloat(items[coreKey][secondLevelKey]);\n\
+							} else if (secondLevelKey.endsWith('_max')) {\n\
+								tempMax = parseFloat(items[coreKey][secondLevelKey]);\n\
+							} else if (secondLevelKey.endsWith('_crit')) {\n\
+								tempCrit = parseFloat(items[coreKey][secondLevelKey]);\n\
 							}\n\
-						})\n\
-					} catch(e) { /*_*/ }\n\
+						});\n\
+						if (!isNaN(tempVal)) {\n\
+							let tempStyle = '';\n\
+							if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+								tempStyle = 'color: #FFC300; font-weight: bold;';\n\
+							}\n\
+							if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+								tempStyle = 'color: red; font-weight: bold;';\n\
+							}\n\
+							let tempStr = '';\n\
+							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
+							if (tempIndex !== null && tempIndex.length > 1) {\n\
+								tempIndex = tempIndex[1];\n\
+								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+							} else {\n\
+								tempStr = \`\${cpuTempCaption}:&nbsp;\${tempVal}&deg;C\`;\n\
+							}\n\
+							temps.push(tempStr);\n\
+						}\n\
+					} catch (e) { /*_*/\n\
+					}\n\
 				});\n\
-				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : '')});\n\
+				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
 				return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 			}\n\
 		}\n\
@@ -292,12 +306,27 @@ function install_mod {
 			let temps = [];\n\
 			drvKeys.forEach((drvKey, index) => {\n\
 				try {\n\
+					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
-						if (secondLevelKey.includes('_input')) {\n\
-							let temp = objValue[drvKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive&nbsp;\${index + 1}:&nbsp;\${temp}&deg;C\`);\n\
+						if (secondLevelKey.endsWith('_input')) {\n\
+							tempVal = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
+						} else if (secondLevelKey.endsWith('_max')) {\n\
+							tempMax = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
+						} else if (secondLevelKey.endsWith('_crit')) {\n\
+							tempCrit = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
 						}\n\
-					})\n\
+					});\n\
+					if (!isNaN(tempVal)) {\n\
+						let tempStyle = '';\n\
+						if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+							tempStyle = 'color: #FFC300; font-weight: bold;';\n\
+						}\n\
+						if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+							tempStyle = 'color: red; font-weight: bold;';\n\
+						}\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+						temps.push(tempStr);\n\
+					}\n\
 				} catch(e) { /*_*/ }\n\
 			});\n\
 			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
@@ -334,12 +363,27 @@ function install_mod {
 			let temps = [];\n\
 			nvmeKeys.forEach((nvmeKey, index) => {\n\
 				try {\n\
+					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 					Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
-						if (secondLevelKey.includes('_input')) {\n\
-							let temp = objValue[nvmeKey][sensorName][secondLevelKey];\n\
-							temps.push(\`Drive&nbsp;\${index + 1}:&nbsp;\${temp}&deg;C\`);\n\
+						if (secondLevelKey.endsWith('_input')) {\n\
+							tempVal = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
+						} else if (secondLevelKey.endsWith('_max')) {\n\
+							tempMax = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
+						} else if (secondLevelKey.endsWith('_crit')) {\n\
+							tempCrit = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
 						}\n\
-					})\n\
+					});\n\
+					if (!isNaN(tempVal)) {\n\
+						let tempStyle = '';\n\
+						if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+							tempStyle = 'color: #FFC300; font-weight: bold;';\n\
+						}\n\
+						if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+							tempStyle = 'color: red; font-weight: bold;';\n\
+						}\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+						temps.push(tempStr);\n\
+					}\n\
 				} catch(e) { /*_*/ }\n\
 			});\n\
 			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
@@ -510,10 +554,10 @@ function uninstall_mod {
 		warn "No pvemanagerlib.js files found."
 	fi
 
-    if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
-        # At least one of the variables is not empty, restart the proxy
-        restart_proxy
-    fi
+	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
+		# At least one of the variables is not empty, restart the proxy
+		restart_proxy
+	fi
 }
 
 function restart_proxy {

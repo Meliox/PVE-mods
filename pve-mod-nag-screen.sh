@@ -19,7 +19,7 @@ proxmoxlibminjs="/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.min.js"
 
 # Helper functions
 function msg {
-    echo -e "\e[0m$1\e[0m"
+	echo  -e "\e[0m$1\e[0m"
 }
 
 #echo message in bold
@@ -28,12 +28,12 @@ function msgb {
 }
 
 function warn {
-    echo -e "\e[0;33m[warning] $1\e[0m"
+	echo  -e "\e[0;33m[warning] $1\e[0m"
 }
 
 function err {
-    echo -e "\e[0;31m[error] $1\e[0m"
-    exit 1
+	echo  -e "\e[0;31m[error] $1\e[0m"
+	exit  1
 }
 # End of helper functions
 
@@ -81,8 +81,8 @@ function install_mod {
 
 	if [ ! -h "$proxmoxlibminjs" ]; then
 		msg "Disabling minified front-end library file..."
-		(mv "$proxmoxlibminjs" "$BACKUP_DIR/proxmoxlib.min.js.$timestamp" && \
-		ln -s "$proxmoxlibjs" "$proxmoxlibminjs") || err "Error disabling minified front-end library file."
+		(mv "$proxmoxlibminjs" "$BACKUP_DIR/proxmoxlib.min.js.$timestamp" &&
+			ln -s "$proxmoxlibjs" "$proxmoxlibminjs") || err "Error disabling minified front-end library file."
 		restart=true
 	else
 		warn "Minified front-end library file already disabled."
