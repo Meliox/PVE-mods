@@ -7,6 +7,7 @@
 
 # Display configuration for HDD, NVME, CPU
 # Set to 0 to disable line breaks
+# Note: use these settings only if the displayed layout is broken
 CPU_ITEMS_PER_ROW=0;
 NVME_ITEMS_PER_ROW=0;
 HDD_ITEMS_PER_ROW=0;
@@ -165,7 +166,7 @@ function configure {
 	else
 		warn "No fan speeds found."
 		enableFanSpeed=false
-	fi	
+	fi
 
 	echo # add a new line
 }
@@ -350,12 +351,12 @@ function install_mod {
 
 		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-			:a;
+				:a;
 				/items:/!{N;ba;}
 				:b;
 				/'thermal.*},/!{N;bb;}
-			a\
-			\\
+				a\
+				\\
 	{\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
@@ -387,7 +388,6 @@ function install_mod {
 		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
 			const objValue = JSON.parse(value);\n\
-\n\
 			let speeds = [];\n\
 \n\
 			// Loop through the parent keys\n\
@@ -412,15 +412,15 @@ function install_mod {
 \n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
-			},
-			}" "$pvemanagerlibjs"
+	},
+		}" "$pvemanagerlibjs"
 		fi
 
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
 		if [ $enableHddTemp = true ]; then
-			lastItemId="thermalHdd"			
+			lastItemId="thermalHdd"
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
 		elif [ $enableFanSpeed = true ]; then
@@ -428,7 +428,7 @@ function install_mod {
 		else
 			lastItemId="thermalCpu"
 		fi
-		
+
 		if [ -n "$lastItemId" ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
@@ -442,7 +442,7 @@ function install_mod {
 	},
 		}" "$pvemanagerlibjs"
 		fi
-		
+
 		# Move the node summary box into its own container
 		sed -i "/^\s*nodeStatus: nodeStatus,/ {
 			:a
@@ -464,7 +464,7 @@ function install_mod {
 		    ]\n\
 		},
 		}" "$pvemanagerlibjs"
-		
+
 		# Deactivate the original box instance
 		sed -i "/^\s*nodeStatus: nodeStatus,/ {
 			:a
