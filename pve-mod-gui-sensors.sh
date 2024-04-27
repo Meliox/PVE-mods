@@ -204,7 +204,7 @@ function install_mod {
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
-			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/
+			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
 			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
 		}" "$pvemanagerlibjs"
 		msg "Expanded space in \"$pvemanagerlibjs\"."
