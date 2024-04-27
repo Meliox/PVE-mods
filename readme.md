@@ -6,17 +6,17 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 ## Node sensor readings view
 (Tested compatibility: 7.x - 8.2)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible manner. Supported are CPU, NVMe/HDD/SSD temperatures and fan speeds.
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures and fan speeds.
 
 The modification includes three main steps:
 
 1. Create backups of the original files located at `/usr/share/pve-manager/js/pvemanagerlib.js` and `/usr/share/perl5/PVE/API2/Nodes.pm` in the `backup` directory relative to the script location.
 2. Add a new line to the `Nodes.pm` file that enables host system sensor readings using the `sensors` command.
-3. Modify the `pvemanagerlib.js` file to expand the space in the host summary view and add new items that displays the temperature information in Celsius for CPU, NVME and HDDs/SSDs, and fan speeds, if available.
+3. Modify the `pvemanagerlib.js` file to expand the space in the host summary view, add new items that displays the temperature information in Celsius for CPU, NVMe drives, HDDs/SSDs and fan speeds (actual view depend on the available sensor readings). The view layout is also adjusted to no longer match the column number settings and always expands to the full width of the browser window. It is also possible to collapse the panel vertically.
 
 The script provides two options: `install` and `uninstall`. The `install` option installs the modification, while the `uninstall` option removes it by copying the backup files to their original location. The script also restarts the `pveproxy` service to apply the changes.
 
-For HDDs/SSDs readings to work, the kernal module drivetemp must be installed.
+For HDDs/SSDs readings to work, the kernel module *drivetemp* must be installed.
 
 ### Install
 ```

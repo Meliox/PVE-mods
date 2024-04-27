@@ -204,7 +204,7 @@ function install_mod {
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
-			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1/
+			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
 			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
 		}" "$pvemanagerlibjs"
 		msg "Expanded space in \"$pvemanagerlibjs\"."
@@ -250,10 +250,10 @@ function install_mod {
 						});\n\
 						if (!isNaN(tempVal)) {\n\
 							let tempStyle = '';\n\
-							if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+							if (!isNaN(tempMax) && tempVal >= tempMax) {\n\
 								tempStyle = 'color: #FFC300; font-weight: bold;';\n\
 							}\n\
-							if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 								tempStyle = 'color: red; font-weight: bold;';\n\
 							}\n\
 							let tempStr = '';\n\
@@ -318,10 +318,10 @@ function install_mod {
 					});\n\
 					if (!isNaN(tempVal)) {\n\
 						let tempStyle = '';\n\
-						if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+						if (!isNaN(tempMax) && tempVal >= tempMax) {\n\
 							tempStyle = 'color: #FFC300; font-weight: bold;';\n\
 						}\n\
-						if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
 						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
@@ -375,10 +375,10 @@ function install_mod {
 					});\n\
 					if (!isNaN(tempVal)) {\n\
 						let tempStyle = '';\n\
-						if (!isNaN(tempMax) && tempVal > tempMax) {\n\
+						if (!isNaN(tempMax) && tempVal >= tempMax) {\n\
 							tempStyle = 'color: #FFC300; font-weight: bold;';\n\
 						}\n\
-						if (!isNaN(tempCrit) && tempVal > tempCrit) {\n\
+						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
 						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
