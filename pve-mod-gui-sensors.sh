@@ -85,6 +85,54 @@ function configure {
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
 
+	# Check if CPU is part of known list for autoconfiguration
+	msg "\nDetecting support for CPU temperature sensors..."
+	for item in "${KNOWN_CPU_SENSORS[@]}"; do
+		if (echo "$sensorsOutput" | grep -q "$item"); then
+			case "$item" in
+				"coretemp-"*)
+					CPU_ADDRESS_PREFIX=$item
+					CPU_ITEM_PREFIX="Core "
+					CPU_TEMP_CAPTION="Core"
+					break
+					;;
+				"k10temp-"*)
+					CPU_ADDRESS_PREFIX=$item
+					CPU_ITEM_PREFIX="Tccd"
+					CPU_TEMP_CAPTION="Temp"
+					break
+					;;
+				*)
+					continue
+					;;
+			esac
+		fi
+	done
+
+	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
+		msg "Detected sensor:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
+	fi
+
+	# If cpu is not known, ask the user for input
+	if [ -z "$CPU_ADDRESS_PREFIX" ]; then
+		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
+		# Ask user for CPU information
+		# Inform the user and prompt them to press any key to continue
+		read -rsp $'Sensor output will be presented. Press any key to continue...\n' -n1 key
+
+		# Print the output to the user
+		msg "Sensor output:\n${sensorsOutput}"
+
+		# Prompt the user for adapter name and item name
+		read -p "Enter the CPU sensor address prefix (e.g.: coretemp-isa- or k10temp-pci-): " CPU_ADDRESS_PREFIX
+		read -p "Enter the CPU sensor input prefix (e.g.: Core or Tc): " CPU_ITEM_PREFIX
+		read -p "Enter the CPU temperature caption (e.g.: Core or Temp): " CPU_TEMP_CAPTION
+	fi
+
+	if [[ -z "$CPU_ADDRESS_PREFIX" || -z "$CPU_ITEM_PREFIX" ]]; then
+		warn "The CPU configuration is not complete. Temperatures will not be available."
+	fi
+
 	# Check if HDD/SSD data is installed
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
 	if (lsmod | grep -wq "drivetemp"); then
@@ -110,61 +158,13 @@ function configure {
 		enableNvmeTemp=false
 	fi
 
-	# Check if CPU is part of known list for autoconfiguration
-	msg "\nDetecting support for CPU temperature sensors..."
-	for item in "${KNOWN_CPU_SENSORS[@]}"; do
-		if (echo "$sensorsOutput" | grep -q "$item"); then
-			case "$item" in
-				"coretemp-"*)
-					CPU_ADDRESS="$(echo "$sensorsOutput" | grep "$item" | sed 's/"//g;s/:{//;s/^\s*//')"
-					CPU_ITEM_PREFIX="Core "
-					CPU_TEMP_CAPTION="Core"
-					break
-					;;
-				"k10temp-"*)
-					CPU_ADDRESS="$(echo "$sensorsOutput" | grep "$item" | sed 's/"//g;s/:{//;s/^\s*//')"
-					CPU_ITEM_PREFIX="Tccd"
-					CPU_TEMP_CAPTION="Temp"
-					break
-					;;
-				*)
-					continue
-					;;
-			esac
-		fi
-	done
-
-	if [ -n "$CPU_ADDRESS" ]; then
-		msg "Detected sensor:\n$CPU_ADDRESS"
-	fi
-
-	# If cpu is not known, ask the user for input
-	if [ -z "$CPU_ADDRESS" ]; then
-		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
-		# Ask user for CPU information
-		# Inform the user and prompt them to press any key to continue
-		read -rsp $'Sensor output will be presented. Press any key to continue...\n' -n1 key
-
-		# Print the output to the user
-		msg "Sensor output:\n${sensorsOutput}"
-
-		# Prompt the user for adapter name and item name
-		read -p "Enter the CPU sensor address (e.g.: coretemp-isa-0000 or k10temp-pci-00c3): " CPU_ADDRESS
-		read -p "Enter the CPU sensor input prefix (e.g.: Core or Tc): " CPU_ITEM_PREFIX
-		read -p "Enter the CPU temperature caption (e.g.: Core or Temp): " CPU_TEMP_CAPTION
-	fi
-
-	if [[ -z "$CPU_ADDRESS" || -z "$CPU_ITEM_PREFIX" ]]; then
-		warn "The CPU configuration is not complete. Temperatures will not be available."
-	fi
-
 	# Look for fan speeds
-	msg "\nDetecting support for fan speeds..."
+	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
-		msg "Fan speeds detected:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
+		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
 		enableFanSpeed=true
 	else
-		warn "No fan speeds found."
+		warn "No fan speed sensors found."
 		enableFanSpeed=false
 	fi
 
@@ -189,7 +189,7 @@ function install_mod {
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `sensors -j`;\n' "$nodespm"
+		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `sensors -j`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
 	else
 		warn "Sensors' output already integrated in in \"$nodespm\"."
@@ -225,17 +225,20 @@ function install_mod {
 		textField: 'sensorsOutput',\n\
 		renderer: function(value){\n\
 			// sensors configuration\n\
-			const cpuAddress = \"$CPU_ADDRESS\";\n\
+			const addressPrefix = \"$CPU_ADDRESS_PREFIX\";\n\
 			const cpuItemPrefix = \"$CPU_ITEM_PREFIX\";\n\
 			const cpuTempCaption = \"$CPU_TEMP_CAPTION\";\n\
 			// display configuration\n\
 			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
 			// ---\n\
 			const objValue = JSON.parse(value);\n\
-			if (objValue.hasOwnProperty(cpuAddress)) {\n\
-				const items = objValue[cpuAddress];\n\
+			const cpuKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
+			const cpuCount = cpuKeys.length;\n\
+			let temps = [];\n\
+			cpuKeys.forEach((cpuKey, cpuIndex) => {\n\
+				let cpuTemps = [];\n\
+				const items = objValue[cpuKey];\n\
 				const itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
-				let temps = [];\n\
 				itemKeys.forEach((coreKey) => {\n\
 					try {\n\
 						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
@@ -264,14 +267,22 @@ function install_mod {
 							} else {\n\
 								tempStr = \`\${cpuTempCaption}:&nbsp;\${tempVal}&deg;C\`;\n\
 							}\n\
-							temps.push(tempStr);\n\
+							cpuTemps.push(tempStr);\n\
 						}\n\
-					} catch (e) { /*_*/\n\
+					} catch (e) { /*_*/ }\n\
+				});\n\
+				if(cpuTemps.length > 0) {\n\
+				    temps.push(cpuTemps);\n\
 					}\n\
 				});\n\
-				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
-				return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
+			let result = '';\n\
+			temps.forEach((cpuTemps, cpuIndex) => {\n\
+			    const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })\n\
+			    if(strCoreTemps.length > 0) {\n\
+				result += (cpuCount > 1 ? \`CPU \${cpuIndex+1}: \` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');\n\
 			}\n\
+			});\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
 		}\n\
 	},
 		}" "$pvemanagerlibjs"
