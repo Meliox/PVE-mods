@@ -110,7 +110,7 @@ function configure {
 	done
 
 	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
-		msg "Detected sensor:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
+		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
 	fi
 
 	# If cpu is not known, ask the user for input
@@ -231,7 +231,12 @@ function install_mod {
 			// display configuration\n\
 			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
 			// ---\n\
-			const objValue = JSON.parse(value);\n\
+			let objValue;\n\
+			try {\n\
+				objValue = JSON.parse(value) || {};\n\
+			} catch(e) {\n\
+				objValue = {};\n\
+			}\n\
 			const cpuKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
 			const cpuCount = cpuKeys.length;\n\
 			let temps = [];\n\
@@ -311,8 +316,13 @@ function install_mod {
 			const sensorName = \"temp1\";\n\
 			// display configuration\n\
 			const itemsPerRow = ${HDD_ITEMS_PER_ROW};\n\
-			const objValue = JSON.parse(value);\n\
 			// ---\n\
+			let objValue;\n\
+			try {\n\
+				objValue = JSON.parse(value) || {};\n\
+			} catch(e) {\n\
+				objValue = {};\n\
+			}\n\
 			const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
 			let temps = [];\n\
 			drvKeys.forEach((drvKey, index) => {\n\
@@ -369,7 +379,12 @@ function install_mod {
 			// display configuration\n\
 			const itemsPerRow = ${NVME_ITEMS_PER_ROW};\n\
 			// ---\n\
-			const objValue = JSON.parse(value);\n\
+			let objValue;\n\
+			try {\n\
+				objValue = JSON.parse(value) || {};\n\
+			} catch(e) {\n\
+				objValue = {};\n\
+			}\n\
 			const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
 			let temps = [];\n\
 			nvmeKeys.forEach((nvmeKey, index) => {\n\
@@ -442,16 +457,19 @@ function install_mod {
 		iconCls: 'fa fa-fw fa-snowflake-o',\n\
 		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
-			const objValue = JSON.parse(value);\n\
+			// ---\n\
+			let objValue;\n\
+			try {\n\
+				objValue = JSON.parse(value) || {};\n\
+			} catch(e) {\n\
+				objValue = {};\n\
+			}\n\
 			let speeds = [];\n\
-\n\
 			// Loop through the parent keys\n\
 			Object.keys(objValue).forEach(parentKey => {\n\
 				const parentObj = objValue[parentKey];\n\
-\n\
 				// Filter and sort fan keys for each parent object\n\
 				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();\n\
-\n\
 				fanKeys.forEach((fanKey) => {\n\
 					try {\n\
 						const fanSpeed = parentObj[fanKey][\`\${fanKey}_input\`];\n\
@@ -464,7 +482,6 @@ function install_mod {
 					}\n\
 				});\n\
 			});\n\
-\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
 	},
