@@ -25,6 +25,7 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 # File paths
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
+pvemanagermobilelibjs="/usr/share/pve-manager/touch/pvemanager-mobile.js"
 
 ###############################################
 
