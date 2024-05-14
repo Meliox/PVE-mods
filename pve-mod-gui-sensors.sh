@@ -61,12 +61,12 @@ function install_packages {
 		# If the 'sensors' command is not available, prompt the user to install lm-sensors
 		read -p "lm-sensors is not installed. Would you like to install it? (y/n) " choice
 		case "$choice" in
-			y | Y)
+			[yY])
 				# If the user chooses to install lm-sensors, update the package list and install the package
 				apt-get update
 				apt-get install lm-sensors
 				;;
-			n | N)
+			[nN])
 				# If the user chooses not to install lm-sensors, exit the script with a zero status code
 				msg "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
 				exit 0
@@ -80,6 +80,7 @@ function install_packages {
 }
 
 function configure {
+	sensorsDetected=false
 	local sensorsOutput=$(sensors -j)
 	if [ $? -ne 0 ]; then
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
@@ -111,10 +112,8 @@ function configure {
 
 	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
-	fi
-
-	# If cpu is not known, ask the user for input
-	if [ -z "$CPU_ADDRESS_PREFIX" ]; then
+	else
+		# If cpu is not known, ask the user for input
 		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
 		# Ask user for CPU information
 		# Inform the user and prompt them to press any key to continue
@@ -131,6 +130,8 @@ function configure {
 
 	if [[ -z "$CPU_ADDRESS_PREFIX" || -z "$CPU_ITEM_PREFIX" ]]; then
 		warn "The CPU configuration is not complete. Temperatures will not be available."
+	else
+		sensorsDetected=true
 	fi
 
 	# Check if HDD/SSD data is installed
@@ -140,6 +141,7 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
 			enableHddTemp=true
+			sensorsDetected=true
 		else
 			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
 			enableHddTemp=false
@@ -153,6 +155,7 @@ function configure {
 	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
 		enableNvmeTemp=true
+		sensorsDetected=true
 	else
 		warn "No NVMe temperature sensors found."
 		enableNvmeTemp=false
@@ -163,11 +166,29 @@ function configure {
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
 		enableFanSpeed=true
+		sensorsDetected=true
 	else
 		warn "No fan speed sensors found."
 		enableFanSpeed=false
 	fi
 
+	if [ $sensorsDetected = true ]; then
+		msg "\nSelect a unit for temperature readings..."
+		read -p "Type C for Celsius or F for Fahrenheit and press Enter: " TEMP_UNIT
+
+		case "$TEMP_UNIT" in
+			[cC])
+				TEMP_UNIT="C"
+				;;
+			[fF])
+				TEMP_UNIT="F"
+				;;
+			*)
+				warn "Invalid selection. Temperatures will be presented in degrees Celsius."
+				TEMP_UNIT="C"
+				;;
+		esac
+	fi
 	echo # add a new line
 }
 
@@ -189,7 +210,9 @@ function install_mod {
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		sed -i '/my $dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `sensors -j`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
+		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
+		local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
 	else
 		warn "Sensors' output already integrated in in \"$nodespm\"."
@@ -201,6 +224,7 @@ function install_mod {
 		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
 		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 
+		local tempUnitSuffix=$([[ "$TEMP_UNIT" = "F" ]] && echo "&deg;F" || echo "&deg;C")
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
@@ -268,9 +292,9 @@ function install_mod {
 							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
 							if (tempIndex !== null && tempIndex.length > 1) {\n\
 								tempIndex = tempIndex[1];\n\
-								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
 							} else {\n\
-								tempStr = \`\${cpuTempCaption}:&nbsp;\${tempVal}&deg;C\`;\n\
+								tempStr = \`\${cpuTempCaption}:&nbsp;\${tempVal}$tempUnitSuffix\`;\n\
 							}\n\
 							cpuTemps.push(tempStr);\n\
 						}\n\
@@ -278,14 +302,14 @@ function install_mod {
 				});\n\
 				if(cpuTemps.length > 0) {\n\
 				    temps.push(cpuTemps);\n\
-					}\n\
-				});\n\
+				}\n\
+			});\n\
 			let result = '';\n\
 			temps.forEach((cpuTemps, cpuIndex) => {\n\
 			    const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })\n\
 			    if(strCoreTemps.length > 0) {\n\
 				result += (cpuCount > 1 ? \`CPU \${cpuIndex+1}: \` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');\n\
-			}\n\
+			    }\n\
 			});\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
 		}\n\
@@ -345,7 +369,7 @@ function install_mod {
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
@@ -407,7 +431,7 @@ function install_mod {
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}&deg;C</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
