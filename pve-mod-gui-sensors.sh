@@ -211,7 +211,8 @@ function install_mod {
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
 		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-		local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
+		#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
+		local sensorsCmd="sensors -j"
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
 	else
@@ -224,6 +225,7 @@ function install_mod {
 		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
 		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 
+		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		local tempUnitSuffix=$([[ "$TEMP_UNIT" = "F" ]] && echo "&deg;F" || echo "&deg;C")
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -232,6 +234,79 @@ function install_mod {
 			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
 		}" "$pvemanagerlibjs"
 		msg "Expanded space in \"$pvemanagerlibjs\"."
+
+		sed -i "/^Ext.define('PVE.node.StatusView'/i\
+Ext.define('PVE.mod.TempHelper', {\n\
+	//singleton: true,\n\
+\n\
+	requires: ['Ext.util.Format'],\n\
+\n\
+	statics: {\n\
+		CELSIUS: 0,\n\
+		FAHRENHEIT: 1\n\
+	},\n\
+\n\
+	srcUnit: null,\n\
+	dstUnit: null,\n\
+\n\
+	isValidUnit: function (unit) {\n\
+		return (\n\
+			Ext.isNumber(unit) && (unit === this.self.CELSIUS || unit === this.self.FAHRENHEIT)\n\
+		);\n\
+	},\n\
+\n\
+	constructor: function (config) {\n\
+		this.srcUnit = config && this.isValidUnit(config.srcUnit) ? config.srcUnit : this.self.CELSIUS;\n\
+		this.dstUnit = config && this.isValidUnit(config.dstUnit) ? config.dstUnit : this.self.CELSIUS;\n\
+	},\n\
+\n\
+	toFahrenheit: function (tempCelsius) {\n\
+		return Ext.isNumber(tempCelsius)\n\
+			? tempCelsius * 9 / 5 + 32\n\
+			: NaN;\n\
+	},\n\
+\n\
+	toCelsius: function (tempFahrenheit) {\n\
+		return Ext.isNumber(tempFahrenheit)\n\
+			? (tempFahrenheit - 32) * 5 / 9\n\
+			: NaN;\n\
+	},\n\
+\n\
+	getTemp: function (value) {\n\
+		if (this.srcUnit !== this.dstUnit) {\n\
+			switch (this.srcUnit) {\n\
+				case this.self.CELSIUS:\n\
+					switch (this.dstUnit) {\n\
+						case this.self.FAHRENHEIT:\n\
+							return this.toFahrenheit(value);\n\
+\n\
+						default:\n\
+							Ext.raise({\n\
+								msg:\n\
+									'Unsupported destination temperature unit: ' + this.dstUnit,\n\
+							});\n\
+					}\n\
+				case this.self.FAHRENHEIT:\n\
+					switch (this.dstUnit) {\n\
+						case this.self.CELSIUS:\n\
+							return this.toCelsius(value);\n\
+\n\
+						default:\n\
+							Ext.raise({\n\
+								msg:\n\
+									'Unsupported destination temperature unit: ' + this.dstUnit,\n\
+							});\n\
+					}\n\
+				default:\n\
+					Ext.raise({\n\
+						msg: 'Unsupported source temperature unit: ' + this.srcUnit,\n\
+					});\n\
+			}\n\
+		} else {\n\
+			return value;\n\
+		}\n\
+	},\n\
+});\n" "$pvemanagerlibjs"
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
@@ -252,6 +327,7 @@ function install_mod {
 			const addressPrefix = \"$CPU_ADDRESS_PREFIX\";\n\
 			const cpuItemPrefix = \"$CPU_ITEM_PREFIX\";\n\
 			const cpuTempCaption = \"$CPU_TEMP_CAPTION\";\n\
+			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
 			// display configuration\n\
 			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
 			// ---\n\
@@ -273,11 +349,11 @@ function install_mod {
 						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 						Object.keys(items[coreKey]).forEach((secondLevelKey) => {\n\
 							if (secondLevelKey.endsWith('_input')) {\n\
-								tempVal = parseFloat(items[coreKey][secondLevelKey]);\n\
+								tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
 							} else if (secondLevelKey.endsWith('_max')) {\n\
-								tempMax = parseFloat(items[coreKey][secondLevelKey]);\n\
+								tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
 							} else if (secondLevelKey.endsWith('_crit')) {\n\
-								tempCrit = parseFloat(items[coreKey][secondLevelKey]);\n\
+								tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
 							}\n\
 						});\n\
 						if (!isNaN(tempVal)) {\n\
@@ -292,24 +368,24 @@ function install_mod {
 							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
 							if (tempIndex !== null && tempIndex.length > 1) {\n\
 								tempIndex = tempIndex[1];\n\
-								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
+								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
 							} else {\n\
-								tempStr = \`\${cpuTempCaption}:&nbsp;\${tempVal}$tempUnitSuffix\`;\n\
+								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix\`;\n\
 							}\n\
 							cpuTemps.push(tempStr);\n\
 						}\n\
 					} catch (e) { /*_*/ }\n\
 				});\n\
 				if(cpuTemps.length > 0) {\n\
-				    temps.push(cpuTemps);\n\
+					temps.push(cpuTemps);\n\
 				}\n\
 			});\n\
 			let result = '';\n\
 			temps.forEach((cpuTemps, cpuIndex) => {\n\
-			    const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })\n\
-			    if(strCoreTemps.length > 0) {\n\
-				result += (cpuCount > 1 ? \`CPU \${cpuIndex+1}: \` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');\n\
-			    }\n\
+				const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })\n\
+				if(strCoreTemps.length > 0) {\n\
+					result += (cpuCount > 1 ? \`CPU \${cpuIndex+1}: \` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');\n\
+				}\n\
 			});\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
 		}\n\
@@ -338,6 +414,7 @@ function install_mod {
 			// sensors configuration\n\
 			const addressPrefix = \"drivetemp-scsi-\";\n\
 			const sensorName = \"temp1\";\n\
+			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
 			// display configuration\n\
 			const itemsPerRow = ${HDD_ITEMS_PER_ROW};\n\
 			// ---\n\
@@ -354,11 +431,11 @@ function install_mod {
 					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.endsWith('_input')) {\n\
-							tempVal = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
+							tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
 						} else if (secondLevelKey.endsWith('_max')) {\n\
-							tempMax = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
+							tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
 						} else if (secondLevelKey.endsWith('_crit')) {\n\
-							tempCrit = parseFloat(objValue[drvKey][sensorName][secondLevelKey]);\n\
+							tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
 						}\n\
 					});\n\
 					if (!isNaN(tempVal)) {\n\
@@ -369,7 +446,7 @@ function install_mod {
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
@@ -400,6 +477,7 @@ function install_mod {
 			// sensors configuration\n\
 			const addressPrefix = \"nvme-pci-\";\n\
 			const sensorName = \"Composite\";\n\
+			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
 			// display configuration\n\
 			const itemsPerRow = ${NVME_ITEMS_PER_ROW};\n\
 			// ---\n\
@@ -416,11 +494,11 @@ function install_mod {
 					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
 					Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {\n\
 						if (secondLevelKey.endsWith('_input')) {\n\
-							tempVal = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
+							tempVal = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));\n\
 						} else if (secondLevelKey.endsWith('_max')) {\n\
-							tempMax = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
+							tempMax = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));\n\
 						} else if (secondLevelKey.endsWith('_crit')) {\n\
-							tempCrit = parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]);\n\
+							tempCrit = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));\n\
 						}\n\
 					});\n\
 					if (!isNaN(tempVal)) {\n\
@@ -431,7 +509,7 @@ function install_mod {
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${tempVal}$tempUnitSuffix</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
@@ -440,7 +518,7 @@ function install_mod {
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-			}" "$pvemanagerlibjs"
+		}" "$pvemanagerlibjs"
 		fi
 
 		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
@@ -497,12 +575,12 @@ function install_mod {
 				fanKeys.forEach((fanKey) => {\n\
 					try {\n\
 						const fanSpeed = parentObj[fanKey][\`\${fanKey}_input\`];\n\
-						const fanNumber = fanKey.replace('fan', '');  // Extract fan number from the key\n\
+						const fanNumber = fanKey.replace('fan', ''); // Extract fan number from the key\n\
 						if (fanSpeed !== undefined) {\n\
 							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
 						}\n\
 					} catch(e) {\n\
-						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e);  // Debug: Log specific error\n\
+						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
 					}\n\
 				});\n\
 			});\n\
@@ -546,18 +624,18 @@ function install_mod {
 			a\
 			\\
 		{\n\
-		    xtype: 'container',\n\
-		    itemId: 'summarycontainer',\n\
-		    layout: 'column',\n\
-		    minWidth: 700,\n\
-		    defaults: {\n\
+			xtype: 'container',\n\
+			itemId: 'summarycontainer',\n\
+			layout: 'column',\n\
+			minWidth: 700,\n\
+			defaults: {\n\
 				minHeight: 350,\n\
 				padding: 5,\n\
 				columnWidth: 1,\n\
-		    },\n\
-		    items: [\n\
+			},\n\
+			items: [\n\
 				nodeStatus,\n\
-		    ]\n\
+			]\n\
 		},
 		}" "$pvemanagerlibjs"
 
