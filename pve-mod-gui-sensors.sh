@@ -145,6 +145,7 @@ function configure {
 			enableHddTemp=false
 		fi
 	else
+		warn "No HDD/SSD temperature sensors found."
 		enableHddTemp=false
 	fi
 
