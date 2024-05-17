@@ -25,7 +25,6 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 # File paths
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
-pvemanagermobilelibjs="/usr/share/pve-manager/touch/pvemanager-mobile.js"
 
 ###############################################
 
@@ -549,26 +548,15 @@ function install_mod {
 		}" "$pvemanagerlibjs"
 
 		msg "Sensor display items added to the summary panel in \"$pvemanagerlibjs\"."
+
+		restart_proxy
+
+		msg "Installation completed"
+
+		msg "Clear the browser cache to ensure all changes are visualized."
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
-
-	# Add new item to the items array in PVE.node.StatusView
-	# todo what to grep
-	if [[ -z $(cat "$pvemanagermobilelibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		# Create backup of original file
-		cp "$pvemanagermobilelibjs" "$BACKUP_DIR/pvemanager-mobile.js.$timestamp"
-		msg "Backup of \"$pvemanagermobilelibjs\" saved to \"$BACKUP_DIR/pvemanager-mobile.js.$timestamp\"."
-		
-	else
-		warn "Sensor display items already added to the summary panel in \"$pvemanagermobilelibjs\"."
-	fi
-
-	restart_proxy
-
-	msg "Installation completed"
-
-	msg "Clear the browser cache to ensure all changes are visualized."
 }
 
 # Function to uninstall the modification
@@ -596,18 +584,7 @@ function uninstall_mod {
 		warn "No pvemanagerlib.js files found."
 	fi
 
-	# Find the latest pvemanagermobilelib.js file using the find command
-	local latest_pvemanagerlibmobilejs=$(find "$BACKUP_DIR" -name "pvemanager-mobile.js.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
-
-	if [ -n "$latest_pvemanagerlibmobilejs" ]; then
-		# Remove the latest pvemanager-mobile.js file
-		cp "$latest_pvemanagerlibmobilejs" "$pvemanagermobilelibjs"
-		msg "Copied latest backup to \"$pvemanagermobilelibjs\"."
-	else
-		warn "No pvemanager-mobile.js files found."
-	fi
-
-	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]|| [ -n "$latest_pvemanagerlibmobilejs" ]; then
+	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
 		# At least one of the variables is not empty, restart the proxy
 		restart_proxy
 	fi
