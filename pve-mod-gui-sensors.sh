@@ -227,7 +227,6 @@ function install_mod {
 		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
-		local tempUnitSuffix=$([[ "$TEMP_UNIT" = "F" ]] && echo "&deg;F" || echo "&deg;C")
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
@@ -307,6 +306,21 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return value;\n\
 		}\n\
 	},\n\
+\n\
+	getUnit: function(plainText) {\n\
+		switch (this.dstUnit) {\n\
+			case this.self.CELSIUS:\n\
+				return plainText !== true ? '\&deg;C' : '\\\'C';\n\
+\n\
+			case this.self.FAHRENHEIT:\n\\n\
+				return plainText !== true ? '\&deg;F' : '\\\'F';\n\
+\n\
+			default:\n\
+				Ext.raise({\n\
+					msg: 'Unsupported destination temperature unit: ' + this.srcUnit,\n\
+				});\n\
+		}\n\
+	},\n\
 });\n" "$pvemanagerlibjs"
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -369,9 +383,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
 							if (tempIndex !== null && tempIndex.length > 1) {\n\
 								tempIndex = tempIndex[1];\n\
-								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
+								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${cpuTempHelper.getUnit()}</span>\`;\n\
 							} else {\n\
-								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix\`;\n\
+								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, '0.#')}\${cpuTempHelper.getUnit()}\`;\n\
 							}\n\
 							cpuTemps.push(tempStr);\n\
 						}\n\
@@ -447,7 +461,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${tempHelper.getUnit()}</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
@@ -510,7 +524,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}$tempUnitSuffix</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${tempHelper.getUnit()}</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
