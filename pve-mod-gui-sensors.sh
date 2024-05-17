@@ -559,6 +559,7 @@ function install_mod {
 		# Create backup of original file
 		cp "$pvemanagermobilelibjs" "$BACKUP_DIR/pvemanager-mobile.js.$timestamp"
 		msg "Backup of \"$pvemanagermobilelibjs\" saved to \"$BACKUP_DIR/pvemanager-mobile.js.$timestamp\"."
+		
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagermobilelibjs\"."
 	fi
@@ -566,6 +567,8 @@ function install_mod {
 	restart_proxy
 
 	msg "Installation completed"
+
+	msg "Clear the browser cache to ensure all changes are visualized."
 }
 
 # Function to uninstall the modification
