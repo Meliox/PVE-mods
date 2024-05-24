@@ -591,10 +591,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 					try {\n\
 						const fanSpeed = parentObj[fanKey];\n\
 						const fanNumber = fanKey.match(/^fan([0-9]+)(_input)?$/)[1]; // Extract fan number from the key\n\
-						if (fanSpeed && typeof fanSpeed === 'object' && `fan${fanNumber}_input` in fanSpeed) {\n\
-							speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed[`fan${fanNumber}_input`]} RPM`);\n\
+						if (fanSpeed && typeof fanSpeed === 'object' && \`fan\${fanNumber}_input\` in fanSpeed) {\n\
+							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed[\`fan\${fanNumber}_input\`]} RPM\`);\n\
 						} else if (typeof fanSpeed === 'number') {\n\
-							speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed} RPM`);\n\
+							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
 						}\n\
 					} catch(e) {\n\
 						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
