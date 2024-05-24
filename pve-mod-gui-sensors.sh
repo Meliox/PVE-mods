@@ -586,13 +586,15 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			Object.keys(objValue).forEach(parentKey => {\n\
 				const parentObj = objValue[parentKey];\n\
 				// Filter and sort fan keys for each parent object\n\
-				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();\n\
+				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+(_input)?$/.test(item)).sort();\n\
 				fanKeys.forEach((fanKey) => {\n\
 					try {\n\
-						const fanSpeed = parentObj[fanKey][\`\${fanKey}_input\`];\n\
-						const fanNumber = fanKey.replace('fan', ''); // Extract fan number from the key\n\
-						if (fanSpeed !== undefined) {\n\
-							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
+						const fanSpeed = parentObj[fanKey];\n\
+						const fanNumber = fanKey.match(/^fan([0-9]+)(_input)?$/)[1]; // Extract fan number from the key\n\
+						if (fanSpeed && typeof fanSpeed === 'object' && `fan${fanNumber}_input` in fanSpeed) {\n\
+							speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed[`fan${fanNumber}_input`]} RPM`);\n\
+						} else if (typeof fanSpeed === 'number') {\n\
+							speeds.push(`Fan&nbsp;${fanNumber}:&nbsp;${fanSpeed} RPM`);\n\
 						}\n\
 					} catch(e) {\n\
 						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
