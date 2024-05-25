@@ -6,7 +6,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 ## Node sensor readings view
 (Tested compatibility: 7.x - 8.2)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures and fan speeds.
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit) and fan speeds.
 
 The modification includes three main steps:
 
@@ -22,8 +22,10 @@ For HDDs/SSDs readings to work, the kernel module *drivetemp* must be installed.
 ```
 apt-get install lm-sensors
 wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-gui-sensors.sh
+bash pve-mod-gui-sensors.sh
 ```
 Or use git clone.
+Then clear the browser cache to ensure all changes are visualized.
 
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
