@@ -188,8 +188,12 @@ function configure {
 			[fF])
 				TEMP_UNIT="F"
 				;;
+			"")
+				info "No unit selected. Temperatures will be presented in degrees Celsius."
+				TEMP_UNIT="C"
+				;;
 			*)
-				warn "Invalid selection. Temperatures will be presented in degrees Celsius."
+				warn "Invalid unit selected. Temperatures will be presented in degrees Celsius."
 				TEMP_UNIT="C"
 				;;
 		esac
