@@ -38,8 +38,12 @@ function msgb {
 	echo -e "\e[1m$1\e[0m"
 }
 
+function info {
+	echo -e "\e[0;32m[info] $1\e[0m"
+}
+
 function warn {
-	echo -e "\e[0;33m[warning] $1\e[0m"
+	echo -e "\e[0;93m[warning] $1\e[0m"
 }
 
 function err {
@@ -668,9 +672,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 		restart_proxy
 
-		msg "Installation completed"
+		msg "Installation completed."
 
-		msg "Clear the browser cache to ensure all changes are visualized."
+		info "Clear the browser cache to ensure all changes are visualized."
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
