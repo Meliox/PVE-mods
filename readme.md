@@ -22,8 +22,10 @@ For HDDs/SSDs readings to work, the kernel module *drivetemp* must be installed.
 ```
 apt-get install lm-sensors
 wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-gui-sensors.sh
+bash pve-mod-gui-sensors.sh
 ```
 Or use git clone.
+Then clear the browser cache to ensure all changes are visualized.
 
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 

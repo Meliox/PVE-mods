@@ -669,6 +669,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		restart_proxy
 
 		msg "Installation completed"
+
+		msg "Clear the browser cache to ensure all changes are visualized."
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
