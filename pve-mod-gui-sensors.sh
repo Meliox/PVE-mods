@@ -581,24 +581,40 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			} catch(e) {\n\
 				objValue = {};\n\
 			}\n\
+\n\
+			// Recursive function to find fan keys and values\n\
+			function findFanKeys(obj, fanKeys) {\n\
+				Object.keys(obj).forEach(key => {\n\
+				const value = obj[key];\n\
+				if (typeof value === 'object' && value !== null) {\n\
+					// If the value is an object, recursively call the function\n\
+					findFanKeys(value, fanKeys);\n\
+				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
+					// If the key matches the pattern, add the key-value pair to the fanKeys array\n\
+					fanKeys.push({ key: key, value: value });\n\
+				}\n\
+				});\n\
+			}\n\
+\n\
 			let speeds = [];\n\
 			// Loop through the parent keys\n\
 			Object.keys(objValue).forEach(parentKey => {\n\
 				const parentObj = objValue[parentKey];\n\
-				// Filter and sort fan keys for each parent object\n\
-				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+(_input)?$/.test(item)).sort();\n\
-				fanKeys.forEach((fanKey) => {\n\
-					try {\n\
-						const fanSpeed = parentObj[fanKey];\n\
-						const fanNumber = fanKey.match(/^fan([0-9]+)(_input)?$/)[1]; // Extract fan number from the key\n\
-						if (fanSpeed && typeof fanSpeed === 'object' && \`fan\${fanNumber}_input\` in fanSpeed) {\n\
-							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed[\`fan\${fanNumber}_input\`]} RPM\`);\n\
-						} else if (typeof fanSpeed === 'number') {\n\
-							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
-						}\n\
-					} catch(e) {\n\
-						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
-					}\n\
+				// Array to store fan keys and values\n\
+				const fanKeys = [];\n\
+				// Call the recursive function to find fan keys and values\n\
+				findFanKeys(parentObj, fanKeys);\n\
+				// Sort the fan keys\n\
+				fanKeys.sort();\n\
+				// Process each fan key and value\n\
+				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {\n\
+				try {\n\
+					// Extract fan number from the key\n\
+					const fanNumber = fanKey.match(/^fan([0-9]+)(_input)?$/)[1];\n\
+					speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
+				} catch(e) {\n\
+					console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
+				}\n\
 				});\n\
 			});\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
