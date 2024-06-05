@@ -202,7 +202,7 @@ function configure {
 			msg "Displaying System Information... no"
 			;;
 		*)
-			warn "Invalid selection. System information will not be displayed."
+			warn "Invalid selection. System information will be displayed."
 			enableSystemInfo=true
 			;;
 	esac	
