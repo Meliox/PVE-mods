@@ -38,8 +38,12 @@ function msgb {
 	echo -e "\e[1m$1\e[0m"
 }
 
+function info {
+	echo -e "\e[0;32m[info] $1\e[0m"
+}
+
 function warn {
-	echo -e "\e[0;33m[warning] $1\e[0m"
+	echo -e "\e[0;93m[warning] $1\e[0m"
 }
 
 function err {
@@ -184,8 +188,12 @@ function configure {
 			[fF])
 				TEMP_UNIT="F"
 				;;
+			"")
+				info "No unit selected. Temperatures will be presented in degrees Celsius."
+				TEMP_UNIT="C"
+				;;
 			*)
-				warn "Invalid selection. Temperatures will be presented in degrees Celsius."
+				warn "Invalid unit selected. Temperatures will be presented in degrees Celsius."
 				TEMP_UNIT="C"
 				;;
 		esac
@@ -206,7 +214,6 @@ function configure {
 			enableSystemInfo=true
 			;;
 	esac	
-
 	echo # add a new line
 }
 
@@ -219,6 +226,7 @@ function install_mod {
 
 	# Create backup of original files
 	mkdir -p "$BACKUP_DIR"
+
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 	# Perform backup
@@ -247,11 +255,15 @@ function install_mod {
 	if [[ "$enableSystemInfo" == true ]]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
-		msg "SystemInfo output added to \"$nodespm\"."
+		msg "System Information output added to \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
+		# Create backup of original file
+		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -348,22 +360,6 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}\n\
 	},\n\
 });\n" "$pvemanagerlibjs"
-	if [[ "$enableSystemInfo" == true ]]; then
-
-		sed -i "/^Ext.define('PVE.node.StatusView',/ {
-			:a;
-			/items:/!{N;ba;}
-			:b;
-			/'thermal.*},/!{N;bb;}
-			a\
-			\\
-		{\n\
-			xtype: 'box',\n\
-			colspan: 2,\n\
-			html: gettext('Drive(s)'),\n\
-		},
-		}" "$pvemanagerlibjs"
-	fi
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
@@ -667,7 +663,6 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			a\
 			\\
 	{\n\
-		itemId: 'separatorBox',\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
@@ -732,7 +727,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 		restart_proxy
 
-		msg "Installation completed"
+		msg "Installation completed."
+
+		info "Clear the browser cache to ensure all changes are visualized."
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
