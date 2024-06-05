@@ -198,6 +198,22 @@ function configure {
 				;;
 		esac
 	fi
+
+	read -p "Do you wish to enable System Information. [Yn]: " ENABLE_SYS_INFO
+	case "$ENABLE_SYS_INFO" in
+		[yY]|"")
+			enableSystemInfo=true
+			msg "Displaying System Information... yes"
+			;;
+		[nN])
+			enableSystemInfo=false
+			msg "Displaying System Information... no"
+			;;
+		*)
+			warn "Invalid selection. System information will be displayed."
+			enableSystemInfo=true
+			;;
+	esac	
 	echo # add a new line
 }
 
@@ -213,27 +229,37 @@ function install_mod {
 
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
-	# Add new line to Nodes.pm file
-	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]]; then
+	# Perform backup
+	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $nodespm | grep -e "$res->{systemInfo}") ]]; then
 		# Create backup of original file
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
+		# Create backup of original file
+		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."		
+	else
+		err "Mod is already installed. Uninstall existing before installing."
+		exit
+	fi
+
+	enableSensors=true
+	if [[ "$enableSensors" == true ]]; then
 		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
 		#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
 		local sensorsCmd="sensors -j"
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
-	else
-		warn "Sensors' output already integrated in in \"$nodespm\"."
+	fi
+
+	if [[ "$enableSystemInfo" == true ]]; then
+		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
+		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
+		msg "System Information output added to \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		# Create backup of original file
-		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
-
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -633,11 +659,33 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			a\
 			\\
 	{\n\
+		itemId: 'separatorBox',\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
 		}" "$pvemanagerlibjs"
+		fi
+
+		if [[ $enableSystemInfo == "true" ]]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/title:/!{N;ba;}
+				:b;
+				/'separatorBox.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		itemId: 'sysinfo',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('System Information'),\n\
+		textField: 'systemInfo',\n\
+		renderer: function(value){\n\
+			return value;\n\
+		}\n\
+	},
+			}" "$pvemanagerlibjs"
 		fi
 
 		# Move the node summary box into its own container
