@@ -252,6 +252,19 @@ function install_mod {
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
 
 
+	#todo code segment to add somewhere...
+	{
+	    itemId: 'sysinfo',
+	    colspan: 2,
+	    printBar: false,
+	    title: gettext('System Information'),
+	    textField: 'systemInfo',
+		renderer: function(value){
+			return value;
+		}
+	},
+
+
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
