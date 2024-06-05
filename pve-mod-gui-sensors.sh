@@ -193,11 +193,13 @@ function configure {
 
 	read -p "Do you wish to enable System Information. [Yn]: " ENABLE_SYS_INFO
 	case "$ENABLE_SYS_INFO" in
-		[yY])
+		[yY]|"")
 			enableSystemInfo=true
+			msg "Displaying System Information... yes"
 			;;
 		[nN])
 			enableSystemInfo=false
+			msg "Displaying System Information... no"
 			;;
 		*)
 			warn "Invalid selection. System information will not be displayed."
@@ -250,21 +252,6 @@ function install_mod {
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-
-
-	#todo code segment to add somewhere...
-	{
-	    itemId: 'sysinfo',
-	    colspan: 2,
-	    printBar: false,
-	    title: gettext('System Information'),
-	    textField: 'systemInfo',
-		renderer: function(value){
-			return value;
-		}
-	},
-
-
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -680,11 +667,33 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			a\
 			\\
 	{\n\
+		itemId: 'separatorBox',\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
 		}" "$pvemanagerlibjs"
+		fi
+
+		if [[ $enableSystemInfo == "true" ]]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/title:/!{N;ba;}
+				:b;
+				/'separatorBox.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		itemId: 'sysinfo',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('System Information'),\n\
+		textField: 'systemInfo',\n\
+		renderer: function(value){\n\
+			return value;\n\
+		}\n\
+	},
+			}" "$pvemanagerlibjs"
 		fi
 
 		# Move the node summary box into its own container
