@@ -25,7 +25,6 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 # File paths
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
-DMIDECODE_OUTPUT="$SCRIPT_CWD/dmidecode_output"
 
 ###############################################
 
@@ -191,6 +190,21 @@ function configure {
 				;;
 		esac
 	fi
+
+	read -p "Do you wish to enable System Information. [Yn]: " ENABLE_SYS_INFO
+	case "$ENABLE_SYS_INFO" in
+		[yY])
+			enableSystemInfo=true
+			;;
+		[nN])
+			enableSystemInfo=false
+			;;
+		*)
+			warn "Invalid selection. System information will not be displayed."
+			enableSystemInfo=true
+			;;
+	esac	
+
 	echo # add a new line
 }
 
@@ -228,7 +242,6 @@ function install_mod {
 		msg "Sensors' output added to \"$nodespm\"."
 	fi
 
-	enableSystemInfo=true
 	if [[ "$enableSystemInfo" == true ]]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
