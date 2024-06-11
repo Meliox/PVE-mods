@@ -96,15 +96,28 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "$item"); then
 			case "$item" in
 				"coretemp-"*)
+					# Intel CPU
+					# Try to find temperature information				
 					CPU_ADDRESS_PREFIX=$item
 					CPU_ITEM_PREFIX="Core "
 					CPU_TEMP_CAPTION="Core"
 					break
 					;;
 				"k10temp-"*)
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Tccd"
-					CPU_TEMP_CAPTION="Temp"
+					# AMD CPU
+					# Try to find temperature information
+					if (echo "$sensorsOutput" | grep -A 2 "$item" | grep -q "Tctl"); then
+						CPU_ADDRESS_PREFIX=$item
+						CPU_ITEM_PREFIX="Tccd"
+						CPU_TEMP_CAPTION="Temp"
+					elif (echo "$sensorsOutput" | grep -A 2 "$item" | grep -q "Tccd"); then
+						CPU_ADDRESS_PREFIX=$item
+						CPU_ITEM_PREFIX="Tccd"
+						CPU_TEMP_CAPTION="Temp"					
+					else
+						CPU_ITEM_PREFIX="temp"
+						CPU_TEMP_CAPTION="Temp"
+					fi
 					break
 					;;
 				*)
