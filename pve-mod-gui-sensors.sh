@@ -86,6 +86,7 @@ function install_packages {
 function configure {
 	sensorsDetected=false
 	local sensorsOutput=$(sensors -j)
+
 	if [ $? -ne 0 ]; then
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
@@ -97,24 +98,26 @@ function configure {
 			case "$item" in
 				"coretemp-"*)
 					# Intel CPU
-					# Set temperature search criterias				
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Core "
-					CPU_TEMP_CAPTION="Core"
+					# Set temperature search criterias
+					if (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Core "); then		
+						CPU_ADDRESS_PREFIX=$item
+						CPU_ITEM_PREFIX="Core "
+						CPU_TEMP_CAPTION="Core"
+					fi
 					break
 					;;
 				"k10temp-"*)
 					# AMD CPU
 					# Find and set temperature search criterias
-					if (echo "$sensorsOutput" | grep -A 2 "$item" | grep -q "Tctl"); then
+					if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "Tctl"); then
 						CPU_ADDRESS_PREFIX=$item
 						CPU_ITEM_PREFIX="Tccd"
 						CPU_TEMP_CAPTION="Temp"
-					elif (echo "$sensorsOutput" | grep -A 2 "$item" | grep -q "Tccd"); then
+					elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "Tccd"); then
 						CPU_ADDRESS_PREFIX=$item
 						CPU_ITEM_PREFIX="Tccd"
 						CPU_TEMP_CAPTION="Temp"					
-					else
+					elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
 						CPU_ADDRESS_PREFIX=$item					
 						CPU_ITEM_PREFIX="temp"
 						CPU_TEMP_CAPTION="Temp"
