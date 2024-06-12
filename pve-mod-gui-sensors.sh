@@ -26,7 +26,11 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
-###############################################
+##################### DO NOT EDIT BELOW #######################
+# Only to be used to debug on other systems. Add the "sensor -j" into the file. 
+# Information will be loaded for script configuration and presented in Proxmox.
+DEBUG_REMOTE="FALSE"
+JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
 function msg {
@@ -85,7 +89,15 @@ function install_packages {
 
 function configure {
 	sensorsDetected=false
-	local sensorsOutput=$(sensors -j)
+	local sensorsOutput
+
+	if [[ $DEBUG_REMOTE == "TRUE" ]]; then
+		warn "Remote debugging is used. Information from $JSON_FILE is loaded."
+		sensorsOutput=$(cat $JSON_FILE)
+	else
+		sensorsOutput=$(sensors -j)
+	fi
+
 	if [ $? -ne 0 ]; then
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
@@ -219,10 +231,14 @@ function install_mod {
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-		#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
-		local sensorsCmd="sensors -j"
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
+		if [[ $DEBUG_REMOTE == "TRUE" ]]; then
+			sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''my $json_file_path = '"'$JSON_FILE'"';\n\topen my $fh, '\''<'\'', $json_file_path or die "Cannot open $json_file_path: $!";\n\tmy $json_text = do { local $/; <$fh> };\n\tclose $fh;\n\t$res->{sensorsOutput} = $json_text;\n' "$nodespm"
+		else
+			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
+			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")		
+			local sensorsCmd="sensors -j"
+			sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
+		fi
 		msg "Sensors' output added to \"$nodespm\"."
 	else
 		warn "Sensors' output already integrated in in \"$nodespm\"."
