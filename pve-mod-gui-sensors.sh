@@ -198,7 +198,7 @@ function configure {
 				;;
 		esac
 	fi
-
+	echo ""
 	read -p "Do you wish to enable System Information. [Yn]: " ENABLE_SYS_INFO
 	case "$ENABLE_SYS_INFO" in
 		[yY]|"")
@@ -356,6 +356,27 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}\n\
 	},\n\
 });\n" "$pvemanagerlibjs"
+
+		if [[ $enableSystemInfo == "true" ]]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/items:/!{N;ba;}
+				:b;
+				/cpus.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		itemId: 'sysinfo',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('System Information'),\n\
+		textField: 'systemInfo',\n\
+		renderer: function(value){\n\
+			return value;\n\
+		}\n\
+	},
+			}" "$pvemanagerlibjs"
+		fi
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
@@ -659,33 +680,11 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			a\
 			\\
 	{\n\
-		itemId: 'separatorBox',\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
 		}" "$pvemanagerlibjs"
-		fi
-
-		if [[ $enableSystemInfo == "true" ]]; then
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
-				/title:/!{N;ba;}
-				:b;
-				/'separatorBox.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		itemId: 'sysinfo',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('System Information'),\n\
-		textField: 'systemInfo',\n\
-		renderer: function(value){\n\
-			return value;\n\
-		}\n\
-	},
-			}" "$pvemanagerlibjs"
 		fi
 
 		# Move the node summary box into its own container
