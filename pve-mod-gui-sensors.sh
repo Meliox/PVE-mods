@@ -97,7 +97,7 @@ function configure {
 			case "$item" in
 				"coretemp-"*)
 					# Intel CPU
-					# Try to find temperature information				
+					# Set temperature search criterias				
 					CPU_ADDRESS_PREFIX=$item
 					CPU_ITEM_PREFIX="Core "
 					CPU_TEMP_CAPTION="Core"
@@ -105,7 +105,7 @@ function configure {
 					;;
 				"k10temp-"*)
 					# AMD CPU
-					# Try to find temperature information
+					# Find and set temperature search criterias
 					if (echo "$sensorsOutput" | grep -A 2 "$item" | grep -q "Tctl"); then
 						CPU_ADDRESS_PREFIX=$item
 						CPU_ITEM_PREFIX="Tccd"
@@ -115,6 +115,7 @@ function configure {
 						CPU_ITEM_PREFIX="Tccd"
 						CPU_TEMP_CAPTION="Temp"					
 					else
+						CPU_ADDRESS_PREFIX=$item					
 						CPU_ITEM_PREFIX="temp"
 						CPU_TEMP_CAPTION="Temp"
 					fi
