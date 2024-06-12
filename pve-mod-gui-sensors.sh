@@ -27,7 +27,7 @@ pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 ##################### DO NOT EDIT BELOW #######################
-# Only to be used to debug on other systems. Add the "sensor -j" into the file. 
+# Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
 DEBUG_REMOTE="FALSE"
 JSON_FILE="/tmp/sensordata.json"
