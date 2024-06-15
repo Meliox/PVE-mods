@@ -26,6 +26,10 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
+# Debug location
+DEBUG_SAVE_PATH="$SCRIPT_CWD"
+DEBUG_SAVE_FILENAME="sensorsdata.json"
+
 ###############################################
 
 # Helper functions
@@ -769,16 +773,20 @@ function restart_proxy {
 }
 
 function save_sensors_data {
-	local script_dir filepath
-	# Check
+	# Check if DEBUG_SAVE_PATH exists and is writable
+	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
+		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved"
+		return
+	fi
+
+	# Check if command exists
 	if (command -v sensors &>/dev/null); then
-        # Save sensors output to sensorsdata.json in the script directory
-        script_dir="$(dirname "$0")"
-		filepath="$script_dir/sensorsdata.json"
+        # Save sensors output
+		local filepath="$DEBUG_SAVE_PATH/$DEBUG_SAVE_FILENAME"
         sensors -j > "$filepath"
 		msgb "Sensors data saved in $filepath"
 	else
-		err "Sensors in not installed. No file could be saved"
+		err "Sensors is not installed. No file could be saved"
 	fi
 }
 
@@ -801,7 +809,7 @@ while [[ $# -gt 0 ]]; do
 			;;
 		save-sensors-data)
 			executed=$(($executed + 1))
-			msgb "\nSaves the Sensors json output into a file that can be used for debugging..."
+			msgb "\nSaving current sensor readings in a file for debugging..."
 			save_sensors_data
 			echo # add a new line
 			;;			
