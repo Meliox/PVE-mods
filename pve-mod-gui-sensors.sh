@@ -781,10 +781,21 @@ function save_sensors_data {
 
 	# Check if command exists
 	if (command -v sensors &>/dev/null); then
-        # Save sensors output
-		local filepath="$DEBUG_SAVE_PATH/$DEBUG_SAVE_FILENAME"
-        sensors -j > "$filepath"
-		msgb "Sensors data saved in $filepath"
+		# Save sensors output
+		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
+		echo "Sensors data will be saved in $filepath"
+		
+		# Prompt user for confirmation
+		read -p "Do you wish to continue? (y/n): " choice
+		case "$choice" in 
+			y|Y )
+				sensors -j > "$filepath"
+				msgb "Sensors data saved in $filepath"
+				;;
+			* )
+				echo "Operation cancelled by user."
+				;;
+		esac
 	else
 		err "Sensors is not installed. No file could be saved"
 	fi
