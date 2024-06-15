@@ -29,7 +29,7 @@ nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
-DEBUG_REMOTE="FALSE"
+DEBUG_REMOTE=false
 JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
@@ -91,8 +91,8 @@ function configure {
 	sensorsDetected=false
 	local sensorsOutput
 
-	if [[ $DEBUG_REMOTE == "TRUE" ]]; then
-		warn "Remote debugging is used. Information from $JSON_FILE is loaded."
+	if [ $DEBUG_REMOTE = true ]; then
+		warn "Remote debugging is used. Sensor readings from dump file $JSON_FILE will be used."
 		sensorsOutput=$(cat $JSON_FILE)
 	else
 		sensorsOutput=$(sensors -j)
@@ -231,14 +231,15 @@ function install_mod {
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		if [[ $DEBUG_REMOTE == "TRUE" ]]; then
-			sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''my $json_file_path = '"'$JSON_FILE'"';\n\topen my $fh, '\''<'\'', $json_file_path or die "Cannot open $json_file_path: $!";\n\tmy $json_text = do { local $/; <$fh> };\n\tclose $fh;\n\t$res->{sensorsOutput} = $json_text;\n' "$nodespm"
+		local sensorsCmd
+		if [ $DEBUG_REMOTE = true ]; then
+			sensorsCmd="cat \"$JSON_FILE\""
 		else
 			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")		
-			local sensorsCmd="sensors -j"
-			sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
+			sensorsCmd="sensors -j"
 		fi
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
 	else
 		warn "Sensors' output already integrated in in \"$nodespm\"."
