@@ -54,7 +54,7 @@ function err {
 
 # Function to display usage information
 function usage {
-	msgb "\nUsage:\n$0 [install | uninstall]\n"
+	msgb "\nUsage:\n$0 [install | uninstall | save-sensors-data]\n"
 	exit 1
 }
 
@@ -768,6 +768,20 @@ function restart_proxy {
 	systemctl restart pveproxy
 }
 
+function save_sensors_data {
+	local script_dir filepath
+	# Check
+	if (command -v sensors &>/dev/null); then
+        # Save sensors output to sensorsdata.json in the script directory
+        script_dir="$(dirname "$0")"
+		filepath="$script_dir/sensorsdata.json"
+        sensors -j > "$filepath"
+		msgb "Sensors data saved in $filepath"
+	else
+		err "Sensors in not installed. No file could be saved"
+	fi
+}
+
 # Process the arguments using a while loop and a case statement
 executed=0
 while [[ $# -gt 0 ]]; do
@@ -785,6 +799,12 @@ while [[ $# -gt 0 ]]; do
 			uninstall_mod
 			echo # add a new line
 			;;
+		save-sensors-data)
+			executed=$(($executed + 1))
+			msgb "\nSaves the Sensors json output into a file that can be used for debugging..."
+			save_sensors_data
+			echo # add a new line
+			;;			
 	esac
 	shift
 done
