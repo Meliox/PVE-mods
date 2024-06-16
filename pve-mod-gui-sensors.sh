@@ -210,6 +210,22 @@ function configure {
 		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
 		enableFanSpeed=true
 		sensorsDetected=true
+		# Prompt user for display zero speed fans
+		read -p "Do you wish to display fans currently reporting a speed of zero? If no, only active fans will be displayed? (Y/n): " choice
+		case "$choice" in
+			# Set temperature search criteria
+			[yY]|"")
+				displayZeroSpeedFans=true
+				;;
+			[nN] )
+				displayZeroSpeedFans=false
+				;;
+			*)
+				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+				err "Invalid input. Exiting..."
+				;;
+		esac
+
 	else
 		warn "No fan speed sensors found."
 		enableFanSpeed=false
@@ -687,6 +703,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 					// If the value is an object, recursively call the function\n\
 					findFanKeys(value, fanKeys, key);\n\
 				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
+					if ($displayZeroSpeedFans != true && value === 0) {\n\
+						// Skip this fan if displayZeroSpeedFans is false and value is 0\n\
+						return;\n\
+					}\n\
 					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
 					fanKeys.push({ key: parentKey, value: value });\n\
 				}\n\
