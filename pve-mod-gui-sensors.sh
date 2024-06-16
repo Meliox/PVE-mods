@@ -77,8 +77,8 @@ function install_packages {
 	# Check if the 'sensors' command is available on the system
 	if (! command -v sensors &>/dev/null); then
 		# If the 'sensors' command is not available, prompt the user to install lm-sensors
-		local choice=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
-		case "$choice" in
+		local choiceInstallLmSensors=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
+		case "$choiceInstallLmSensors" in
 			[yY])
 				# If the user chooses to install lm-sensors, update the package list and install the package
 				apt-get update
@@ -127,8 +127,8 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
 			# Intel CPU
 			# Prompt user for which temperature to use
-			local choice=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
-			case "$choice" in
+			local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
+			case "$choiceTempDisplayType" in
 				# Set temperature search criteria
 				[cC] | "")
 					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
@@ -224,8 +224,8 @@ function configure {
 	fi
 
 	if [ $sensorsDetected = true ]; then
-		TEMP_UNIT=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
-		case "$TEMP_UNIT" in
+		local choiceTempUnit=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
+		case "$choiceTempUnit" in
 			[cC] | "")
 				TEMP_UNIT="C"
 				info "Temperatures will be presented in degrees Celsius."
@@ -241,8 +241,8 @@ function configure {
 		esac
 	fi
 
-	ENABLE_SYS_INFO=$(ask "Do you wish to enable system information? (Y/n)")
-	case "$ENABLE_SYS_INFO" in
+	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (Y/n)")
+	case "$choiceEnableSystemInfo" in
 		[yY] | "")
 			enableSystemInfo=true
 			info "System information will be displayed..."
@@ -829,8 +829,8 @@ function save_sensors_data {
 		msg "Sensors data will be saved in $filepath"
 
 		# Prompt user for confirmation
-		local choice=$(ask "Do you wish to continue? (y/n)")
-		case "$choice" in
+		local choiceContinue=$(ask "Do you wish to continue? (y/n)")
+		case "$choiceContinue" in
 			[yY])
 				sensors -j >"$filepath"
 				msgb "Sensors data saved in $filepath."
