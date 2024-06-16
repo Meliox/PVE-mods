@@ -26,7 +26,15 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
-###############################################
+# Debug location
+DEBUG_SAVE_PATH="$SCRIPT_CWD"
+DEBUG_SAVE_FILENAME="sensorsdata.json"
+
+##################### DO NOT EDIT BELOW #######################
+# Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
+# Information will be loaded for script configuration and presented in Proxmox.
+DEBUG_REMOTE=false
+JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
 function msg {
@@ -38,8 +46,12 @@ function msgb {
 	echo -e "\e[1m$1\e[0m"
 }
 
+function info {
+	echo -e "\e[0;32m[info] $1\e[0m"
+}
+
 function warn {
-	echo -e "\e[0;33m[warning] $1\e[0m"
+	echo -e "\e[0;93m[warning] $1\e[0m"
 }
 
 function err {
@@ -50,7 +62,7 @@ function err {
 
 # Function to display usage information
 function usage {
-	msgb "\nUsage:\n$0 [install | uninstall]\n"
+	msgb "\nUsage:\n$0 [install | uninstall | save-sensors-data]\n"
 	exit 1
 }
 
@@ -81,7 +93,15 @@ function install_packages {
 
 function configure {
 	sensorsDetected=false
-	local sensorsOutput=$(sensors -j)
+	local sensorsOutput
+
+	if [ $DEBUG_REMOTE = true ]; then
+		warn "Remote debugging is used. Sensor readings from dump file $JSON_FILE will be used."
+		sensorsOutput=$(cat $JSON_FILE)
+	else
+		sensorsOutput=$(sensors -j)
+	fi
+
 	if [ $? -ne 0 ]; then
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
@@ -90,28 +110,50 @@ function configure {
 	msg "\nDetecting support for CPU temperature sensors..."
 	for item in "${KNOWN_CPU_SENSORS[@]}"; do
 		if (echo "$sensorsOutput" | grep -q "$item"); then
-			case "$item" in
-				"coretemp-"*)
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Core "
-					CPU_TEMP_CAPTION="Core"
-					break
-					;;
-				"k10temp-"*)
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Tccd"
-					CPU_TEMP_CAPTION="Temp"
-					break
-					;;
-				*)
-					continue
-					;;
-			esac
+			CPU_ADDRESS_PREFIX=$item
 		fi
 	done
 
 	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
+
+		# Populate search criterias for known CPUs
+		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
+			# Intel CPU
+			# Prompt user for which temperature to use
+			read -p "Do you wish to display temperatures for all cores [C] or just an average value(s) per CPU [a]? (C/a): " choice
+			case "$choice" in
+				# Set temperature search criteria
+				[cC]|"")
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
+						CPU_ITEM_PREFIX="Core "
+						CPU_TEMP_CAPTION="Core"
+					fi
+					;;
+				[aA] )
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
+						CPU_ITEM_PREFIX="Package id"
+						CPU_TEMP_CAPTION="Package"
+					fi
+					;;
+				*)
+					# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+					err "Invalid input. Exiting..."
+					;;
+			esac
+		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
+			# AMD CPU
+			# Find and set temperature search criteria
+			if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
+				CPU_ADDRESS_PREFIX=$item
+				CPU_ITEM_PREFIX="Tccd"
+				CPU_TEMP_CAPTION="Temp"			
+			elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
+				CPU_ADDRESS_PREFIX=$item					
+				CPU_ITEM_PREFIX="temp"
+				CPU_TEMP_CAPTION="Temp"
+			fi
+		fi
 	else
 		# If cpu is not known, ask the user for input
 		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
@@ -174,22 +216,41 @@ function configure {
 	fi
 
 	if [ $sensorsDetected = true ]; then
-		msg "\nSelect a unit for temperature readings..."
-		read -p "Type C for Celsius or F for Fahrenheit and press Enter: " TEMP_UNIT
+		echo
+		read -p "Do you wish to display temperature readings in degrees Celsius [C] or Fahrenheit [f]? (C/f): " TEMP_UNIT
 
 		case "$TEMP_UNIT" in
-			[cC])
+			[cC] | "")
 				TEMP_UNIT="C"
+				info "Temperatures will be presented in degrees Celsius."
 				;;
 			[fF])
 				TEMP_UNIT="F"
+				info "Temperatures will be presented in degrees Fahrenheit."
 				;;
 			*)
-				warn "Invalid selection. Temperatures will be presented in degrees Celsius."
+				warn "Invalid unit selected. Temperatures will be displayed in degrees Celsius."
 				TEMP_UNIT="C"
 				;;
 		esac
 	fi
+
+	echo
+	read -p "Do you wish to enable system information? (Y/n): " ENABLE_SYS_INFO
+	case "$ENABLE_SYS_INFO" in
+		[yY] | "")
+			enableSystemInfo=true
+			info "System information will be displayed..."
+			;;
+		[nN])
+			enableSystemInfo=false
+			info "System information will NOT be displayed..."
+			;;
+		*)
+			warn "Invalid selection. System information will be displayed."
+			enableSystemInfo=true
+			;;
+	esac
 	echo # add a new line
 }
 
@@ -205,27 +266,42 @@ function install_mod {
 
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
-	# Add new line to Nodes.pm file
-	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]]; then
+	# Perform backup
+	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $nodespm | grep -e "$res->{systemInfo}") ]]; then
 		# Create backup of original file
 		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
 		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-		#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
-		local sensorsCmd="sensors -j"
+		# Create backup of original file
+		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+	else
+		err "Mod is already installed. Uninstall existing before installing."
+		exit
+	fi
+
+	enableSensors=true
+	if [[ "$enableSensors" == true ]]; then
+		local sensorsCmd
+		if [ $DEBUG_REMOTE = true ]; then
+			sensorsCmd="cat \"$JSON_FILE\""
+		else
+			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
+			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
+			sensorsCmd="sensors -j"
+		fi
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
-	else
-		warn "Sensors' output already integrated in in \"$nodespm\"."
+	fi
+
+	if [[ "$enableSystemInfo" == true ]]; then
+		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
+		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
+		msg "System information output added to \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		# Create backup of original file
-		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
-
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
@@ -322,6 +398,27 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}\n\
 	},\n\
 });\n" "$pvemanagerlibjs"
+
+		if [[ $enableSystemInfo == "true" ]]; then
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/items:/!{N;ba;}
+				:b;
+				/cpus.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		itemId: 'sysinfo',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('System Information'),\n\
+		textField: 'systemInfo',\n\
+		renderer: function(value){\n\
+			return value;\n\
+		}\n\
+	},
+			}" "$pvemanagerlibjs"
+		fi
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
 			:a;
@@ -686,7 +783,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 		restart_proxy
 
-		msg "Installation completed"
+		msg "Installation completed."
+
+		info "Clear the browser cache to ensure all changes are visualized."
 	else
 		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
 	fi
@@ -729,6 +828,35 @@ function restart_proxy {
 	systemctl restart pveproxy
 }
 
+function save_sensors_data {
+	# Check if DEBUG_SAVE_PATH exists and is writable
+	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
+		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved."
+		return
+	fi
+
+	# Check if command exists
+	if (command -v sensors &>/dev/null); then
+		# Save sensors output
+		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
+		msg "Sensors data will be saved in $filepath"
+
+		# Prompt user for confirmation
+		read -p "Do you wish to continue? (y/n): " choice
+		case "$choice" in
+			[yY])
+				sensors -j >"$filepath"
+				msgb "Sensors data saved in $filepath."
+				;;
+			*)
+				warn "Operation cancelled by user."
+				;;
+		esac
+	else
+		err "Sensors is not installed. No file could be saved."
+	fi
+}
+
 # Process the arguments using a while loop and a case statement
 executed=0
 while [[ $# -gt 0 ]]; do
@@ -744,6 +872,12 @@ while [[ $# -gt 0 ]]; do
 			executed=$(($executed + 1))
 			msgb "\nUninstalling the Proxmox VE sensors display mod..."
 			uninstall_mod
+			echo # add a new line
+			;;
+		save-sensors-data)
+			executed=$(($executed + 1))
+			msgb "\nSaving current sensor readings in a file for debugging..."
+			save_sensors_data
 			echo # add a new line
 			;;
 	esac
