@@ -110,40 +110,50 @@ function configure {
 	msg "\nDetecting support for CPU temperature sensors..."
 	for item in "${KNOWN_CPU_SENSORS[@]}"; do
 		if (echo "$sensorsOutput" | grep -q "$item"); then
-			case "$item" in
-				"coretemp-"*)
-					# Intel CPU
-					# Set temperature search criteria
-					if (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Core "); then		
-						CPU_ADDRESS_PREFIX=$item
-						CPU_ITEM_PREFIX="Core "
-						CPU_TEMP_CAPTION="Core"
-					fi
-					break
-					;;
-				"k10temp-"*)
-					# AMD CPU
-					# Find and set temperature search criteria
-					if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
-						CPU_ADDRESS_PREFIX=$item
-						CPU_ITEM_PREFIX="Tccd"
-						CPU_TEMP_CAPTION="Temp"			
-					elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
-						CPU_ADDRESS_PREFIX=$item					
-						CPU_ITEM_PREFIX="temp"
-						CPU_TEMP_CAPTION="Temp"
-					fi
-					break
-					;;
-				*)
-					continue
-					;;
-			esac
+			CPU_ADDRESS_PREFIX=$item
 		fi
 	done
 
 	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
+
+		# Populate search criterias for known CPUs
+		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
+			# Intel CPU
+			# Prompt user for which temperature to use
+			read -p "Do you wish to display temperatures for all cores [C] or just an average value(s) per CPU [a]? (C/a): " choice
+			case "$choice" in
+				# Set temperature search criteria
+				[cC]|"")
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
+						CPU_ITEM_PREFIX="Core "
+						CPU_TEMP_CAPTION="Core"
+					fi
+					;;
+				[aA] )
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
+						CPU_ITEM_PREFIX="Package id"
+						CPU_TEMP_CAPTION="Package"
+					fi
+					;;
+				*)
+					# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+					err "Invalid input. Exiting..."
+					;;
+			esac
+		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
+			# AMD CPU
+			# Find and set temperature search criteria
+			if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
+				CPU_ADDRESS_PREFIX=$item
+				CPU_ITEM_PREFIX="Tccd"
+				CPU_TEMP_CAPTION="Temp"			
+			elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
+				CPU_ADDRESS_PREFIX=$item					
+				CPU_ITEM_PREFIX="temp"
+				CPU_TEMP_CAPTION="Temp"
+			fi
+		fi
 	else
 		# If cpu is not known, ask the user for input
 		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
