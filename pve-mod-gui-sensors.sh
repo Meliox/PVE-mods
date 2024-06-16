@@ -207,7 +207,7 @@ function configure {
 	# Look for fan speeds
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
-		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
+		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -Po '"[^"]*":\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
 		enableFanSpeed=true
 		sensorsDetected=true
 	else
