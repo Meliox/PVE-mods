@@ -107,29 +107,30 @@ function configure {
 
 		# Populate search criterias for known CPUs
 		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
-					# Intel CPU
-					# Prompt user for which temperature to use
-					read -p "Do you wish to display all cores [Y] or package temp (averge, single temperature)[n]? (Y/n): " choice
-					case "$choice" in
-						# Set temperature search criteria
-						[yY]|"")
-							if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
-								CPU_ITEM_PREFIX="Core "
-								CPU_TEMP_CAPTION="Core"
-							fi
-							;;
-						[nN] )
-							if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
-								CPU_ITEM_PREFIX="Package id"
-								CPU_TEMP_CAPTION="Package"
-							fi
-							;;
-						*)
-							# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
-							err "Invalid input. Exiting..."
-							;;
-					esac
+			# Intel CPU
+			# Prompt user for which temperature to use
+			read -p "Do you wish to display all cores [Y] or package temp (averge, single temperature)[n]? (Y/n): " choice
+			case "$choice" in
+				# Set temperature search criteria
+				[yY]|"")
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
+						CPU_ITEM_PREFIX="Core "
+						CPU_TEMP_CAPTION="Core"
+					fi
+					;;
+				[nN] )
+					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
+						CPU_ITEM_PREFIX="Package id"
+						CPU_TEMP_CAPTION="Package"
+					fi
+					;;
+				*)
+					# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+					err "Invalid input. Exiting..."
+					;;
+			esac
 		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
+			# AMD CPU
 			CPU_ITEM_PREFIX="Tccd"
 			CPU_TEMP_CAPTION="Temp"
 		fi
