@@ -98,28 +98,41 @@ function configure {
 	msg "\nDetecting support for CPU temperature sensors..."
 	for item in "${KNOWN_CPU_SENSORS[@]}"; do
 		if (echo "$sensorsOutput" | grep -q "$item"); then
-			case "$item" in
-				"coretemp-"*)
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Core "
-					CPU_TEMP_CAPTION="Core"
-					break
-					;;
-				"k10temp-"*)
-					CPU_ADDRESS_PREFIX=$item
-					CPU_ITEM_PREFIX="Tccd"
-					CPU_TEMP_CAPTION="Temp"
-					break
-					;;
-				*)
-					continue
-					;;
-			esac
+			CPU_ADDRESS_PREFIX=$item
 		fi
 	done
 
 	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
+
+		# Populate search criterias for known CPUs
+		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
+					# Intel CPU
+					# Prompt user for which temperature to use
+					read -p "Do you wish to display all cores [Y] or package temp (averge, single temperature)[n]? (Y/n): " choice
+					case "$choice" in
+						# Set temperature search criteria
+						[yY]|"")
+							if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
+								CPU_ITEM_PREFIX="Core "
+								CPU_TEMP_CAPTION="Core"
+							fi
+							;;
+						[nN] )
+							if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
+								CPU_ITEM_PREFIX="Package id"
+								CPU_TEMP_CAPTION="Package"
+							fi
+							;;
+						*)
+							# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+							err "Invalid input. Exiting..."
+							;;
+					esac
+		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
+			CPU_ITEM_PREFIX="Tccd"
+			CPU_TEMP_CAPTION="Temp"
+		fi
 	else
 		# If cpu is not known, ask the user for input
 		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
