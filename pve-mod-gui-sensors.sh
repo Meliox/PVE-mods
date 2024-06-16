@@ -207,7 +207,7 @@ function configure {
 	# Look for fan speeds
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
-		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -Po '"[^"]*":\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
+		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
 		enableFanSpeed=true
 		sensorsDetected=true
 	else
@@ -680,15 +680,15 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			}\n\
 \n\
 			// Recursive function to find fan keys and values\n\
-			function findFanKeys(obj, fanKeys) {\n\
+			function findFanKeys(obj, fanKeys, parentKey = null) {\n\
 				Object.keys(obj).forEach(key => {\n\
 				const value = obj[key];\n\
 				if (typeof value === 'object' && value !== null) {\n\
 					// If the value is an object, recursively call the function\n\
-					findFanKeys(value, fanKeys);\n\
+					findFanKeys(value, fanKeys, key);\n\
 				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
-					// If the key matches the pattern, add the key-value pair to the fanKeys array\n\
-					fanKeys.push({ key: key, value: value });\n\
+					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
+					fanKeys.push({ key: parentKey, value: value });\n\
 				}\n\
 				});\n\
 			}\n\
@@ -706,9 +706,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				// Process each fan key and value\n\
 				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {\n\
 				try {\n\
-					// Extract fan number from the key\n\
-					const fanNumber = fanKey.match(/^fan([0-9]+)(_input)?$/)[1];\n\
-					speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
+					const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey\n\
+					speeds.push(\`\${fan}:&nbsp;\${fanSpeed} RPM\`);\n\
 				} catch(e) {\n\
 					console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
 				}\n\
