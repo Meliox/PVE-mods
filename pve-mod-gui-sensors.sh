@@ -26,6 +26,10 @@ BACKUP_DIR="$SCRIPT_CWD/backup"
 pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
 nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 
+# Debug location
+DEBUG_SAVE_PATH="$SCRIPT_CWD"
+DEBUG_SAVE_FILENAME="sensorsdata.json"
+
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
@@ -58,7 +62,7 @@ function err {
 
 # Function to display usage information
 function usage {
-	msgb "\nUsage:\n$0 [install | uninstall]\n"
+	msgb "\nUsage:\n$0 [install | uninstall | save-sensors-data]\n"
 	exit 1
 }
 
@@ -785,6 +789,35 @@ function restart_proxy {
 	systemctl restart pveproxy
 }
 
+function save_sensors_data {
+	# Check if DEBUG_SAVE_PATH exists and is writable
+	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
+		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved"
+		return
+	fi
+
+	# Check if command exists
+	if (command -v sensors &>/dev/null); then
+		# Save sensors output
+		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
+		echo "Sensors data will be saved in $filepath"
+		
+		# Prompt user for confirmation
+		read -p "Do you wish to continue? (y/n): " choice
+		case "$choice" in 
+			y|Y )
+				sensors -j > "$filepath"
+				msgb "Sensors data saved in $filepath"
+				;;
+			* )
+				echo "Operation cancelled by user."
+				;;
+		esac
+	else
+		err "Sensors is not installed. No file could be saved"
+	fi
+}
+
 # Process the arguments using a while loop and a case statement
 executed=0
 while [[ $# -gt 0 ]]; do
@@ -802,6 +835,12 @@ while [[ $# -gt 0 ]]; do
 			uninstall_mod
 			echo # add a new line
 			;;
+		save-sensors-data)
+			executed=$(($executed + 1))
+			msgb "\nSaving current sensor readings in a file for debugging..."
+			save_sensors_data
+			echo # add a new line
+			;;			
 	esac
 	shift
 done
