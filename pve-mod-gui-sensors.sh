@@ -127,7 +127,7 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
 			# Intel CPU
 			# Prompt user for which temperature to use
-			choice=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
+			local choice=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
 			case "$choice" in
 				# Set temperature search criteria
 				[cC] | "")
