@@ -109,16 +109,16 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
 			# Intel CPU
 			# Prompt user for which temperature to use
-			read -p "Do you wish to display all cores [Y] or package temp (averge, single temperature)[n]? (Y/n): " choice
+			read -p "Do you wish to display temperatures for all cores [C] or just an average value(s) per CPU [a]? (C/a): " choice
 			case "$choice" in
 				# Set temperature search criteria
-				[yY]|"")
+				[cC]|"")
 					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
 						CPU_ITEM_PREFIX="Core "
 						CPU_TEMP_CAPTION="Core"
 					fi
 					;;
-				[nN] )
+				[aA] )
 					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
 						CPU_ITEM_PREFIX="Package id"
 						CPU_TEMP_CAPTION="Package"
