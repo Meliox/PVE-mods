@@ -804,7 +804,7 @@ function save_sensors_data {
 		# Prompt user for confirmation
 		read -p "Do you wish to continue? (y/n): " choice
 		case "$choice" in
-			y | Y)
+			[yY])
 				sensors -j >"$filepath"
 				msgb "Sensors data saved in $filepath"
 				;;
