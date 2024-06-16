@@ -98,7 +98,7 @@ function install_packages {
 }
 
 function configure {
-	sensorsDetected=false
+	local sensorsDetected=false
 	local sensorsOutput
 
 	if [ $DEBUG_REMOTE = true ]; then
