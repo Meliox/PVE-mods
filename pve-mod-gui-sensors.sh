@@ -791,7 +791,7 @@ function restart_proxy {
 function save_sensors_data {
 	# Check if DEBUG_SAVE_PATH exists and is writable
 	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
-		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved"
+		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved."
 		return
 	fi
 
@@ -806,14 +806,14 @@ function save_sensors_data {
 		case "$choice" in
 			[yY])
 				sensors -j >"$filepath"
-				msgb "Sensors data saved in $filepath"
+				msgb "Sensors data saved in $filepath."
 				;;
 			*)
 				warn "Operation cancelled by user."
 				;;
 		esac
 	else
-		err "Sensors is not installed. No file could be saved"
+		err "Sensors is not installed. No file could be saved."
 	fi
 }
 
