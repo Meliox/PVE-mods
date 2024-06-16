@@ -216,42 +216,41 @@ function configure {
 	fi
 
 	if [ $sensorsDetected = true ]; then
-		msg "\nSelect a unit for temperature readings..."
-		read -p "Type C for Celsius or F for Fahrenheit and press Enter: " TEMP_UNIT
+		echo
+		read -p "Do you wish to display temperature readings in degrees Celsius [C] or Fahrenheit [f]? (C/f): " TEMP_UNIT
 
 		case "$TEMP_UNIT" in
-			[cC])
+			[cC] | "")
 				TEMP_UNIT="C"
+				info "Temperatures will be presented in degrees Celsius."
 				;;
 			[fF])
 				TEMP_UNIT="F"
-				;;
-			"")
-				info "No unit selected. Temperatures will be presented in degrees Celsius."
-				TEMP_UNIT="C"
+				info "Temperatures will be presented in degrees Fahrenheit."
 				;;
 			*)
-				warn "Invalid unit selected. Temperatures will be presented in degrees Celsius."
+				warn "Invalid unit selected. Temperatures will be displayed in degrees Celsius."
 				TEMP_UNIT="C"
 				;;
 		esac
 	fi
-	echo ""
-	read -p "Do you wish to enable System Information. [Yn]: " ENABLE_SYS_INFO
+
+	echo
+	read -p "Do you wish to enable system information? (Y/n): " ENABLE_SYS_INFO
 	case "$ENABLE_SYS_INFO" in
-		[yY]|"")
+		[yY] | "")
 			enableSystemInfo=true
-			msg "Displaying System Information... yes"
+			info "System information will be displayed..."
 			;;
 		[nN])
 			enableSystemInfo=false
-			msg "Displaying System Information... no"
+			info "System information will NOT be displayed..."
 			;;
 		*)
 			warn "Invalid selection. System information will be displayed."
 			enableSystemInfo=true
 			;;
-	esac	
+	esac
 	echo # add a new line
 }
 
@@ -275,7 +274,7 @@ function install_mod {
 
 		# Create backup of original file
 		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."		
+		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 	else
 		err "Mod is already installed. Uninstall existing before installing."
 		exit
@@ -288,7 +287,7 @@ function install_mod {
 			sensorsCmd="cat \"$JSON_FILE\""
 		else
 			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")		
+			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
 			sensorsCmd="sensors -j"
 		fi
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
@@ -298,7 +297,7 @@ function install_mod {
 	if [[ "$enableSystemInfo" == true ]]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
-		msg "System Information output added to \"$nodespm\"."
+		msg "System information output added to \"$nodespm\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
@@ -814,7 +813,7 @@ function restart_proxy {
 function save_sensors_data {
 	# Check if DEBUG_SAVE_PATH exists and is writable
 	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
-		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved"
+		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved."
 		return
 	fi
 
@@ -822,21 +821,21 @@ function save_sensors_data {
 	if (command -v sensors &>/dev/null); then
 		# Save sensors output
 		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
-		echo "Sensors data will be saved in $filepath"
-		
+		msg "Sensors data will be saved in $filepath"
+
 		# Prompt user for confirmation
 		read -p "Do you wish to continue? (y/n): " choice
-		case "$choice" in 
-			y|Y )
-				sensors -j > "$filepath"
-				msgb "Sensors data saved in $filepath"
+		case "$choice" in
+			[yY])
+				sensors -j >"$filepath"
+				msgb "Sensors data saved in $filepath."
 				;;
-			* )
-				echo "Operation cancelled by user."
+			*)
+				warn "Operation cancelled by user."
 				;;
 		esac
 	else
-		err "Sensors is not installed. No file could be saved"
+		err "Sensors is not installed. No file could be saved."
 	fi
 }
 
@@ -862,7 +861,7 @@ while [[ $# -gt 0 ]]; do
 			msgb "\nSaving current sensor readings in a file for debugging..."
 			save_sensors_data
 			echo # add a new line
-			;;			
+			;;
 	esac
 	shift
 done
