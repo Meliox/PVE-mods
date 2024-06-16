@@ -58,6 +58,12 @@ function err {
 	echo -e "\e[0;31m[error] $1\e[0m"
 	exit 1
 }
+
+function ask {
+	read -p $'\n\e[0;32m'"$1:"$'\e[0m'" " response
+	echo $response
+}
+
 # End of helper functions
 
 # Function to display usage information
@@ -71,7 +77,7 @@ function install_packages {
 	# Check if the 'sensors' command is available on the system
 	if (! command -v sensors &>/dev/null); then
 		# If the 'sensors' command is not available, prompt the user to install lm-sensors
-		read -p "lm-sensors is not installed. Would you like to install it? (y/n) " choice
+		local choice=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
 		case "$choice" in
 			[yY])
 				# If the user chooses to install lm-sensors, update the package list and install the package
@@ -121,19 +127,21 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
 			# Intel CPU
 			# Prompt user for which temperature to use
-			read -p "Do you wish to display temperatures for all cores [C] or just an average value(s) per CPU [a]? (C/a): " choice
+			choice=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
 			case "$choice" in
 				# Set temperature search criteria
-				[cC]|"")
+				[cC] | "")
 					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
 						CPU_ITEM_PREFIX="Core "
 						CPU_TEMP_CAPTION="Core"
+						info "Temperatures will be displayed for all cores."
 					fi
 					;;
-				[aA] )
+				[aA])
 					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
 						CPU_ITEM_PREFIX="Package id"
 						CPU_TEMP_CAPTION="Package"
+						info "An average temperature will be displayed per CPU."
 					fi
 					;;
 				*)
@@ -147,9 +155,9 @@ function configure {
 			if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
 				CPU_ADDRESS_PREFIX=$item
 				CPU_ITEM_PREFIX="Tccd"
-				CPU_TEMP_CAPTION="Temp"			
+				CPU_TEMP_CAPTION="Temp"
 			elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
-				CPU_ADDRESS_PREFIX=$item					
+				CPU_ADDRESS_PREFIX=$item
 				CPU_ITEM_PREFIX="temp"
 				CPU_TEMP_CAPTION="Temp"
 			fi
@@ -216,9 +224,7 @@ function configure {
 	fi
 
 	if [ $sensorsDetected = true ]; then
-		echo
-		read -p "Do you wish to display temperature readings in degrees Celsius [C] or Fahrenheit [f]? (C/f): " TEMP_UNIT
-
+		TEMP_UNIT=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
 		case "$TEMP_UNIT" in
 			[cC] | "")
 				TEMP_UNIT="C"
@@ -235,8 +241,7 @@ function configure {
 		esac
 	fi
 
-	echo
-	read -p "Do you wish to enable system information? (Y/n): " ENABLE_SYS_INFO
+	ENABLE_SYS_INFO=$(ask "Do you wish to enable system information? (Y/n)")
 	case "$ENABLE_SYS_INFO" in
 		[yY] | "")
 			enableSystemInfo=true
@@ -824,7 +829,7 @@ function save_sensors_data {
 		msg "Sensors data will be saved in $filepath"
 
 		# Prompt user for confirmation
-		read -p "Do you wish to continue? (y/n): " choice
+		local choice=$(ask "Do you wish to continue? (y/n)")
 		case "$choice" in
 			[yY])
 				sensors -j >"$filepath"
