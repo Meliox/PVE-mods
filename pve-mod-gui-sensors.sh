@@ -30,7 +30,11 @@ nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
 DEBUG_SAVE_PATH="$SCRIPT_CWD"
 DEBUG_SAVE_FILENAME="sensorsdata.json"
 
-###############################################
+##################### DO NOT EDIT BELOW #######################
+# Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
+# Information will be loaded for script configuration and presented in Proxmox.
+DEBUG_REMOTE=false
+JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
 function msg {
@@ -89,7 +93,15 @@ function install_packages {
 
 function configure {
 	sensorsDetected=false
-	local sensorsOutput=$(sensors -j)
+	local sensorsOutput
+
+	if [ $DEBUG_REMOTE = true ]; then
+		warn "Remote debugging is used. Sensor readings from dump file $JSON_FILE will be used."
+		sensorsOutput=$(cat $JSON_FILE)
+	else
+		sensorsOutput=$(sensors -j)
+	fi
+
 	if [ $? -ne 0 ]; then
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
@@ -249,9 +261,14 @@ function install_mod {
 
 	enableSensors=true
 	if [[ "$enableSensors" == true ]]; then
-		# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-		#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
-		local sensorsCmd="sensors -j"
+		local sensorsCmd
+		if [ $DEBUG_REMOTE = true ]; then
+			sensorsCmd="cat \"$JSON_FILE\""
+		else
+			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
+			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")		
+			sensorsCmd="sensors -j"
+		fi
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
 		msg "Sensors' output added to \"$nodespm\"."
 	fi
