@@ -225,7 +225,6 @@ function configure {
 				err "Invalid input. Exiting..."
 				;;
 		esac
-
 	else
 		warn "No fan speed sensors found."
 		enableFanSpeed=false
