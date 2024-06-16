@@ -207,9 +207,24 @@ function configure {
 	# Look for fan speeds
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
-		msg "Detected fan speed sensors:\n$(echo "$sensorsOutput" | grep -o 'fan[0-9]*_input[^"]*')"
+		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
 		enableFanSpeed=true
 		sensorsDetected=true
+		# Prompt user for display zero speed fans
+		local choiceDisplayZeroSpeedFans=$(read -p "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed. (Y/n)")
+		case "$choiceDisplayZeroSpeedFans" in
+			# Set temperature search criteria
+			[yY]|"")
+				displayZeroSpeedFans=true
+				;;
+			[nN] )
+				displayZeroSpeedFans=false
+				;;
+			*)
+				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
+				err "Invalid input. Exiting..."
+				;;
+		esac
 	else
 		warn "No fan speed sensors found."
 		enableFanSpeed=false
@@ -678,22 +693,43 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			} catch(e) {\n\
 				objValue = {};\n\
 			}\n\
+\n\
+			// Recursive function to find fan keys and values\n\
+			function findFanKeys(obj, fanKeys, parentKey = null) {\n\
+				Object.keys(obj).forEach(key => {\n\
+				const value = obj[key];\n\
+				if (typeof value === 'object' && value !== null) {\n\
+					// If the value is an object, recursively call the function\n\
+					findFanKeys(value, fanKeys, key);\n\
+				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
+					if ($displayZeroSpeedFans != true && value === 0) {\n\
+						// Skip this fan if displayZeroSpeedFans is false and value is 0\n\
+						return;\n\
+					}\n\
+					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
+					fanKeys.push({ key: parentKey, value: value });\n\
+				}\n\
+				});\n\
+			}\n\
+\n\
 			let speeds = [];\n\
 			// Loop through the parent keys\n\
 			Object.keys(objValue).forEach(parentKey => {\n\
 				const parentObj = objValue[parentKey];\n\
-				// Filter and sort fan keys for each parent object\n\
-				const fanKeys = Object.keys(parentObj).filter(item => /^fan[0-9]+$/.test(item)).sort();\n\
-				fanKeys.forEach((fanKey) => {\n\
-					try {\n\
-						const fanSpeed = parentObj[fanKey][\`\${fanKey}_input\`];\n\
-						const fanNumber = fanKey.replace('fan', ''); // Extract fan number from the key\n\
-						if (fanSpeed !== undefined) {\n\
-							speeds.push(\`Fan&nbsp;\${fanNumber}:&nbsp;\${fanSpeed} RPM\`);\n\
-						}\n\
-					} catch(e) {\n\
-						console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
-					}\n\
+				// Array to store fan keys and values\n\
+				const fanKeys = [];\n\
+				// Call the recursive function to find fan keys and values\n\
+				findFanKeys(parentObj, fanKeys);\n\
+				// Sort the fan keys\n\
+				fanKeys.sort();\n\
+				// Process each fan key and value\n\
+				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {\n\
+				try {\n\
+					const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey\n\
+					speeds.push(\`\${fan}:&nbsp;\${fanSpeed} RPM\`);\n\
+				} catch(e) {\n\
+					console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
+				}\n\
 				});\n\
 			});\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
