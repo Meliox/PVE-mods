@@ -211,7 +211,7 @@ function configure {
 		enableFanSpeed=true
 		sensorsDetected=true
 		# Prompt user for display zero speed fans
-		read -p "Do you wish to display fans currently reporting a speed of zero? If no, only active fans will be displayed? (Y/n): " choice
+		read -p "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed? (Y/n): " choice
 		case "$choice" in
 			# Set temperature search criteria
 			[yY]|"")
