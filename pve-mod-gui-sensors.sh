@@ -124,14 +124,10 @@ function configure {
 				"k10temp-"*)
 					# AMD CPU
 					# Find and set temperature search criteria
-					if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "Tctl"); then
+					if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
 						CPU_ADDRESS_PREFIX=$item
 						CPU_ITEM_PREFIX="Tccd"
-						CPU_TEMP_CAPTION="Temp"
-					elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "Tccd"); then
-						CPU_ADDRESS_PREFIX=$item
-						CPU_ITEM_PREFIX="Tccd"
-						CPU_TEMP_CAPTION="Temp"					
+						CPU_TEMP_CAPTION="Temp"			
 					elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
 						CPU_ADDRESS_PREFIX=$item					
 						CPU_ITEM_PREFIX="temp"
