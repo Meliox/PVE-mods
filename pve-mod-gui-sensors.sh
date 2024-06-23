@@ -216,7 +216,7 @@ function configure {
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
-		enableFanSpeed=true
+		ENABLE_FAN_SPEED=true
 		SENSORS_DETECTED=true
 		# Prompt user for display zero speed fans
 		local choiceDisplayZeroSpeedFans=$(ask "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed. (Y/n)")
@@ -235,7 +235,7 @@ function configure {
 		esac
 	else
 		warn "No fan speed sensors found."
-		enableFanSpeed=false
+		ENABLE_FAN_SPEED=false
 	fi
 
 	if [ $SENSORS_DETECTED = true ]; then
@@ -668,7 +668,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableFanSpeed = true ]; then
+		if [ $ENABLE_FAN_SPEED = true ]; then
 			# Add fan speeds display
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
@@ -749,7 +749,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			lastItemId="thermalHdd"
 		elif [ $ENABLE_NVME_TEMP = true ]; then
 			lastItemId="thermalNvme"
-		elif [ $enableFanSpeed = true ]; then
+		elif [ $ENABLE_FAN_SPEED = true ]; then
 			lastItemId="speedFan"
 		else
 			lastItemId="thermalCpu"
