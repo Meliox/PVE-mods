@@ -98,7 +98,7 @@ function install_packages {
 }
 
 function configure {
-	local sensorsDetected=false
+	sensorsDetected=false # this is a global variable (see install_mod())
 	local sensorsOutput
 
 	if [ $DEBUG_REMOTE = true ]; then
