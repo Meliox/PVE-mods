@@ -223,10 +223,10 @@ function configure {
 		case "$choiceDisplayZeroSpeedFans" in
 			# Set temperature search criteria
 			[yY]|"")
-				displayZeroSpeedFans=true
+				DISPLAY_ZERO_SPEED_FANS=true
 				;;
 			[nN] )
-				displayZeroSpeedFans=false
+				DISPLAY_ZERO_SPEED_FANS=false
 				;;
 			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
@@ -706,8 +706,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 					// If the value is an object, recursively call the function\n\
 					findFanKeys(value, fanKeys, key);\n\
 				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
-					if ($displayZeroSpeedFans != true && value === 0) {\n\
-						// Skip this fan if displayZeroSpeedFans is false and value is 0\n\
+					if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {\n\
+						// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0\n\
 						return;\n\
 					}\n\
 					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
