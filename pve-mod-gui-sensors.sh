@@ -34,7 +34,7 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
 DEBUG_REMOTE=false
-JSON_FILE="/tmp/sensordata.json"
+DEBUG_JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
 function msg {
@@ -102,8 +102,8 @@ function configure {
 	local sensorsOutput
 
 	if [ $DEBUG_REMOTE = true ]; then
-		warn "Remote debugging is used. Sensor readings from dump file $JSON_FILE will be used."
-		sensorsOutput=$(cat $JSON_FILE)
+		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+		sensorsOutput=$(cat $DEBUG_JSON_FILE)
 	else
 		sensorsOutput=$(sensors -j)
 	fi
@@ -303,7 +303,7 @@ function install_mod {
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
 		if [ $DEBUG_REMOTE = true ]; then
-			sensorsCmd="cat \"$JSON_FILE\""
+			sensorsCmd="cat \"$DEBUG_JSON_FILE\""
 		else
 			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
