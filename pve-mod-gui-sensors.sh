@@ -259,16 +259,16 @@ function configure {
 	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (Y/n)")
 	case "$choiceEnableSystemInfo" in
 		[yY] | "")
-			enableSystemInfo=true
+			ENABLE_SYSTEM_INFO=true
 			info "System information will be displayed..."
 			;;
 		[nN])
-			enableSystemInfo=false
+			ENABLE_SYSTEM_INFO=false
 			info "System information will NOT be displayed..."
 			;;
 		*)
 			warn "Invalid selection. System information will be displayed."
-			enableSystemInfo=true
+			ENABLE_SYSTEM_INFO=true
 			;;
 	esac
 	echo # add a new line
@@ -313,7 +313,7 @@ function install_mod {
 		msg "Sensors' output added to \"$NODES_PM_FILE\"."
 	fi
 
-	if [[ "$enableSystemInfo" == true ]]; then
+	if [ $ENABLE_SYSTEM_INFO = true ]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
 		msg "System information output added to \"$NODES_PM_FILE\"."
@@ -418,7 +418,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	},\n\
 });\n" "$PVE_MANAGER_LIB_JS_FILE"
 
-		if [[ $enableSystemInfo == "true" ]]; then
+		if [ $ENABLE_SYSTEM_INFO = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
