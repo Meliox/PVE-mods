@@ -23,8 +23,8 @@ SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
 BACKUP_DIR="$SCRIPT_CWD/backup"
 
 # File paths
-pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
-nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
+PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
+NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 # Debug location
 DEBUG_SAVE_PATH="$SCRIPT_CWD"
@@ -34,7 +34,7 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
 DEBUG_REMOTE=false
-JSON_FILE="/tmp/sensordata.json"
+DEBUG_JSON_FILE="/tmp/sensordata.json"
 
 # Helper functions
 function msg {
@@ -98,12 +98,12 @@ function install_packages {
 }
 
 function configure {
-	sensorsDetected=false # this is a global variable (see install_mod())
+	SENSORS_DETECTED=false
 	local sensorsOutput
 
 	if [ $DEBUG_REMOTE = true ]; then
-		warn "Remote debugging is used. Sensor readings from dump file $JSON_FILE will be used."
-		sensorsOutput=$(cat $JSON_FILE)
+		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+		sensorsOutput=$(cat $DEBUG_JSON_FILE)
 	else
 		sensorsOutput=$(sensors -j)
 	fi
@@ -181,7 +181,7 @@ function configure {
 	if [[ -z "$CPU_ADDRESS_PREFIX" || -z "$CPU_ITEM_PREFIX" ]]; then
 		warn "The CPU configuration is not complete. Temperatures will not be available."
 	else
-		sensorsDetected=true
+		SENSORS_DETECTED=true
 	fi
 
 	# Check if HDD/SSD data is installed
@@ -190,43 +190,43 @@ function configure {
 		# Check if SDD/HDD data is available
 		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
-			enableHddTemp=true
-			sensorsDetected=true
+			ENABLE_HDD_TEMP=true
+			SENSORS_DETECTED=true
 		else
 			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
-			enableHddTemp=false
+			ENABLE_HDD_TEMP=false
 		fi
 	else
 		warn "No HDD/SSD temperature sensors found."
-		enableHddTemp=false
+		ENABLE_HDD_TEMP=false
 	fi
 
 	# Check if NVMe data is available
 	msg "\nDetecting support for NVMe temperature sensors..."
 	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
-		enableNvmeTemp=true
-		sensorsDetected=true
+		ENABLE_NVME_TEMP=true
+		SENSORS_DETECTED=true
 	else
 		warn "No NVMe temperature sensors found."
-		enableNvmeTemp=false
+		ENABLE_NVME_TEMP=false
 	fi
 
 	# Look for fan speeds
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
-		enableFanSpeed=true
-		sensorsDetected=true
+		ENABLE_FAN_SPEED=true
+		SENSORS_DETECTED=true
 		# Prompt user for display zero speed fans
 		local choiceDisplayZeroSpeedFans=$(ask "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed. (Y/n)")
 		case "$choiceDisplayZeroSpeedFans" in
 			# Set temperature search criteria
 			[yY]|"")
-				displayZeroSpeedFans=true
+				DISPLAY_ZERO_SPEED_FANS=true
 				;;
 			[nN] )
-				displayZeroSpeedFans=false
+				DISPLAY_ZERO_SPEED_FANS=false
 				;;
 			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
@@ -235,10 +235,10 @@ function configure {
 		esac
 	else
 		warn "No fan speed sensors found."
-		enableFanSpeed=false
+		ENABLE_FAN_SPEED=false
 	fi
 
-	if [ $sensorsDetected = true ]; then
+	if [ $SENSORS_DETECTED = true ]; then
 		local choiceTempUnit=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
 		case "$choiceTempUnit" in
 			[cC] | "")
@@ -259,16 +259,16 @@ function configure {
 	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (Y/n)")
 	case "$choiceEnableSystemInfo" in
 		[yY] | "")
-			enableSystemInfo=true
+			ENABLE_SYSTEM_INFO=true
 			info "System information will be displayed..."
 			;;
 		[nN])
-			enableSystemInfo=false
+			ENABLE_SYSTEM_INFO=false
 			info "System information will NOT be displayed..."
 			;;
 		*)
 			warn "Invalid selection. System information will be displayed."
-			enableSystemInfo=true
+			ENABLE_SYSTEM_INFO=true
 			;;
 	esac
 	echo # add a new line
@@ -287,48 +287,48 @@ function install_mod {
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 	# Perform backup
-	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $nodespm | grep -e "$res->{systemInfo}") ]]; then
+	if [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
 		# Create backup of original file
-		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
-		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
+		cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
+		msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
 		# Create backup of original file
-		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+		cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+		msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 	else
 		err "Mod is already installed. Uninstall existing before installing."
 		exit
 	fi
 
-	if [[ "$sensorsDetected" == true ]]; then
+	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
 		if [ $DEBUG_REMOTE = true ]; then
-			sensorsCmd="cat \"$JSON_FILE\""
+			sensorsCmd="cat \"$DEBUG_JSON_FILE\""
 		else
 			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
 			sensorsCmd="sensors -j"
 		fi
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
-		msg "Sensors' output added to \"$nodespm\"."
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$NODES_PM_FILE"
+		msg "Sensors' output added to \"$NODES_PM_FILE\"."
 	fi
 
-	if [[ "$enableSystemInfo" == true ]]; then
+	if [ $ENABLE_SYSTEM_INFO = true ]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
-		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
-		msg "System information output added to \"$nodespm\"."
+		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
+		msg "System information output added to \"$NODES_PM_FILE\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
-	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
+	if [[ -z $(cat "$PVE_MANAGER_LIB_JS_FILE" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
 			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
 			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
-		}" "$pvemanagerlibjs"
-		msg "Expanded space in \"$pvemanagerlibjs\"."
+		}" "$PVE_MANAGER_LIB_JS_FILE"
+		msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
 		sed -i "/^Ext.define('PVE.node.StatusView'/i\
 Ext.define('PVE.mod.TempHelper', {\n\
@@ -416,9 +416,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				});\n\
 		}\n\
 	},\n\
-});\n" "$pvemanagerlibjs"
+});\n" "$PVE_MANAGER_LIB_JS_FILE"
 
-		if [[ $enableSystemInfo == "true" ]]; then
+		if [ $ENABLE_SYSTEM_INFO = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -436,7 +436,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return value;\n\
 		}\n\
 	},
-			}" "$pvemanagerlibjs"
+			}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -521,12 +521,12 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
 		#
 		# NOTE: The following items will be added in reverse order
 		#
-		if [ $enableHddTemp = true ]; then
+		if [ $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -586,10 +586,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableNvmeTemp = true ]; then
+		if [ $ENABLE_NVME_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -649,10 +649,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
+		if [ $ENABLE_NVME_TEMP = true -o $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -665,10 +665,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		colspan: 2,\n\
 		html: gettext('Drive(s)'),\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableFanSpeed = true ]; then
+		if [ $ENABLE_FAN_SPEED = true ]; then
 			# Add fan speeds display
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
@@ -706,8 +706,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 					// If the value is an object, recursively call the function\n\
 					findFanKeys(value, fanKeys, key);\n\
 				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
-					if ($displayZeroSpeedFans != true && value === 0) {\n\
-						// Skip this fan if displayZeroSpeedFans is false and value is 0\n\
+					if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {\n\
+						// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0\n\
 						return;\n\
 					}\n\
 					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
@@ -739,17 +739,17 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
-		if [ $enableHddTemp = true ]; then
+		if [ $ENABLE_HDD_TEMP = true ]; then
 			lastItemId="thermalHdd"
-		elif [ $enableNvmeTemp = true ]; then
+		elif [ $ENABLE_NVME_TEMP = true ]; then
 			lastItemId="thermalNvme"
-		elif [ $enableFanSpeed = true ]; then
+		elif [ $ENABLE_FAN_SPEED = true ]; then
 			lastItemId="speedFan"
 		else
 			lastItemId="thermalCpu"
@@ -766,7 +766,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		# Move the node summary box into its own container
@@ -789,7 +789,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				nodeStatus,\n\
 			]\n\
 		},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
 		# Deactivate the original box instance
 		sed -i "/^\s*nodeStatus: nodeStatus,/ {
@@ -799,9 +799,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			:b
 			/nodeStatus,/ !{N;bb;}
 			s/nodeStatus/\/\/nodeStatus/
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
-		msg "Sensor display items added to the summary panel in \"$pvemanagerlibjs\"."
+		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
 		restart_proxy
 
@@ -809,7 +809,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 		info "Clear the browser cache to ensure all changes are visualized."
 	else
-		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
+		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
 }
 
@@ -821,8 +821,8 @@ function uninstall_mod {
 
 	if [ -n "$latest_nodes_pm" ]; then
 		# Remove the latest Nodes.pm file
-		cp "$latest_nodes_pm" "$nodespm"
-		msg "Copied latest backup to $nodespm."
+		cp "$latest_nodes_pm" "$NODES_PM_FILE"
+		msg "Copied latest backup to $NODES_PM_FILE."
 	else
 		warn "No Nodes.pm files found."
 	fi
@@ -832,8 +832,8 @@ function uninstall_mod {
 
 	if [ -n "$latest_pvemanagerlibjs" ]; then
 		# Remove the latest pvemanagerlib.js file
-		cp "$latest_pvemanagerlibjs" "$pvemanagerlibjs"
-		msg "Copied latest backup to \"$pvemanagerlibjs\"."
+		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
+		msg "Copied latest backup to \"$PVE_MANAGER_LIB_JS_FILE\"."
 	else
 		warn "No pvemanagerlib.js files found."
 	fi
