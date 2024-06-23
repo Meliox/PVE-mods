@@ -190,15 +190,15 @@ function configure {
 		# Check if SDD/HDD data is available
 		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
-			enableHddTemp=true
+			ENABLE_HDD_TEMP=true
 			SENSORS_DETECTED=true
 		else
 			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
-			enableHddTemp=false
+			ENABLE_HDD_TEMP=false
 		fi
 	else
 		warn "No HDD/SSD temperature sensors found."
-		enableHddTemp=false
+		ENABLE_HDD_TEMP=false
 	fi
 
 	# Check if NVMe data is available
@@ -526,7 +526,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		#
 		# NOTE: The following items will be added in reverse order
 		#
-		if [ $enableHddTemp = true ]; then
+		if [ $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -652,7 +652,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
+		if [ $enableNvmeTemp = true -o $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -745,7 +745,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
-		if [ $enableHddTemp = true ]; then
+		if [ $ENABLE_HDD_TEMP = true ]; then
 			lastItemId="thermalHdd"
 		elif [ $enableNvmeTemp = true ]; then
 			lastItemId="thermalNvme"
