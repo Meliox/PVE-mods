@@ -23,8 +23,8 @@ SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
 BACKUP_DIR="$SCRIPT_CWD/backup"
 
 # File paths
-pvemanagerlibjs="/usr/share/pve-manager/js/pvemanagerlib.js"
-nodespm="/usr/share/perl5/PVE/API2/Nodes.pm"
+PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
+NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 # Debug location
 DEBUG_SAVE_PATH="$SCRIPT_CWD"
@@ -287,14 +287,14 @@ function install_mod {
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 	# Perform backup
-	if [[ -z $(cat $nodespm | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $nodespm | grep -e "$res->{systemInfo}") ]]; then
+	if [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
 		# Create backup of original file
-		cp "$nodespm" "$BACKUP_DIR/Nodes.pm.$timestamp"
-		msg "Backup of \"$nodespm\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
+		cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
+		msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
 		# Create backup of original file
-		cp "$pvemanagerlibjs" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$pvemanagerlibjs\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+		cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+		msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 	else
 		err "Mod is already installed. Uninstall existing before installing."
 		exit
@@ -309,26 +309,26 @@ function install_mod {
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
 			sensorsCmd="sensors -j"
 		fi
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$nodespm"
-		msg "Sensors' output added to \"$nodespm\"."
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$NODES_PM_FILE"
+		msg "Sensors' output added to \"$NODES_PM_FILE\"."
 	fi
 
 	if [[ "$enableSystemInfo" == true ]]; then
 		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
-		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$nodespm"
-		msg "System information output added to \"$nodespm\"."
+		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
+		msg "System information output added to \"$NODES_PM_FILE\"."
 	fi
 
 	# Add new item to the items array in PVE.node.StatusView
-	if [[ -z $(cat "$pvemanagerlibjs" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
+	if [[ -z $(cat "$PVE_MANAGER_LIB_JS_FILE" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		# Expand space in StatusView
 		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
 			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
 			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
 			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
-		}" "$pvemanagerlibjs"
-		msg "Expanded space in \"$pvemanagerlibjs\"."
+		}" "$PVE_MANAGER_LIB_JS_FILE"
+		msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
 		sed -i "/^Ext.define('PVE.node.StatusView'/i\
 Ext.define('PVE.mod.TempHelper', {\n\
@@ -416,7 +416,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				});\n\
 		}\n\
 	},\n\
-});\n" "$pvemanagerlibjs"
+});\n" "$PVE_MANAGER_LIB_JS_FILE"
 
 		if [[ $enableSystemInfo == "true" ]]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -436,7 +436,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return value;\n\
 		}\n\
 	},
-			}" "$pvemanagerlibjs"
+			}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -521,7 +521,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
 		#
 		# NOTE: The following items will be added in reverse order
@@ -586,7 +586,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		if [ $enableNvmeTemp = true ]; then
@@ -649,7 +649,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		if [ $enableNvmeTemp = true -o $enableHddTemp = true ]; then
@@ -665,7 +665,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		colspan: 2,\n\
 		html: gettext('Drive(s)'),\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		if [ $enableFanSpeed = true ]; then
@@ -739,7 +739,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		# Add an empty line to separate modified items as a visual group
@@ -766,7 +766,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		colspan: 2,\n\
 		padding: '0 0 20 0',\n\
 	},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		# Move the node summary box into its own container
@@ -789,7 +789,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				nodeStatus,\n\
 			]\n\
 		},
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
 		# Deactivate the original box instance
 		sed -i "/^\s*nodeStatus: nodeStatus,/ {
@@ -799,9 +799,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			:b
 			/nodeStatus,/ !{N;bb;}
 			s/nodeStatus/\/\/nodeStatus/
-		}" "$pvemanagerlibjs"
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 
-		msg "Sensor display items added to the summary panel in \"$pvemanagerlibjs\"."
+		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
 		restart_proxy
 
@@ -809,7 +809,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 		info "Clear the browser cache to ensure all changes are visualized."
 	else
-		warn "Sensor display items already added to the summary panel in \"$pvemanagerlibjs\"."
+		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
 }
 
@@ -821,8 +821,8 @@ function uninstall_mod {
 
 	if [ -n "$latest_nodes_pm" ]; then
 		# Remove the latest Nodes.pm file
-		cp "$latest_nodes_pm" "$nodespm"
-		msg "Copied latest backup to $nodespm."
+		cp "$latest_nodes_pm" "$NODES_PM_FILE"
+		msg "Copied latest backup to $NODES_PM_FILE."
 	else
 		warn "No Nodes.pm files found."
 	fi
@@ -832,8 +832,8 @@ function uninstall_mod {
 
 	if [ -n "$latest_pvemanagerlibjs" ]; then
 		# Remove the latest pvemanagerlib.js file
-		cp "$latest_pvemanagerlibjs" "$pvemanagerlibjs"
-		msg "Copied latest backup to \"$pvemanagerlibjs\"."
+		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
+		msg "Copied latest backup to \"$PVE_MANAGER_LIB_JS_FILE\"."
 	else
 		warn "No pvemanagerlib.js files found."
 	fi
