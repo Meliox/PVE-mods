@@ -98,7 +98,7 @@ function install_packages {
 }
 
 function configure {
-	sensorsDetected=false # this is a global variable (see install_mod())
+	SENSORS_DETECTED=false
 	local sensorsOutput
 
 	if [ $DEBUG_REMOTE = true ]; then
@@ -181,7 +181,7 @@ function configure {
 	if [[ -z "$CPU_ADDRESS_PREFIX" || -z "$CPU_ITEM_PREFIX" ]]; then
 		warn "The CPU configuration is not complete. Temperatures will not be available."
 	else
-		sensorsDetected=true
+		SENSORS_DETECTED=true
 	fi
 
 	# Check if HDD/SSD data is installed
@@ -191,7 +191,7 @@ function configure {
 		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
 			enableHddTemp=true
-			sensorsDetected=true
+			SENSORS_DETECTED=true
 		else
 			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
 			enableHddTemp=false
@@ -206,7 +206,7 @@ function configure {
 	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
 		enableNvmeTemp=true
-		sensorsDetected=true
+		SENSORS_DETECTED=true
 	else
 		warn "No NVMe temperature sensors found."
 		enableNvmeTemp=false
@@ -217,7 +217,7 @@ function configure {
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
 		enableFanSpeed=true
-		sensorsDetected=true
+		SENSORS_DETECTED=true
 		# Prompt user for display zero speed fans
 		local choiceDisplayZeroSpeedFans=$(ask "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed. (Y/n)")
 		case "$choiceDisplayZeroSpeedFans" in
@@ -238,7 +238,7 @@ function configure {
 		enableFanSpeed=false
 	fi
 
-	if [ $sensorsDetected = true ]; then
+	if [ $SENSORS_DETECTED = true ]; then
 		local choiceTempUnit=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
 		case "$choiceTempUnit" in
 			[cC] | "")
@@ -300,7 +300,7 @@ function install_mod {
 		exit
 	fi
 
-	if [[ "$sensorsDetected" == true ]]; then
+	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
 		if [ $DEBUG_REMOTE = true ]; then
 			sensorsCmd="cat \"$JSON_FILE\""
