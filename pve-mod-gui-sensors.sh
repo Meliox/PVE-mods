@@ -205,11 +205,11 @@ function configure {
 	msg "\nDetecting support for NVMe temperature sensors..."
 	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
-		enableNvmeTemp=true
+		ENABLE_NVME_TEMP=true
 		SENSORS_DETECTED=true
 	else
 		warn "No NVMe temperature sensors found."
-		enableNvmeTemp=false
+		ENABLE_NVME_TEMP=false
 	fi
 
 	# Look for fan speeds
@@ -589,7 +589,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableNvmeTemp = true ]; then
+		if [ $ENABLE_NVME_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -652,7 +652,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $enableNvmeTemp = true -o $ENABLE_HDD_TEMP = true ]; then
+		if [ $ENABLE_NVME_TEMP = true -o $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -747,7 +747,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		local lastItemId=""
 		if [ $ENABLE_HDD_TEMP = true ]; then
 			lastItemId="thermalHdd"
-		elif [ $enableNvmeTemp = true ]; then
+		elif [ $ENABLE_NVME_TEMP = true ]; then
 			lastItemId="thermalNvme"
 		elif [ $enableFanSpeed = true ]; then
 			lastItemId="speedFan"
