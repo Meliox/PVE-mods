@@ -295,8 +295,7 @@ function install_mod {
 		exit
 	fi
 
-	enableSensors=true
-	if [[ "$enableSensors" == true ]]; then
+	if [[ "$sensorsDetected" == true ]]; then
 		local sensorsCmd
 		if [ $DEBUG_REMOTE = true ]; then
 			sensorsCmd="cat \"$JSON_FILE\""
