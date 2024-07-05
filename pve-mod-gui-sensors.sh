@@ -152,11 +152,15 @@ function configure {
 		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
 			# AMD CPU
 			# Find and set temperature search criteria
-			if (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q -e "Tctl" -e "Tccd"); then
+			if (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Tctl" && echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Tccd"); then
 				CPU_ADDRESS_PREFIX=$item
 				CPU_ITEM_PREFIX="Tccd"
 				CPU_TEMP_CAPTION="Temp"
-			elif (echo "$sensorsOutput" | grep -A 4 "$item" | grep -q "temp"); then
+			elif (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q -e "\"Tctl\""); then
+				CPU_ADDRESS_PREFIX=$item
+				CPU_ITEM_PREFIX="Tctl"
+				CPU_TEMP_CAPTION="Temp"			
+			elif (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "\"temp1\""); then
 				CPU_ADDRESS_PREFIX=$item
 				CPU_ITEM_PREFIX="temp"
 				CPU_TEMP_CAPTION="Temp"
