@@ -194,7 +194,6 @@ function configure {
 		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
 		ENABLE_RAM_TEMP=true
 		SENSORS_DETECTED=true
-		
 	else
 		warn "No RAM temperature sensors found."
 		ENABLE_RAM_TEMP=false
