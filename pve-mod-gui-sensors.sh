@@ -776,7 +776,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		itemId: 'thermalRam',\n\
 		colspan: 2,\n\
 		printBar: false,\n\
-		title: gettext('Ram Thermal State'),\n\
+		title: gettext('Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
 		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
