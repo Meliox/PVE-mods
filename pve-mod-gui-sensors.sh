@@ -188,16 +188,16 @@ function configure {
 		SENSORS_DETECTED=true
 	fi
 
-	# Look for memory temps
-	msg "\nDetecting support for Memory temperature sensors..."
+	# Look for ram temps
+	msg "\nDetecting support for RAM temperature sensors..."
 	if (echo "$sensorsOutput" | grep -q '"SODIMM":'); then
-		msg "Detected Memory temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
-		ENABLE_MEMORY_TEMP=true
+		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
+		ENABLE_RAM_TEMP=true
 		SENSORS_DETECTED=true
 		
 	else
-		warn "No Memory temperature sensors found."
-		ENABLE_MEMORY_TEMP=false
+		warn "No RAM temperature sensors found."
+		ENABLE_RAM_TEMP=false
 	fi
 
 	# Check if HDD/SSD data is installed
@@ -758,8 +758,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $ENABLE_MEMORY_TEMP = true ]; then
-			# Add Memory temperature display
+		if [ $ENABLE_RAM_TEMP = true ]; then
+			# Add Ram temperature display
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -770,13 +770,13 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	{\n\
 		xtype: 'box',\n\
 		colspan: 2,\n\
-		html: gettext('Cooling'),\n\
+		html: gettext('RAM'),\n\
 	},\n\
 	{\n\
-		itemId: 'thermalMemory',\n\
+		itemId: 'thermalRam',\n\
 		colspan: 2,\n\
 		printBar: false,\n\
-		title: gettext('Memory Thermal State'),\n\
+		title: gettext('Ram Thermal State'),\n\
 		iconCls: 'fa fa-fw fa-thermometer-half',\n\
 		textField: 'sensorsOutput',\n\
 		renderer: function(value) {\n\
@@ -806,42 +806,42 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				objValue = {};\n\
 			}\n\
 \n\
-			// Recursive function to find memory keys and values\n\
-			function findMemoryKeys(obj, memoryKeys, parentKey = null) {\n\
+			// Recursive function to find ram keys and values\n\
+			function findRamKeys(obj, ramKeys, parentKey = null) {\n\
 				Object.keys(obj).forEach(key => {\n\
 				const value = obj[key];\n\
 				if (typeof value === 'object' && value !== null) {\n\
 					// If the value is an object, recursively call the function\n\
-					findMemoryKeys(value, memoryKeys, key);\n\
+					findRamKeys(value, ramKeys, key);\n\
 				} else if (/^temp\\\d+_input$/.test(key) && parentKey && parentKey.startsWith(\"SODIMM\")) {\n\
 					if (value !== 0) {\n\
-						memoryKeys.push({ key: parentKey, value: value});\n\
+						ramKeys.push({ key: parentKey, value: value});\n\
 					}\n\
 				}\n\
 				});\n\
 			}\n\
 \n\
-			let memoryTemps = [];\n\
+			let ramTemps = [];\n\
 			// Loop through the parent keys\n\
 			Object.keys(objValue).forEach(parentKey => {\n\
 				const parentObj = objValue[parentKey];\n\
-				// Array to store memory keys and values\n\
-				const memoryKeys = [];\n\
-				// Call the recursive function to find memory keys and values\n\
-				findMemoryKeys(parentObj, memoryKeys);\n\
-				// Sort the memoryKeys keys\n\
-				memoryKeys.sort();\n\
-				// Process each memory key and value\n\
-				memoryKeys.forEach(({ key: memoryKey, value: memoryTemp }) => {\n\
+				// Array to store ram keys and values\n\
+				const ramKeys = [];\n\
+				// Call the recursive function to find ram keys and values\n\
+				findRamKeys(parentObj, ramKeys);\n\
+				// Sort the ramKeys keys\n\
+				ramKeys.sort();\n\
+				// Process each ram key and value\n\
+				ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {\n\
 				try {\n\
-					memory = memoryKey.replace('SODIMM', 'SODIMM ');\n\
-					memoryTemps.push(\`\${memory}:&nbsp\${memoryTemp}\${cpuTempHelper.getUnit()}\`);\n\
+					ram = ramKey.replace('SODIMM', 'SODIMM ');\n\
+					ramTemps.push(\`\${ram}:&nbsp\${ramTemp}\${cpuTempHelper.getUnit()}\`);\n\
 				} catch(e) {\n\
-					console.error(\`Error retrieving Memory Temp for \${memoryTemps} in \${parentKey}:\`, e); // Debug: Log specific error\n\
+					console.error(\`Error retrieving Ram Temp for \${ramTemps} in \${parentKey}:\`, e); // Debug: Log specific error\n\
 				}\n\
 				});\n\
 			});\n\
-			return '<div style=\"text-align: left; margin-left: 28px;\">' + (memoryTemps.length > 0 ? memoryTemps.join(' | ') : 'N/A') + '</div>';\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
 	},
 		}" "$PVE_MANAGER_LIB_JS_FILE"
