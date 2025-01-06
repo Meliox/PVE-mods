@@ -188,16 +188,16 @@ function configure {
 		SENSORS_DETECTED=true
 	fi
 
-	# Look for ram temps
-	msg "\nDetecting support for Ram temperature sensors..."
+	# Look for memory temps
+	msg "\nDetecting support for Memory temperature sensors..."
 	if (echo "$sensorsOutput" | grep -q '"SODIMM":'); then
-		msg "Detected Ram temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
-		ENABLE_RAM_TEMP=true
+		msg "Detected Memory temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
+		ENABLE_MEMORY_TEMP=true
 		SENSORS_DETECTED=true
 		
 	else
-		warn "No Ram temperature sensors found."
-		ENABLE_RAM_TEMP=false
+		warn "No Memory temperature sensors found."
+		ENABLE_MEMORY_TEMP=false
 	fi
 
 	# Check if HDD/SSD data is installed
@@ -758,8 +758,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $ENABLE_RAM_TEMP = true ]; then
-			# Add Ram temperature display
+		if [ $ENABLE_MEMORY_TEMP = true ]; then
+			# Add Memory temperature display
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
 				/items:/!{N;ba;}
@@ -806,7 +806,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				objValue = {};\n\
 			}\n\
 \n\
-			// Recursive function to find Ram keys and values\n\
+			// Recursive function to find memory keys and values\n\
 			function findMemoryKeys(obj, memoryKeys, parentKey = null) {\n\
 				Object.keys(obj).forEach(key => {\n\
 				const value = obj[key];\n\
