@@ -13,19 +13,27 @@ The modification includes three main steps:
 1. Create backups of the original files located at `/usr/share/pve-manager/js/pvemanagerlib.js` and `/usr/share/perl5/PVE/API2/Nodes.pm` in the `backup` directory relative to the script location.
 2. Add a new code to the `Nodes.pm` file that enables host system sensor readings using the `sensors` command.
 3. Modify the `pvemanagerlib.js` file to expand the space in the node status view, add new items that display the temperature information in Celsius for CPUs, NVMe drives, HDDs/SSDs and fan speeds (the actual item list depends on the sensor readings available during the installation). The view layout is also adjusted to no longer match the column number setting and always expands to the full width of the browser window. It is also possible to collapse the panel vertically.
+4. Finally, the script also restarts the `pveproxy` service to apply the changes.
 
-The script provides two options: `install` and `uninstall`. The `install` option installs the modification, while the `uninstall` option removes it by copying the backup files to their original location. The script also restarts the `pveproxy` service to apply the changes.
+The script provides three options:
+| **Option**             | **Description**                                                             |
+|-------------------------|-----------------------------------------------------------------------------|
+| `install`              | Installs the modification by applying the necessary changes.                |
+| `uninstall`            | Removes the modification by restoring the original files from backups.      |
+| `save-sensors-data`    | Saves a local copy of your sensor data for reference or backup.             |
 
+Note:
 For HDDs/SSDs readings to work, the kernel module *drivetemp* must be installed.
 
 ### Install
 ```
 apt-get install lm-sensors
+# lm-sensors need configure, run below to configure your sensors, or refer to lm-sensors manual.
+sensors-detect 
 wget https://raw.githubusercontent.com/Meliox/PVE-mods/main/pve-mod-gui-sensors.sh
-bash pve-mod-gui-sensors.sh
+bash pve-mod-gui-sensors.sh install
+# Then clear the browser cache to ensure all changes are visualized.
 ```
-Or use git clone.
-Then clear the browser cache to ensure all changes are visualized.
 
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
