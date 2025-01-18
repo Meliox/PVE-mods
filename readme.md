@@ -40,7 +40,7 @@ bash pve-mod-gui-sensors.sh install
 Additionally, adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
 
 ## Nag screen deactivation
-(Tested compatibility: 7.x - 8.2)
+(Tested compatibility: 7.x - 8.3.2)
 This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) which deactivates the subscription nag screen.
 
 The modification includes two main steps:
@@ -61,7 +61,7 @@ bash pve-mod-nag-screen.sh install
 ```
 
 ## Script to update all containers
-(Tested compatibility: 7.x & 8.0)
+(Tested compatibility: 7.x & 8.3.2)
 
 This script updates all running Proxmox containers, skipping specified excluded containers, and generates a separate log file for each container.
 The script first updates the Proxmox host system, then iterates through each container, updates the container, and reboots it if necessary.
