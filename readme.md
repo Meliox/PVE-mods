@@ -7,7 +7,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 (Tested compatibility: 7.x - 8.2)
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit) and fan speeds.
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit), fan speeds and ram temperatures.
 
 The modification includes three main steps:
 

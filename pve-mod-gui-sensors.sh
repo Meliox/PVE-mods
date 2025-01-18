@@ -188,6 +188,17 @@ function configure {
 		SENSORS_DETECTED=true
 	fi
 
+	# Look for ram temps
+	msg "\nDetecting support for RAM temperature sensors..."
+	if (echo "$sensorsOutput" | grep -q '"SODIMM":'); then
+		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
+		ENABLE_RAM_TEMP=true
+		SENSORS_DETECTED=true
+	else
+		warn "No RAM temperature sensors found."
+		ENABLE_RAM_TEMP=false
+	fi
+
 	# Check if HDD/SSD data is installed
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
 	if (lsmod | grep -wq "drivetemp"); then
@@ -741,6 +752,95 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				});\n\
 			});\n\
 			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
+		}\n\
+	},
+		}" "$PVE_MANAGER_LIB_JS_FILE"
+		fi
+
+		if [ $ENABLE_RAM_TEMP = true ]; then
+			# Add Ram temperature display
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/items:/!{N;ba;}
+				:b;
+				/'thermal.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		xtype: 'box',\n\
+		colspan: 2,\n\
+		html: gettext('RAM'),\n\
+	},\n\
+	{\n\
+		itemId: 'thermalRam',\n\
+		colspan: 2,\n\
+		printBar: false,\n\
+		title: gettext('Thermal State'),\n\
+		iconCls: 'fa fa-fw fa-thermometer-half',\n\
+		textField: 'sensorsOutput',\n\
+		renderer: function(value) {\n\
+			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});\n\
+			// Make SODIMM unique keys\n\
+			value = value.split('\\\n'); // Split by newlines\n\
+			for (let i = 0; i < value.length; i++) {\n\
+				// Check if the current line contains 'SODIMM'\n\
+				if (value[i].includes('SODIMM') && i + 1 < value.length) {\n\
+					// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)\n\
+					let nextLine = value[i + 1];\n\
+					let match = nextLine.match(/\"temp(\\\d+)_input\": (\\\d+\\\.\\\d+)/);\n\
+\n\
+					if (match) {\n\
+						let number = match[1]; // Extracted number\n\
+						// Replace the current line with SODIMM by the extracted number\n\
+						value[i] = value[i].replace('SODIMM', \`SODIMM\${number}\`);\n\
+					}\n\
+				}\n\
+			}\n\
+			value = value.join('\\\n'); // Reverse line split\n\
+\n\
+			let objValue;\n\
+			try {\n\
+				objValue = JSON.parse(value) || {};\n\
+			} catch(e) {\n\
+				objValue = {};\n\
+			}\n\
+\n\
+			// Recursive function to find ram keys and values\n\
+			function findRamKeys(obj, ramKeys, parentKey = null) {\n\
+				Object.keys(obj).forEach(key => {\n\
+				const value = obj[key];\n\
+				if (typeof value === 'object' && value !== null) {\n\
+					// If the value is an object, recursively call the function\n\
+					findRamKeys(value, ramKeys, key);\n\
+				} else if (/^temp\\\d+_input$/.test(key) && parentKey && parentKey.startsWith(\"SODIMM\")) {\n\
+					if (value !== 0) {\n\
+						ramKeys.push({ key: parentKey, value: value});\n\
+					}\n\
+				}\n\
+				});\n\
+			}\n\
+\n\
+			let ramTemps = [];\n\
+			// Loop through the parent keys\n\
+			Object.keys(objValue).forEach(parentKey => {\n\
+				const parentObj = objValue[parentKey];\n\
+				// Array to store ram keys and values\n\
+				const ramKeys = [];\n\
+				// Call the recursive function to find ram keys and values\n\
+				findRamKeys(parentObj, ramKeys);\n\
+				// Sort the ramKeys keys\n\
+				ramKeys.sort();\n\
+				// Process each ram key and value\n\
+				ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {\n\
+				try {\n\
+					ram = ramKey.replace('SODIMM', 'SODIMM ');\n\
+					ramTemps.push(\`\${ram}:&nbsp\${ramTemp}\${cpuTempHelper.getUnit()}\`);\n\
+				} catch(e) {\n\
+					console.error(\`Error retrieving Ram Temp for \${ramTemps} in \${parentKey}:\`, e); // Debug: Log specific error\n\
+				}\n\
+				});\n\
+			});\n\
+			return '<div style=\"text-align: left; margin-left: 28px;\">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';\n\
 		}\n\
 	},
 		}" "$PVE_MANAGER_LIB_JS_FILE"
