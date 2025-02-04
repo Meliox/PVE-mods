@@ -271,11 +271,24 @@ function configure {
 		esac
 	fi
 
-	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (Y/n)")
+	# DMI Type:
+	# 1 ... System Information
+	# 2 ... Base Board Information (for self-made PC)
+	for i in 1 2; do
+		echo "type ${i})"
+		dmidecode -t ${i} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
+	done
+	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (1/2/n)")
 	case "$choiceEnableSystemInfo" in
-		[yY] | "")
+		[1] | "")
 			ENABLE_SYSTEM_INFO=true
+			SYSTEM_INFO_TYPE=1
 			info "System information will be displayed..."
+			;;
+		[2])
+			ENABLE_SYSTEM_INFO=true
+			SYSTEM_INFO_TYPE=2
+			info "Motherboard information will be displayed..."
 			;;
 		[nN])
 			ENABLE_SYSTEM_INFO=false
@@ -291,6 +304,11 @@ function configure {
 
 # Function to install the modification
 function install_mod {
+	if [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
+		err "Mod is already installed. Uninstall existing before installing."
+		exit
+	fi
+
 	msg "\nPreparing mod installation..."
 
 	# Provide sensor configuration
@@ -302,18 +320,13 @@ function install_mod {
 	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
 
 	# Perform backup
-	if [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] || [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
-		# Create backup of original file
-		cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
-		msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
+	# Create backup of original file
+	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
+	msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
 
-		# Create backup of original file
-		cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-		msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
-	else
-		err "Mod is already installed. Uninstall existing before installing."
-		exit
-	fi
+	# Create backup of original file
+	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+	msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
@@ -329,7 +342,7 @@ function install_mod {
 	fi
 
 	if [ $ENABLE_SYSTEM_INFO = true ]; then
-		local systemInfoCmd=$(dmidecode -t 1 | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
+		local systemInfoCmd=$(dmidecode -t ${SYSTEM_INFO_TYPE} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
 		msg "System information output added to \"$NODES_PM_FILE\"."
 	fi
@@ -470,9 +483,6 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		textField: 'sensorsOutput',\n\
 		renderer: function(value){\n\
 			// sensors configuration\n\
-			const addressPrefix = \"$CPU_ADDRESS_PREFIX\";\n\
-			const cpuItemPrefix = \"$CPU_ITEM_PREFIX\";\n\
-			const cpuTempCaption = \"$CPU_TEMP_CAPTION\";\n\
 			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
 			// display configuration\n\
 			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
@@ -483,7 +493,33 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			} catch(e) {\n\
 				objValue = {};\n\
 			}\n\
-			const cpuKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
+			const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();\n\
+			const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();\n\
+			const bINTEL = cpuKeysI.length > 0 ? true : false;\n\
+			const INTELPackagePrefix = '$CPU_TEMP_CAPTION' == 'Core' ? 'Core ' : 'Package id';\n\
+			const INTELPackageCaption = '$CPU_TEMP_CAPTION' == 'Core' ? 'Core' : 'Package';\n\
+			let AMDPackagePrefix = 'Tccd';\n\
+			let AMDPackageCaption = 'Chiplet';\n\
+			if (cpuKeysA.length > 0) {\n\
+				const items = objValue[cpuKeysA[0]];\n\
+				const bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0 ? true : false;\n\
+				const bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0 ? true : false;\n\
+				const bTemp = Object.keys(items).findIndex(item => { return String(item).startsWith('temp1'); }) >= 0 ? true : false;\n\
+				if (bTccd && bTctl) {\n\
+					AMDPackagePrefix = 'Tccd';\n\
+					AMDPackageCaption = 'Chiplet';\n\
+				} else if (bTctl) {\n\
+					AMDPackagePrefix = 'Tctl';\n\
+					AMDPackageCaption = 'Temp';\n\
+				} else {\n\
+					AMDPackagePrefix = 'temp';\n\
+					AMDPackageCaption = 'Temp';\n\
+				}\n\
+			}\n\
+			const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;\n\
+			const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;\n\
+			const cpuTempCaption = bINTEL ? INTELPackageCaption : 'Temp';\n\
+			const formatTemp = bINTEL ? '0' : '0.0';\n\
 			const cpuCount = cpuKeys.length;\n\
 			let temps = [];\n\
 			cpuKeys.forEach((cpuKey, cpuIndex) => {\n\
@@ -514,9 +550,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
 							if (tempIndex !== null && tempIndex.length > 1) {\n\
 								tempIndex = tempIndex[1];\n\
-								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${cpuTempHelper.getUnit()}</span>\`;\n\
+								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
 							} else {\n\
-								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, '0.#')}\${cpuTempHelper.getUnit()}\`;\n\
+								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}\`;\n\
 							}\n\
 							cpuTemps.push(tempStr);\n\
 						}\n\
@@ -592,7 +628,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${tempHelper.getUnit()}</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.0')}\${tempHelper.getUnit()}</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
@@ -655,7 +691,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
 							tempStyle = 'color: red; font-weight: bold;';\n\
 						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.#')}\${tempHelper.getUnit()}</span>\`;\n\
+						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.0')}\${tempHelper.getUnit()}</span>\`;\n\
 						temps.push(tempStr);\n\
 					}\n\
 				} catch(e) { /*_*/ }\n\
