@@ -112,81 +112,27 @@ function configure {
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
 
-	# Check if CPU is part of known list for autoconfiguration
-	msg "\nDetecting support for CPU temperature sensors..."
-	for item in "${KNOWN_CPU_SENSORS[@]}"; do
-		if (echo "$sensorsOutput" | grep -q "$item"); then
-			CPU_ADDRESS_PREFIX=$item
-		fi
+	# Prompt user for which temperature to use
+	while true; do
+		local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
+		case "$choiceTempDisplayType" in
+			# Set temperature search criteria
+			[cC] | "")
+				CPU_TEMP_TARGET="Core"
+				info "Temperatures will be displayed for all cores."
+				;;
+			[aA])
+				CPU_TEMP_TARGET="Package"
+				info "An average temperature will be displayed per CPU."
+				;;
+			*)
+				# If the user enters an invalid input, print an warning message and retry ask.
+				warn "Invalid input."
+				continue
+				;;
+		esac
+		break
 	done
-
-	if [ -n "$CPU_ADDRESS_PREFIX" ]; then
-		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o "\"${CPU_ADDRESS_PREFIX}[^\"]*\"" | sed 's/"//g')"
-
-		# Populate search criterias for known CPUs
-		if (echo "$sensorsOutput" | grep -q "coretemp-"); then
-			# Intel CPU
-			# Prompt user for which temperature to use
-			local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
-			case "$choiceTempDisplayType" in
-				# Set temperature search criteria
-				[cC] | "")
-					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Core "); then
-						CPU_ITEM_PREFIX="Core "
-						CPU_TEMP_CAPTION="Core"
-						info "Temperatures will be displayed for all cores."
-					fi
-					;;
-				[aA])
-					if (echo "$sensorsOutput" | grep -A 10 "coretemp-" | grep -q "Package id "); then
-						CPU_ITEM_PREFIX="Package id"
-						CPU_TEMP_CAPTION="Package"
-						info "An average temperature will be displayed per CPU."
-					fi
-					;;
-				*)
-					# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
-					err "Invalid input. Exiting..."
-					;;
-			esac
-		elif (echo "$sensorsOutput" | grep -q "k10temp-"); then
-			# AMD CPU
-			# Find and set temperature search criteria
-			if (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Tctl" && echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "Tccd"); then
-				CPU_ADDRESS_PREFIX=$item
-				CPU_ITEM_PREFIX="Tccd"
-				CPU_TEMP_CAPTION="Temp"
-			elif (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q -e "\"Tctl\""); then
-				CPU_ADDRESS_PREFIX=$item
-				CPU_ITEM_PREFIX="Tctl"
-				CPU_TEMP_CAPTION="Temp"			
-			elif (echo "$sensorsOutput" | grep -A 10 "$item" | grep -q "\"temp1\""); then
-				CPU_ADDRESS_PREFIX=$item
-				CPU_ITEM_PREFIX="temp"
-				CPU_TEMP_CAPTION="Temp"
-			fi
-		fi
-	else
-		# If cpu is not known, ask the user for input
-		warn "Could not automatically detect the CPU temperature sensor. Please configure it manually."
-		# Ask user for CPU information
-		# Inform the user and prompt them to press any key to continue
-		read -rsp $'Sensor output will be presented. Press any key to continue...\n' -n1 key
-
-		# Print the output to the user
-		msg "Sensor output:\n${sensorsOutput}"
-
-		# Prompt the user for adapter name and item name
-		read -p "Enter the CPU sensor address prefix (e.g.: coretemp-isa- or k10temp-pci-): " CPU_ADDRESS_PREFIX
-		read -p "Enter the CPU sensor input prefix (e.g.: Core or Tc): " CPU_ITEM_PREFIX
-		read -p "Enter the CPU temperature caption (e.g.: Core or Temp): " CPU_TEMP_CAPTION
-	fi
-
-	if [[ -z "$CPU_ADDRESS_PREFIX" || -z "$CPU_ITEM_PREFIX" ]]; then
-		warn "The CPU configuration is not complete. Temperatures will not be available."
-	else
-		SENSORS_DETECTED=true
-	fi
 
 	# Look for ram temps
 	msg "\nDetecting support for RAM temperature sensors..."
@@ -496,16 +442,19 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();\n\
 			const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();\n\
 			const bINTEL = cpuKeysI.length > 0 ? true : false;\n\
-			const INTELPackagePrefix = '$CPU_TEMP_CAPTION' == 'Core' ? 'Core ' : 'Package id';\n\
-			const INTELPackageCaption = '$CPU_TEMP_CAPTION' == 'Core' ? 'Core' : 'Package';\n\
+			const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';\n\
+			const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';\n\
 			let AMDPackagePrefix = 'Tccd';\n\
 			let AMDPackageCaption = 'Chiplet';\n\
 			if (cpuKeysA.length > 0) {\n\
-				const items = objValue[cpuKeysA[0]];\n\
-				const bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0 ? true : false;\n\
-				const bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0 ? true : false;\n\
-				const bTemp = Object.keys(items).findIndex(item => { return String(item).startsWith('temp1'); }) >= 0 ? true : false;\n\
-				if (bTccd && bTctl) {\n\
+				let bTccd = false;\n\
+				let bTctl = false;\n\
+				cpuKeysA.forEach((cpuKey, cpuIndex) => {\n\
+					let items = objValue[cpuKey];\n\
+					if (Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); })) bTccd = true;\n\
+					if (Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); })) bTctl = true;\n\
+				});\n\
+				if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {\n\
 					AMDPackagePrefix = 'Tccd';\n\
 					AMDPackageCaption = 'Chiplet';\n\
 				} else if (bTctl) {\n\
@@ -518,7 +467,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			}\n\
 			const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;\n\
 			const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;\n\
-			const cpuTempCaption = bINTEL ? INTELPackageCaption : 'Temp';\n\
+			const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;\n\
 			const formatTemp = bINTEL ? '0' : '0.0';\n\
 			const cpuCount = cpuKeys.length;\n\
 			let temps = [];\n\
