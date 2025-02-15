@@ -114,7 +114,7 @@ function configure {
 
 	# Prompt user for which temperature to use
 	while true; do
-		local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a]? (C/a)")
+		local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
 		case "$choiceTempDisplayType" in
 			# Set temperature search criteria
 			[cC] | "")
