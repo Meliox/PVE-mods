@@ -112,27 +112,42 @@ function configure {
 		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
 	fi
 
-	# Prompt user for which temperature to use
-	while true; do
-		local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
-		case "$choiceTempDisplayType" in
-			# Set temperature search criteria
-			[cC] | "")
-				CPU_TEMP_TARGET="Core"
-				info "Temperatures will be displayed for all cores."
-				;;
-			[aA])
-				CPU_TEMP_TARGET="Package"
-				info "An average temperature will be displayed per CPU."
-				;;
-			*)
-				# If the user enters an invalid input, print an warning message and retry ask.
-				warn "Invalid input."
-				continue
-				;;
-		esac
-		break
+	# Check if CPU is part of known list for autoconfiguration
+	msg "\nDetecting support for CPU temperature sensors..."
+	supportedCPU=false
+	for item in "${KNOWN_CPU_SENSORS[@]}"; do
+			if (echo "$sensorsOutput" | grep -q "$item"); then
+					echo $item
+					supportedCPU=true
+			fi
 	done
+
+	# Prompt user for which CPU temperature to use
+	if [ $supportedCPU = true ]; then
+		while true; do
+				local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
+				case "$choiceTempDisplayType" in
+						# Set temperature search criteria
+						[cC] | "")
+							CPU_TEMP_TARGET="Core"
+							info "Temperatures will be displayed for all cores."
+							;;
+						[aA])
+							CPU_TEMP_TARGET="Package"
+							info "An average temperature will be displayed per CPU."
+							;;
+						*)
+							# If the user enters an invalid input, print an warning message and retry as>
+							warn "Invalid input."
+							continue
+							;;
+				esac
+				break
+		done
+		SENSORS_DETECTED=true
+	else
+			warn "No CPU temperature sensors found."
+	fi
 
 	# Look for ram temps
 	msg "\nDetecting support for RAM temperature sensors..."
