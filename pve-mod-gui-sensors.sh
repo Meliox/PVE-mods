@@ -283,11 +283,35 @@ function install_mod {
 	# Perform backup
 	# Create backup of original file
 	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
-	msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
+
+	# Verify backup file was created and is identical
+	if [ -f "$BACKUP_DIR/Nodes.pm.$timestamp" ]; then
+		if cmp -s "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"; then
+			msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\" and verified."
+		else
+			msg "WARNING: Backup file \"$BACKUP_DIR/Nodes.pm.$timestamp\" differs from original. Exiting..."
+			exit 1
+		fi
+	else
+		msg "ERROR: Failed to create backup \"$BACKUP_DIR/Nodes.pm.$timestamp\". Exiting..."
+		exit 1
+	fi
 
 	# Create backup of original file
 	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-	msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+
+	# Verify backup file was created and is identical
+	if [ -f "$BACKUP_DIR/pvemanagerlib.js.$timestamp" ]; then
+		if cmp -s "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"; then
+			msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" and verified."
+		else
+			msg "WARNING: Backup file \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" differs from original. Exiting..."
+			exit 1
+		fi
+	else
+		msg "ERROR: Failed to create backup \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\". Exiting..."
+		exit 1
+	fi
 
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
