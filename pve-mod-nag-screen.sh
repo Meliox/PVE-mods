@@ -66,7 +66,7 @@ function install_mod {
 			msg "Deactivating the nag screen..."
 			sed -i "/Ext.define('Proxmox.Utils',/ {
 				:a;
-				/checked_command:\s*function(orig_cmd)\s*{/!{N;ba;}
+				/checked_command:\s*function\s*(orig_cmd)\s*{/!{N;ba;}
 				a\
 				\\
 	// disable subscription nag screen\n\
