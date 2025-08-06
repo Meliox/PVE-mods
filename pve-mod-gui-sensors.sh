@@ -543,12 +543,19 @@ Ext.define('PVE.mod.TempHelper', {\n\
 								tempStyle = 'color: red; font-weight: bold;';\n\
 							}\n\
 							let tempStr = '';\n\
-							let tempIndex = coreKey.match(/\\\S+\\\s*(\\\d+)/);\n\
+							let tempIndex = coreKey.match(\/(?:P\\\s+Core|E\\\s+Core|Core)\\\s*(\\\d+)\/);\n\
 							if (tempIndex !== null && tempIndex.length > 1) {\n\
 								tempIndex = tempIndex[1];\n\
-								tempStr = \`\${cpuTempCaption}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
+								let coreType = coreKey.startsWith('P Core') ? 'P Core' :\n\
+											   coreKey.startsWith('E Core') ? 'E Core' :\n\
+											   cpuTempCaption;\n\
+								tempStr = \`\${coreType}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
 							} else {\n\
-								tempStr = \`\${cpuTempCaption}:&nbsp;\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}\`;\n\
+								// fallback for CPUs which do not have a core index\n\
+								let coreType = coreKey.startsWith('P Core') ? 'P Core' :\n\
+									coreKey.startsWith('E Core') ? 'E Core' :\n\
+									cpuTempCaption;\n\
+								tempStr = \`\${coreType}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
 							}\n\
 							cpuTemps.push(tempStr);\n\
 						}\n\
