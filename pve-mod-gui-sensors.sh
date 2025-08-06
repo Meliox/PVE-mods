@@ -521,7 +521,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			cpuKeys.forEach((cpuKey, cpuIndex) => {\n\
 				let cpuTemps = [];\n\
 				const items = objValue[cpuKey];\n\
-				const itemKeys = Object.keys(items).filter(item => { return String(item).startsWith(cpuItemPrefix); });\n\
+				const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });\n\
 				itemKeys.forEach((coreKey) => {\n\
 					try {\n\
 						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
