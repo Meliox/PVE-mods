@@ -491,14 +491,19 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			if (cpuKeysA.length > 0) {\n\
 				let bTccd = false;\n\
 				let bTctl = false;\n\
+				let bTdie = false;\n\
 				cpuKeysA.forEach((cpuKey, cpuIndex) => {\n\
 					let items = objValue[cpuKey];\n\
 					bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;\n\
 					bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;\n\
+					bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;\n\
 				});\n\
 				if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {\n\
 					AMDPackagePrefix = 'Tccd';\n\
 					AMDPackageCaption = 'Chiplet';\n\
+				} else if (bTdie) {\n\
+					AMDPackagePrefix = 'Tdie';\n\
+					AMDPackageCaption = 'Temp';\n\
 				} else if (bTctl) {\n\
 					AMDPackagePrefix = 'Tctl';\n\
 					AMDPackageCaption = 'Temp';\n\
