@@ -33,6 +33,9 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
 # Information will be loaded for script configuration and presented in Proxmox.
+
+# DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
+
 DEBUG_REMOTE=false
 DEBUG_JSON_FILE="/tmp/sensordata.json"
 
@@ -105,7 +108,7 @@ function configure {
 		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
 		sensorsOutput=$(cat $DEBUG_JSON_FILE)
 	else
-		sensorsOutput=$(sensors -j)
+		sensorsOutput=$(sensors -j 2>/dev/null | python3 -m json.tool)
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -320,7 +323,7 @@ function install_mod {
 		else
 			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
-			sensorsCmd="sensors -j"
+			sensorsCmd="sensors -j 2>/dev/null | python3 -m json.tool"
 		fi
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,(.*[.\\n]*.+})/$1/g;\n' "$NODES_PM_FILE"
 		msg "Sensors' output added to \"$NODES_PM_FILE\"."
@@ -995,7 +998,7 @@ function save_sensors_data {
 		local choiceContinue=$(ask "Do you wish to continue? (y/n)")
 		case "$choiceContinue" in
 			[yY])
-				sensors -j >"$filepath"
+				sensors -j 2>/dev/null | python3 -m json.tool >"$filepath"
 				msgb "Sensors data saved in $filepath."
 				;;
 			*)
