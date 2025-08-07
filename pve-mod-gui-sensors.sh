@@ -1031,7 +1031,7 @@ function performBackup {
 
  	# Create backup of original file
 	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp" | {
+	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp" || {
 		err "Failed to create backup file: \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\""
 	}
 	if [[ $(md5sum "$PVE_MANAGER_LIB_JS_FILE" | awk '{ print $1 }') != $(md5sum "$BACKUP_DIR/pvemanagerlib.js.$timestamp" | awk '{ print $1 }') ]]; then
