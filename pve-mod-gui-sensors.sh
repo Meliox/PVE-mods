@@ -925,6 +925,14 @@ Ext.define('PVE.mod.TempHelper', {\n\
 # Function to uninstall the modification
 function uninstall_mod {
 	msg "\nRestoring modified files..."
+
+	if [[ -z "$BACKUP_DIR" ]]; then
+		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
+		local DEFAULT_BACKUP_DIR="$HOME/PVE-MODS"
+		msg "Backup directory not set. Using default: $DEFAULT_BACKUP_DIR"
+		BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+	fi
+
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
