@@ -273,8 +273,6 @@ function install_mod {
 	fi
 
 	msg "\nPreparing mod installation..."
-
-	# Provide sensor configuration
 	configure
 	perform_backup
 
