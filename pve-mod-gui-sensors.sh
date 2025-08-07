@@ -277,10 +277,7 @@ function install_mod {
 
 	# Provide sensor configuration
 	configure
-
-	# Make backup directory and perform backup
-	makeBackupDirectory
-	performBackup
+	perform_backup
 
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
@@ -924,7 +921,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 # Function to uninstall the modification
 function uninstall_mod {
-	setBackupDirectory
+	set_backup_directory
 
 	msg "\nRestoring modified files..."
 
@@ -991,22 +988,23 @@ function save_sensors_data {
 	fi
 }
 
-function setBackupDirectory {
+function set_backup_directory {
 	# Check if the BACKUP_DIR variable is set, if not, use the default backup
 	if [[ -z "$BACKUP_DIR" ]]; then
 		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
-		local DEFAULT_BACKUP_DIR="$HOME/PVE-MODS"
-		msg "Backup directory not set. Using default: $DEFAULT_BACKUP_DIR"
-		BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+		BACKUP_DIR="$HOME/PVE-MODS"
+		msg "Using default backup directory: $BACKUP_DIR"
+	else
+		# If set, ensure it is a valid directory
+		if [[ ! -d "$BACKUP_DIR" ]]; then
+			err "The specified backup directory does not exist: $BACKUP_DIR"
+		fi
+		msg "Using custom backup directory: $BACKUP_DIR"
 	fi
-
-	# Ensure the BACKUP_DIR variable is an absolute path
-	BACKUP_DIR=$(realpath "$BACKUP_DIR")
-	msg "Using backup directory: $BACKUP_DIR"
 }
 
-function makeBackupDirectory {
-	setBackupDirectory
+function create_backup_directory {
+	set_backup_directory
 
 	# Create the backup directory if it does not exist
 	if [[ ! -d "$BACKUP_DIR" ]]; then
@@ -1019,28 +1017,34 @@ function makeBackupDirectory {
 	fi
 }
 
-function performBackup {
-	local timestamp=$(date +%Y%m%d_%H%M%S)
+function create_file_backup() {
+    local source_file="$1"
+    local timestamp="$2"
+    local filename
+    
+    filename=$(basename "$source_file")
+    local backup_file="$BACKUP_DIR/${filename}.$timestamp"
+    
+    [[ -f "$source_file" ]] || err "Source file does not exist: $source_file"
+    [[ -r "$source_file" ]] || err "Cannot read source file: $source_file"
+       
+    cp "$source_file" "$backup_file" || err "Failed to create backup: $backup_file"
+    
+    # Verify backup integrity
+    if ! cmp -s "$source_file" "$backup_file"; then
+        err "Backup verification failed for: $backup_file"
+    fi
+    
+    msg "Created backup: $backup_file"
+}
 
- 	# Create backup of original file
-	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
-	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp" || {
-		err "Failed to create backup file: \"$BACKUP_DIR/Nodes.pm.$timestamp\""
-	}
-	if [[ $(md5sum "$NODES_PM_FILE" | awk '{ print $1 }') != $(md5sum "$BACKUP_DIR/Nodes.pm.$timestamp" | awk '{ print $1 }') ]]; then
-		err "Backup is not identical to original: \"$BACKUP_DIR/Nodes.pm.$timestamp\""
-	fi
- 	msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
-
- 	# Create backup of original file
-	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp" || {
-		err "Failed to create backup file: \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\""
-	}
-	if [[ $(md5sum "$PVE_MANAGER_LIB_JS_FILE" | awk '{ print $1 }') != $(md5sum "$BACKUP_DIR/pvemanagerlib.js.$timestamp" | awk '{ print $1 }') ]]; then
-		err "Backup is not identical to original: \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\""
-	fi
- 	msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
+function perform_backup {
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    create_backup_directory
+    create_file_backup "$NODES_PM_FILE" "$timestamp"
+    create_file_backup "$PVE_MANAGER_LIB_JS_FILE" "$timestamp"
 }
 
 # Process the arguments using a while loop and a case statement
