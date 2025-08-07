@@ -967,7 +967,7 @@ function uninstall_mod {
 		cp "$latest_nodes_pm" "$NODES_PM_FILE"
 		msg "Copied latest backup to $NODES_PM_FILE."
 	else
-		warn "No Nodes.pm files found."
+		warn "No Nodes.pm backup files found."
 	fi
 
 	# Find the latest pvemanagerlib.js file using the find command
@@ -978,7 +978,7 @@ function uninstall_mod {
 		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
 		msg "Copied latest backup to \"$PVE_MANAGER_LIB_JS_FILE\"."
 	else
-		warn "No pvemanagerlib.js files found."
+		warn "No pvemanagerlib.js backup files found."
 	fi
 
 	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
