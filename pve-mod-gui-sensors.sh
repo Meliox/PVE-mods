@@ -25,7 +25,7 @@ BACKUP_DIR=""
 
 # DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
 
-DEBUG_REMOTE=true
+DEBUG_REMOTE=false
 DEBUG_JSON_FILE="/tmp/sensordata.json"
 
 # This script's working directory
