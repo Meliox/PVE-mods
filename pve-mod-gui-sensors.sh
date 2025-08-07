@@ -75,6 +75,11 @@ function usage {
 	exit 1
 }
 
+# System checks
+function check_root_privileges() {
+	[[ $EUID -eq 0 ]] || err "This script must be run as root. Please run it with 'sudo $0'."
+}
+
 # Define a function to install packages
 function install_packages {
 	# Check if the 'sensors' command is available on the system
@@ -268,6 +273,8 @@ function configure {
 
 # Function to install the modification
 function install_mod {
+	check_root_privileges
+
 	if [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
 		err "Mod is already installed. Uninstall existing before installing."
 		exit
@@ -958,6 +965,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 # Function to uninstall the modification
 function uninstall_mod {
+	check_root_privileges
+
 	msg "\nRestoring modified files..."
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
