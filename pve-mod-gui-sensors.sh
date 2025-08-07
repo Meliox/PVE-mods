@@ -924,14 +924,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 # Function to uninstall the modification
 function uninstall_mod {
-	msg "\nRestoring modified files..."
+	setBackupDirectory
 
-	if [[ -z "$BACKUP_DIR" ]]; then
-		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
-		local DEFAULT_BACKUP_DIR="$HOME/PVE-MODS"
-		msg "Backup directory not set. Using default: $DEFAULT_BACKUP_DIR"
-		BACKUP_DIR="$DEFAULT_BACKUP_DIR"
-	fi
+	msg "\nRestoring modified files..."
 
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
@@ -939,7 +934,7 @@ function uninstall_mod {
 	if [ -n "$latest_nodes_pm" ]; then
 		# Remove the latest Nodes.pm file
 		cp "$latest_nodes_pm" "$NODES_PM_FILE"
-		msg "Copied latest backup to $NODES_PM_FILE."
+		msg "Restoring latest Nodes.pm from backup: $latest_nodes_pm to \"$NODES_PM_FILE\"."
 	else
 		warn "No Nodes.pm backup files found."
 	fi
@@ -950,7 +945,7 @@ function uninstall_mod {
 	if [ -n "$latest_pvemanagerlibjs" ]; then
 		# Remove the latest pvemanagerlib.js file
 		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
-		msg "Copied latest backup to \"$PVE_MANAGER_LIB_JS_FILE\"."
+		msg "Restoring latest pvemanagerlib.js from backup: $latest_pvemanagerlibjs to \"$PVE_MANAGER_LIB_JS_FILE\"."
 	else
 		warn "No pvemanagerlib.js backup files found."
 	fi
@@ -996,7 +991,7 @@ function save_sensors_data {
 	fi
 }
 
-function makeBackupDirectory {
+function setBackupDirectory {
 	# Check if the BACKUP_DIR variable is set, if not, use the default backup
 	if [[ -z "$BACKUP_DIR" ]]; then
 		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
@@ -1004,6 +999,14 @@ function makeBackupDirectory {
 		msg "Backup directory not set. Using default: $DEFAULT_BACKUP_DIR"
 		BACKUP_DIR="$DEFAULT_BACKUP_DIR"
 	fi
+
+	# Ensure the BACKUP_DIR variable is an absolute path
+	BACKUP_DIR=$(realpath "$BACKUP_DIR")
+	msg "Using backup directory: $BACKUP_DIR"
+}
+
+function makeBackupDirectory {
+	setBackupDirectory
 
 	# Create the backup directory if it does not exist
 	if [[ ! -d "$BACKUP_DIR" ]]; then
