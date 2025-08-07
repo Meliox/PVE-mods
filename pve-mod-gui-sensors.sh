@@ -77,9 +77,7 @@ function usage {
 
 # System checks
 function check_root_privileges() {
-    if [[ $EUID -ne 0 ]]; then
-        err "This script must be run as root. Please run it with 'sudo $0'."
-    fi
+	[[ $EUID -eq 0 ]] || err "This script must be run as root. Please run it with 'sudo $0'."
 }
 
 # Define a function to install packages
