@@ -270,7 +270,6 @@ function configure {
 function install_mod {
 	if [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
 		err "Mod is already installed. Uninstall existing before installing."
-		exit
 	fi
 
 	msg "\nPreparing mod installation..."
@@ -921,6 +920,10 @@ Ext.define('PVE.mod.TempHelper', {\n\
 
 # Function to uninstall the modification
 function uninstall_mod {
+	if [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -z $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
+		err "Mod is not installed."
+	fi
+
 	set_backup_directory
 
 	msg "\nRestoring modified files..."
