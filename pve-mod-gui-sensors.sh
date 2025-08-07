@@ -16,19 +16,8 @@ HDD_ITEMS_PER_ROW=0
 # Should new ones be added, also update logic in configure() function.
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
 
-# This script's working directory
-SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
-
-# Files backup location
-BACKUP_DIR="$SCRIPT_CWD/backup"
-
-# File paths
-PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
-NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
-
-# Debug location
-DEBUG_SAVE_PATH="$SCRIPT_CWD"
-DEBUG_SAVE_FILENAME="sensorsdata.json"
+# Overwrite default backup location
+BACKUP_DIR=""
 
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
@@ -38,6 +27,17 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 
 DEBUG_REMOTE=false
 DEBUG_JSON_FILE="/tmp/sensordata.json"
+
+# This script's working directory
+SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
+
+# Debug location
+JSON_EXPORT_DIRECTORY="$SCRIPT_CWD"
+JSON_EXPORT_FILENAME="sensorsdata.json"
+
+# File paths
+PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
+NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 # Helper functions
 function msg {
@@ -278,43 +278,9 @@ function install_mod {
 	# Provide sensor configuration
 	configure
 
-	# Create backup of original files
-	mkdir -p "$BACKUP_DIR"
-
-	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-
-	# Perform backup
-	# Create backup of original file
-	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
-
-	# Verify backup file was created and is identical
-	if [ -f "$BACKUP_DIR/Nodes.pm.$timestamp" ]; then
-		if cmp -s "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"; then
-			msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\" and verified."
-		else
-			msg "WARNING: Backup file \"$BACKUP_DIR/Nodes.pm.$timestamp\" differs from original. Exiting..."
-			exit 1
-		fi
-	else
-		msg "ERROR: Failed to create backup \"$BACKUP_DIR/Nodes.pm.$timestamp\". Exiting..."
-		exit 1
-	fi
-
-	# Create backup of original file
-	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-
-	# Verify backup file was created and is identical
-	if [ -f "$BACKUP_DIR/pvemanagerlib.js.$timestamp" ]; then
-		if cmp -s "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"; then
-			msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" and verified."
-		else
-			msg "WARNING: Backup file \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" differs from original. Exiting..."
-			exit 1
-		fi
-	else
-		msg "ERROR: Failed to create backup \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\". Exiting..."
-		exit 1
-	fi
+	# Make backup directory and perform backup
+	makeBackupDirectory
+	performBackup
 
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
@@ -994,16 +960,16 @@ function restart_proxy {
 }
 
 function save_sensors_data {
-	# Check if DEBUG_SAVE_PATH exists and is writable
-	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
-		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved."
+	# Check if JSON_EXPORT_DIRECTORY exists and is writable
+	if [[ ! -d "$JSON_EXPORT_DIRECTORY" || ! -w "$JSON_EXPORT_DIRECTORY" ]]; then
+		err "Directory $JSON_EXPORT_DIRECTORY does not exist or is not writable. No file could be saved."
 		return
 	fi
 
 	# Check if command exists
 	if (command -v sensors &>/dev/null); then
 		# Save sensors output
-		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
+		local filepath="${JSON_EXPORT_DIRECTORY}/${DEBUG_SAVE_FILENAME}"
 		msg "Sensors data will be saved in $filepath"
 
 		# Prompt user for confirmation
@@ -1020,6 +986,50 @@ function save_sensors_data {
 	else
 		err "Sensors is not installed. No file could be saved."
 	fi
+}
+
+function makeBackupDirectory {
+	# Check if the BACKUP_DIR variable is set, if not, use the default backup
+	if [[ -z "$BACKUP_DIR" ]]; then
+		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
+		local DEFAULT_BACKUP_DIR="$HOME/PVE-MODS"
+		msg "Backup directory not set. Using default: $DEFAULT_BACKUP_DIR"
+		BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+	fi
+
+	# Create the backup directory if it does not exist
+	if [[ ! -d "$BACKUP_DIR" ]]; then
+		mkdir -p "$BACKUP_DIR" 2>/dev/null || {
+			err "Failed to create backup directory: $BACKUP_DIR. Please check permissions."
+		}
+		msg "Created backup directory: $BACKUP_DIR"
+	else
+		msg "Backup directory already exists: $BACKUP_DIR"
+	fi
+}
+
+function performBackup {
+	local timestamp=$(date +%Y%m%d_%H%M%S)
+
+ 	# Create backup of original file
+	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
+	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp" || {
+		err "Failed to create backup file: \"$BACKUP_DIR/Nodes.pm.$timestamp\""
+	}
+	if [[ $(md5sum "$NODES_PM_FILE" | awk '{ print $1 }') != $(md5sum "$BACKUP_DIR/Nodes.pm.$timestamp" | awk '{ print $1 }') ]]; then
+		err "Backup is not identical to original: \"$BACKUP_DIR/Nodes.pm.$timestamp\""
+	fi
+ 	msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\"."
+
+ 	# Create backup of original file
+	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
+	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp" | {
+		err "Failed to create backup file: \"$BACKUP_DIR/Nodes.pm.$timestamp\""
+	}
+	if [[ $(md5sum "$PVE_MANAGER_LIB_JS_FILE" | awk '{ print $1 }') != $(md5sum "$BACKUP_DIR/pvemanagerlib.js.$timestamp" | awk '{ print $1 }') ]]; then
+		err "Backup is not identical to original: \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\""
+	fi
+ 	msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\"."
 }
 
 # Process the arguments using a while loop and a case statement
