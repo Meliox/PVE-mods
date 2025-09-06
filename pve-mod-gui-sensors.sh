@@ -221,9 +221,11 @@ function configure {
 			# Set temperature search criteria
 			[yY]|"")
 				DISPLAY_ZERO_SPEED_FANS=true
+				info "Fans reporting a speed of zero will be displayed."
 				;;
 			[nN] )
 				DISPLAY_ZERO_SPEED_FANS=false
+				info "Fans reporting a speed of zero will NOT be displayed."
 				;;
 			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
@@ -326,32 +328,94 @@ function configure {
 			ENABLE_SYSTEM_INFO=true
 			;;
 	esac
+
+	if [ $SENSORS_DETECTED = false ] && [ $ENABLE_UPS = false ] && [ $ENABLE_SYSTEM_INFO = false ]; then
+		err "No sensors detected and neither UPS nor system information enabled. Exiting..."
+	fi
+
 	echo # add a new line
 }
 
 # Function to install the modification
 function install_mod {
-	check_root_privileges
-
-	if [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
-		err "Mod is already installed. Uninstall existing before installing."
-	fi
-
 	msg "\nPreparing mod installation..."
+	check_root_privileges
+	check_mod_installation
 	configure
 	perform_backup
 
-	if [ $SENSORS_DETECTED = true ]; then
-		local sensorsCmd
-		if [ $DEBUG_REMOTE = true ]; then
-			sensorsCmd="cat \"$DEBUG_JSON_FILE\""
-		else
-			# WTF: sensors -f used for Fahrenheit breaks the fan speeds :|
-			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
-			sensorsCmd="sensors -j 2>/dev/null | python3 -m json.tool"
-		fi
-		# Insert sensor data collection and JSON sanitization before the disk info line
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
+	# Insert information retrieval code
+	insert_node_info
+
+	# Create temperature conversion helper parameters
+	HELPERCTORPARAMS=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
+	
+	# Expand space in StatusView
+	expand_statusview_space
+
+	# Insert temp helper
+	generate_and_insert_temp_helper
+
+	# Generate and insert widgets using the helper function
+	generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
+	
+	#
+	# NOTE: The following items will be added in reverse order
+	#
+	generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
+	generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
+	generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
+
+	# Add drive header boxes if either nvme or drive temp is enabled
+	generate_drive_header
+	generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
+	generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
+	generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
+
+	# Add an empty line to separate modified items as a visual group
+	add_visual_separator
+
+	# Move the node summary box into its own container and deactivate the original box instance
+	setup_node_summary_container
+
+	msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
+
+	restart_proxy
+
+	msg "Installation completed."
+
+	info "Clear the browser cache to ensure all changes are visualized."
+}
+
+#region node info insertion
+# Main insertion routine
+insert_node_info() {
+    local output_file="$NODES_PM_FILE"
+
+    collect_sensors_output "$output_file"
+
+    if [[ $ENABLE_UPS == true ]]; then
+        collect_ups_output "$output_file"
+    fi
+
+    if [[ $ENABLE_SYSTEM_INFO == true ]]; then
+        collect_system_info "$output_file"
+    fi
+}
+
+# Collect lm-sensors data
+collect_sensors_output() {
+    local output_file="$1"
+    local sensorsCmd
+
+    if [[ $DEBUG_REMOTE == true ]]; then
+        sensorsCmd="cat \"$DEBUG_JSON_FILE\""
+    else
+        # Note: sensors -f (Fahrenheit) breaks fan speeds
+        sensorsCmd="sensors -j 2>/dev/null | python3 -m json.tool"
+    fi
+	#region sensors heredoc
+	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		\
 		# Collect sensor data from lm-sensors\
 		$res->{sensorsOutput} = `'"$sensorsCmd"'`;\
@@ -371,80 +435,50 @@ function install_mod {
 		# This prevents JSON key overwrites when multiple SODIMM sensors exist\
 		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM3":{"temp3_input":34.0}\
 		$res->{sensorsOutput} =~ s/\\"SODIMM\\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM$1\\":\\{\\"temp$1_input\\"/g;\
-		' "$NODES_PM_FILE"	
-		msg "Sensors' output added to \"$NODES_PM_FILE\"."
-	fi
-
-	if [ $ENABLE_UPS = true ]; then
-		local upsCmd
-		if [ $DEBUG_REMOTE = true ]; then
-			upsCmd="cat \"$DEBUG_UPS_FILE\""
-		else
-			upsCmd="upsc \"$upsConnection\" 2>/dev/null"
-		fi
-
-		# Insert UPS data collection before the disk info line
-		sed -i "/my \$dinfo = df('\/', 1);/i\\
-		\\
-		# Collect UPS status information\\
-		\$res->{upsc} = \\\`$upsCmd\\\`;\\
-		" "$NODES_PM_FILE"
-		
-		msg "UPS output added to \"$NODES_PM_FILE\"."
-	fi
-
-	if [ $ENABLE_SYSTEM_INFO = true ]; then
-		local systemInfoCmd=$(dmidecode -t ${SYSTEM_INFO_TYPE} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
-		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
-		msg "System information output added to \"$NODES_PM_FILE\"."
-	fi
-
-	# Add new item to the items array in PVE.node.StatusView
-	if [[ -z $(cat "$PVE_MANAGER_LIB_JS_FILE" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		HELPERCTORPARAMS=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
-		
-		# Expand space in StatusView
-		expand_statusview_space
-
-		# Insert temp helper
-		generate_and_insert_temp_helper
-
-		# Generate and insert widgets using the helper function
-		generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
-		
-		#
-		# NOTE: The following items will be added in reverse order
-		#
-		generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
-		generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
-		generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
-
-		# Add drive header boxes if either nvme or drive temp is enabled
-		generate_drive_header
-		generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
-		generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
-		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
-
-		# Add an empty line to separate modified items as a visual group
-		add_visual_separator
-
-		# Move the node summary box into its own container and deactivate the original box instance
-		setup_node_summary_container
-
-		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
-
-		restart_proxy
-
-		msg "Installation completed."
-
-		info "Clear the browser cache to ensure all changes are visualized."
-	else
-		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
-	fi
+	' "$NODES_PM_FILE"
+	#endregion sensors heredoc
+    msg "Sensors' retriever added to \"$output_file\"."
 }
 
-#region widget generation functions
+# Collect UPS data
+collect_ups_output() {
+    local output_file="$1"
+    local ups_cmd
 
+    if [[ $DEBUG_REMOTE == true ]]; then
+        ups_cmd="cat \"$DEBUG_UPS_FILE\""
+    else
+        ups_cmd="upsc \"$upsConnection\" 2>/dev/null"
+    fi
+	#region ups heredoc
+	sed -i "/my \$dinfo = df('\/', 1);/i\\
+		\\
+		# Collect UPS status information\\
+		\$res->{upsc} = \\\`$ups_cmd\\\`;\\
+	" "$NODES_PM_FILE"
+	#endregion ups heredoc
+    msg "UPS retriever added to \"$output_file\"."
+}
+
+# Collect system information
+collect_system_info() {
+    local output_file="$1"
+    local systemInfoCmd
+
+    systemInfoCmd=$(dmidecode -t "${SYSTEM_INFO_TYPE}" \
+        | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' \
+        | awk '{$1=$1};1' \
+        | sed 's/$/ |/' \
+        | paste -sd " " - \
+        | sed 's/ |$//')
+	#region system info heredoc
+	sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
+	#endregion system info heredoc
+    msg "System information retriever added to \"$output_file\"."
+}
+#endregion node info insertion
+
+#region widget generation functions
 # Helper function to insert widget after thermal items
 insert_widget_after_thermal() {
 	local widget_file="$1"
@@ -1431,6 +1465,15 @@ function uninstall_mod {
 		# At least one of the variables is not empty, restart the proxy
 		restart_proxy
 	fi
+}
+
+# Function to check if the modification is installed
+check_mod_installation() {
+    if [[ -n $(grep -F '$res->{sensorsOutput}' "$NODES_PM_FILE") ]] && \
+       [[ -n $(grep -F '$res->{systemInfo}' "$NODES_PM_FILE") ]] && \
+       [[ -n $(grep -E "itemId: 'thermal[[:alnum:]]*'" "$PVE_MANAGER_LIB_JS_FILE") ]]; then
+        err "Mod is already installed. Uninstall existing before installing."
+    fi
 }
 
 function restart_proxy {
