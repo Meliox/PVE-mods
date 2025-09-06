@@ -607,8 +607,10 @@ function install_mod {
 	fi
 }
 
+#region widget generation functions
+
 generate_system_info() {
-	endregion system info heredoc
+	#region system info heredoc
     cat > "$1" <<'EOF'
 	{
 		itemId: 'sysinfo',
@@ -1352,6 +1354,8 @@ EOF
         exit 1
     fi
 }
+
+#endregion widget generation functions
 
 # Function to uninstall the modification
 function uninstall_mod {
