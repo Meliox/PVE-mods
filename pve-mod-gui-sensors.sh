@@ -467,7 +467,7 @@ generate_and_insert_widget() {
 		local temp_js_file="/tmp/${widget_name}_widget.js"
 		"$generator_func" "$temp_js_file"
 		insert_widget_after_thermal "$temp_js_file"
-		#rm "$temp_js_file"
+		rm "$temp_js_file"
 	fi
 }
 
