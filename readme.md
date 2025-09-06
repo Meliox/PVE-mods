@@ -15,7 +15,7 @@ The following reading are possible:
 
 ### How it works
 The modification involves the following steps:
-1. Backup original files:
+1. Backup original files in the home directory/backup
    - `/usr/share/pve-manager/js/pvemanagerlib.js`
    - `/usr/share/perl5/PVE/API2/Nodes.pm`  
    Backups are saved in a `backup/` directory alongside the script.  
