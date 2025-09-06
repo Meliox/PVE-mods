@@ -25,7 +25,7 @@ BACKUP_DIR=""
 
 # DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
 
-DEBUG_REMOTE=false
+DEBUG_REMOTE=true
 DEBUG_JSON_FILE="/tmp/sensordata.json"
 DEBUG_UPS_FILE="/tmp/upsc.txt"
 
@@ -865,92 +865,18 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		fi
 
 		if [ $ENABLE_RAM_TEMP = true ]; then
-			# Add Ram temperature display
+			local TEMP_JS_FILE="/tmp/ram_widget.js"
+			generate_ram_widget $TEMP_JS_FILE
+
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
+				:a
 				/items:/!{N;ba;}
-				:b;
+				:b
 				/'thermal.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		xtype: 'box',\n\
-		colspan: 2,\n\
-		html: gettext('RAM'),\n\
-	},\n\
-	{\n\
-		itemId: 'thermalRam',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('Thermal State'),\n\
-		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'sensorsOutput',\n\
-		renderer: function(value) {\n\
-			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});\n\
-			// Make SODIMM unique keys\n\
-			value = value.split('\\\n'); // Split by newlines\n\
-			for (let i = 0; i < value.length; i++) {\n\
-				// Check if the current line contains 'SODIMM'\n\
-				if (value[i].includes('SODIMM') && i + 1 < value.length) {\n\
-					// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)\n\
-					let nextLine = value[i + 1];\n\
-					let match = nextLine.match(/\"temp(\\\d+)_input\": (\\\d+\\\.\\\d+)/);\n\
-\n\
-					if (match) {\n\
-						let number = match[1]; // Extracted number\n\
-						// Replace the current line with SODIMM by the extracted number\n\
-						value[i] = value[i].replace('SODIMM', \`SODIMM\${number}\`);\n\
-					}\n\
-				}\n\
-			}\n\
-			value = value.join('\\\n'); // Reverse line split\n\
-\n\
-			let objValue;\n\
-			try {\n\
-				objValue = JSON.parse(value) || {};\n\
-			} catch(e) {\n\
-				objValue = {};\n\
-			}\n\
-\n\
-			// Recursive function to find ram keys and values\n\
-			function findRamKeys(obj, ramKeys, parentKey = null) {\n\
-				Object.keys(obj).forEach(key => {\n\
-				const value = obj[key];\n\
-				if (typeof value === 'object' && value !== null) {\n\
-					// If the value is an object, recursively call the function\n\
-					findRamKeys(value, ramKeys, key);\n\
-				} else if (/^temp\\\d+_input$/.test(key) && parentKey && parentKey.startsWith(\"SODIMM\")) {\n\
-					if (value !== 0) {\n\
-						ramKeys.push({ key: parentKey, value: value});\n\
-					}\n\
-				}\n\
-				});\n\
-			}\n\
-\n\
-			let ramTemps = [];\n\
-			// Loop through the parent keys\n\
-			Object.keys(objValue).forEach(parentKey => {\n\
-				const parentObj = objValue[parentKey];\n\
-				// Array to store ram keys and values\n\
-				const ramKeys = [];\n\
-				// Call the recursive function to find ram keys and values\n\
-				findRamKeys(parentObj, ramKeys);\n\
-				// Sort the ramKeys keys\n\
-				ramKeys.sort();\n\
-				// Process each ram key and value\n\
-				ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {\n\
-				try {\n\
-					ram = ramKey.replace('SODIMM', 'SODIMM ');\n\
-					ramTemps.push(\`\${ram}:&nbsp\${ramTemp}\${cpuTempHelper.getUnit()}\`);\n\
-				} catch(e) {\n\
-					console.error(\`Error retrieving Ram Temp for \${ramTemps} in \${parentKey}:\`, e); // Debug: Log specific error\n\
-				}\n\
-				});\n\
-			});\n\
-			return '<div style=\"text-align: left; margin-left: 28px;\">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';\n\
-		}\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
+				r $TEMP_JS_FILE
+			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
 		fi
 
 		# Add an empty line to separate modified items as a visual group
@@ -1024,6 +950,94 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	else
 		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
+}
+
+generate_ram_widget() {
+	#region ram widget heredoc
+    cat > "$1" <<'EOF'
+	{
+		xtype: 'box',
+		colspan: 2,
+		html: gettext('RAM'),
+	},
+	{
+		itemId: 'thermalRam',
+		colspan: 2,
+		printBar: false,
+		title: gettext('Thermal State'),
+		iconCls: 'fa fa-fw fa-thermometer-half',
+		textField: 'sensorsOutput',
+		renderer: function(value) {
+			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
+			// Make SODIMM unique keys
+			value = value.split('\n'); // Split by newlines
+			for (let i = 0; i < value.length; i++) {
+				// Check if the current line contains 'SODIMM'
+				if (value[i].includes('SODIMM') && i + 1 < value.length) {
+					// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)
+					let nextLine = value[i + 1];
+					let match = nextLine.match(/"temp(\d+)_input": (\d+\.\d+)/);
+
+					if (match) {
+						let number = match[1]; // Extracted number
+						// Replace the current line with SODIMM by the extracted number
+						value[i] = value[i].replace('SODIMM', `SODIMM${number}`);
+					}
+				}
+			}
+			value = value.join('\n'); // Reverse line split
+
+			let objValue;
+			try {
+				objValue = JSON.parse(value) || {};
+			} catch(e) {
+				objValue = {};
+			}
+
+			// Recursive function to find ram keys and values
+			function findRamKeys(obj, ramKeys, parentKey = null) {
+				Object.keys(obj).forEach(key => {
+				const value = obj[key];
+				if (typeof value === 'object' && value !== null) {
+					// If the value is an object, recursively call the function
+					findRamKeys(value, ramKeys, key);
+				} else if (/^temp\d+_input$/.test(key) && parentKey && parentKey.startsWith("SODIMM")) {
+					if (value !== 0) {
+						ramKeys.push({ key: parentKey, value: value});
+					}
+				}
+				});
+			}
+
+			let ramTemps = [];
+			// Loop through the parent keys
+			Object.keys(objValue).forEach(parentKey => {
+				const parentObj = objValue[parentKey];
+				// Array to store ram keys and values
+				const ramKeys = [];
+				// Call the recursive function to find ram keys and values
+				findRamKeys(parentObj, ramKeys);
+				// Sort the ramKeys keys
+				ramKeys.sort();
+				// Process each ram key and value
+				ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {
+				try {
+					ram = ramKey.replace('SODIMM', 'SODIMM ');
+					ramTemps.push(`${ram}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
+				} catch(e) {
+					console.error(`Error retrieving Ram Temp for ${ramTemps} in ${parentKey}:`, e); // Debug: Log specific error
+				}
+				});
+			});
+			return '<div style="text-align: left; margin-left: 28px;">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';
+		}
+	},
+EOF
+	#endregion ram widget heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate ram widget code" >&2
+        exit 1
+    fi
 }
 
 generate_ups_widget() {
