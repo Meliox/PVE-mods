@@ -440,15 +440,23 @@ collect_ups_output() {
     else
         ups_cmd="upsc \"$upsConnection\" 2>/dev/null"
     fi
-	#region ups heredoc
-	sed -i "/my \$dinfo = df('\/', 1);/i\\
-		\\
-		# Collect UPS status information\\
-		\$res->{upsc} = \\\`$ups_cmd\\\`;\\
-	" "$NODES_PM_FILE"
-	#endregion ups heredoc
+
+    # region ups heredoc
+    sed -i "/my \$dinfo = df('\/', 1);/i\\
+\\
+# Collect UPS status information\\
+sub get_upsc {\\
+    my \$cmd = '$ups_cmd';\\
+    my \$output = \`\\\$cmd\`;\\
+    return \$output;\\
+}\\
+\$res->{upsc} = get_upsc();\\
+" "$NODES_PM_FILE"
+    # endregion ups heredoc
+
     info "UPS retriever added to \"$output_file\"."
 }
+
 
 # Collect system information
 collect_system_info() {
