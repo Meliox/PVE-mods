@@ -36,8 +36,9 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 
 # DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
 
-DEBUG_REMOTE=false
+DEBUG_REMOTE=true
 DEBUG_JSON_FILE="/tmp/sensordata.json"
+DEBUG_UPS_FILE="/tmp/upsc.txt"
 
 # Helper functions
 function msg {
@@ -240,6 +241,45 @@ function configure {
 		esac
 	fi
 
+	# Prompt user for enabling UPS
+	local choiseEnableUPS=$(ask "Do you wish to enable information from an attached UPS (requires configured UPS server and UPS client using Network UPS Tools. Both must be configured beforehand). (Y/n)")
+	case "$choiseEnableUPS" in
+		[yY] | "")
+			# Test the connection using upsc command
+			if [ $DEBUG_REMOTE = true ]; then
+				upsOutput=$(cat $DEBUG_UPS_FILE)
+				echo "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
+				upsConnection="DEBUG_UPS"
+			else
+				# Prompt user for UPS connection details
+				upsConnection=$(ask "Enter connection details for the UPS (e.g., upsname[@hostname[:port]])")
+				upsOutput=$(upsc "$upsConnection" 2>&1)
+			fi
+
+			# Check for device.model in the output to confirm successful connection
+			if (echo "$upsOutput" | grep -q "device.model:"); then
+				# Extract the model name
+				modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d':' -f2- | xargs)
+				ENABLE_UPS=true
+				echo "Successfully connected to UPS model: $modelName at $upsConnection."
+				info "UPS information will be displayed..."
+			else
+				warn "Failed to connect to UPS at '$upsConnection'. No valid UPS model found."
+				warn "Error: $upsOutput"
+				ENABLE_UPS=false
+			fi
+
+			;;
+		[nN])
+			ENABLE_UPS=false
+			info "UPS information will NOT be displayed..."
+			;;
+		*)
+			warn "Invalid selection. UPS information will not be displayed."
+			ENABLE_UPS=false
+			;;
+	esac
+
 	# DMI Type:
 	# 1 ... System Information
 	# 2 ... Base Board Information (for self-made PC)
@@ -335,6 +375,19 @@ function install_mod {
 		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,\\s*(\})/$1/g;\n\t$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\n' "$NODES_PM_FILE"
 		msg "Sensors' output added to \"$NODES_PM_FILE\"."
 	fi
+
+	if [ $ENABLE_UPS = true ]; then
+		local upsCmd
+		if [ $DEBUG_REMOTE = true ]; then
+			upsCmd="cat \"$DEBUG_UPS_FILE\""
+		else
+			upsCmd="upsc \"$upsConnection\" 2>/dev/null"
+		fi
+
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{upsc} = `'"$upsCmd"'`;' "$NODES_PM_FILE"
+		msg "UPS output added to \"$NODES_PM_FILE\"."
+	fi
+
 
 	if [ $ENABLE_SYSTEM_INFO = true ]; then
 		local systemInfoCmd=$(dmidecode -t ${SYSTEM_INFO_TYPE} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
@@ -801,6 +854,225 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}\n\
 	},
 		}" "$PVE_MANAGER_LIB_JS_FILE"
+		fi
+
+		if [ $ENABLE_UPS = true ]; then
+			# Add UPS status display
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a;
+				/items:/!{N;ba;}
+				:b;
+				/'thermal.*},/!{N;bb;}
+				a\
+				\\
+	{\n\
+		xtype: 'box',\n\
+		colspan: 2,\n\
+		html: gettext('UPS'),\n\
+	},\n\
+	{\n\
+	itemId: 'upsc',\n\
+	colspan: 2,\n\
+	printBar: false,\n\
+	title: gettext('Device'),\n\
+	iconCls: 'fa fa-fw fa-battery-three-quarters',\n\
+	textField: 'upsc',\n\
+	renderer: function(value) {\n\
+		console.log(value);\n\
+\n\		
+		let objValue = {};\n\
+		try {\n\
+			// Parse the UPS data\n\
+			if (typeof value === 'string') {\n\
+				const lines = value.split('\n');\n\
+				lines.forEach(line => {\n\
+					const colonIndex = line.indexOf(':');\n\
+					if (colonIndex > 0) {\n\
+						const key = line.substring(0, colonIndex).trim();\n\
+						const val = line.substring(colonIndex + 1).trim();\n\
+						objValue[key] = val;\n\
+					}\n\
+				});\n\
+			} else if (typeof value === 'object') {\n\
+				objValue = value || {};\n\
+			}\n\
+		} catch(e) {\n\
+			objValue = {};\n\
+		}\n\
+\n\
+		// If objValue is null or empty, return N/A\n\
+		if (!objValue || Object.keys(objValue).length === 0) {\n\
+			return '<div style=\"text-align: right;\"><span style=\"color: white;\">N/A</span></div>';\n\
+		}\n\
+\n\
+		// Helper function to get status color\n\
+		function getStatusColor(status) {\n\
+			if (!status) return '#999';\n\
+			const statusUpper = status.toUpperCase();\n\
+			if (statusUpper.includes('OL')) return 'white'; // Green for online\n\
+			if (statusUpper.includes('OB')) return '#d9534f'; // Red for on battery\n\
+			if (statusUpper.includes('LB')) return '#d9534f'; // Red for low battery\n\
+			return '#f0ad4e'; // Orange for other states\n\
+		}\n\
+\n\
+		// Helper function to get load/charge color\n\
+		function getPercentageColor(value, isLoad = false) {\n\
+			if (!value || isNaN(value)) return '#999';\n\
+			const num = parseFloat(value);\n\
+			if (isLoad) {\n\
+				if (num >= 80) return '#d9534f'; // Red for high load\n\
+				if (num >= 60) return '#f0ad4e'; // Orange for medium load\n\
+				return '#white'; // Green for low load\n\
+			} else {\n\
+				// For battery charge\n\
+				if (num <= 20) return '#d9534f'; // Red for low charge\n\
+				if (num <= 50) return '#f0ad4e'; // Orange for medium charge\n\
+				return '#white'; // Green for good charge\n\
+			}\n\
+		}\n\
+\n\
+		// Helper function to format runtime\n\
+		function formatRuntime(seconds) {\n\
+			if (!seconds || isNaN(seconds)) return 'N/A';\n\
+			const mins = Math.floor(seconds / 60);\n\
+			const secs = seconds % 60;\n\
+			return `${mins}m ${secs}s`;\n\
+		}\n\
+\n\
+		// Extract key UPS information\n\
+		const batteryCharge = objValue['battery.charge'];\n\
+		const batteryRuntime = objValue['battery.runtime'];\n\
+		const inputVoltage = objValue['input.voltage'];\n\
+		const upsLoad = objValue['ups.load'];\n\
+		const upsStatus = objValue['ups.status'];\n\
+		const upsModel = objValue['ups.model'] || objValue['device.model'];\n\
+		const testResult = objValue['ups.test.result'];\n\
+        const batteryChargeLow = objValue['battery.charge.low'];\n\
+        const batteryRuntimeLow = objValue['battery.runtime.low'];\n\
+        const upsRealPowerNominal = objValue['ups.realpower.nominal'];\n\
+        const batteryMfrDate = objValue['battery.mfr.date'];\n\
+\n\
+		// Build the status display\n\
+		let displayItems = [];\n\
+\n\
+		// First line: Model info\n\
+		let modelLine = '';\n\
+		if (upsModel) {\n\
+			modelLine = \`<span style=\"color: white;\">${upsModel}</span>\`;\n\
+		} else {\n\
+			modelLine = \`<span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+		displayItems.push(modelLine);\n\
+\n\
+		// Main status line with all metrics\n\
+		let statusLine = '';\n\
+\n\		
+		// Status\n\
+		if (upsStatus) {\n\
+			const statusUpper = upsStatus.toUpperCase();\n\
+			let statusText = 'Unknown';\n\
+			let statusColor = '#f0ad4e';\n\
+\n\			
+			if (statusUpper.includes('OL')) {\n\
+				statusText = 'Online';\n\
+				statusColor = 'white'; // White for good status\n\
+			} else if (statusUpper.includes('OB')) {\n\
+				statusText = 'On Battery';\n\
+				statusColor = '#d9534f'; // Red for on battery\n\
+			} else if (statusUpper.includes('LB')) {\n\
+				statusText = 'Low Battery';\n\
+				statusColor = '#d9534f'; // Red for low battery\n\
+			} else {\n\
+				statusText = upsStatus;\n\
+				statusColor = '#f0ad4e'; // Orange for unknown status\n\
+			}\n\
+\n\			
+			statusLine += \`Status: <span style=\"color: ${statusColor};\">${statusText}</span>\`;\n\
+		} else {\n\
+			statusLine += \`Status: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		// Battery charge\n\
+		if (statusLine) statusLine += ' | ';\n\
+		if (batteryCharge) {\n\
+			const chargeColor = getPercentageColor(batteryCharge, false);\n\
+			statusLine += \`Battery: <span style=\"color: ${chargeColor};\">${batteryCharge}%</span>\`;\n\
+		} else {\n\
+			statusLine += \`Battery: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		// Load percentage\n\
+		if (statusLine) statusLine += ' | ';\n\
+		if (upsLoad) {\n\
+			const loadColor = getPercentageColor(upsLoad, true);\n\
+			statusLine += \`Load: <span style=\"color: ${loadColor};\">${upsLoad}%</span>\`;\n\
+		} else {\n\
+			statusLine += \`Load: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		// Runtime\n\
+		if (statusLine) statusLine += ' | ';\n\
+		if (batteryRuntime) {\n\
+			const runtime = parseInt(batteryRuntime);\n\
+			const runtimeLowThreshold = batteryRuntimeLow ? parseInt(batteryRuntimeLow) : 600;\n\
+			let runtimeColor = 'white';\n\
+			if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold\n\
+			else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold\n\
+\n\
+			statusLine += \`Runtime: <span style=\"color: ${runtimeColor};\">${formatRuntime(runtime)}</span>\`;\n\
+		} else {\n\
+			statusLine += \`Runtime: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		// Input voltage\n\
+		if (statusLine) statusLine += ' | ';\n\
+		if (inputVoltage) {\n\
+			statusLine += \`Input: <span style=\"color: white;\">${parseFloat(inputVoltage).toFixed(0)}V</span>\`;\n\
+		} else {\n\
+			statusLine += \`Input: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		// Calculate actual watt usage\n\
+		if (statusLine) statusLine += ' | ';\n\
+		let actualWattage = null;\n\
+		if (upsLoad && upsRealPowerNominal) {\n\
+			const load = parseFloat(upsLoad);\n\
+			const nominal = parseFloat(upsRealPowerNominal);\n\
+			if (!isNaN(load) && !isNaN(nominal)) {\n\
+				actualWattage = Math.round((load / 100) * nominal);\n\
+			}\n\
+		}\n\
+\n\
+		// Real power (calculated watt usage)\n\
+		if (actualWattage !== null) {\n\
+			statusLine += \`Output: <span style=\"color: white;\">${actualWattage}W</span>\`;\n\
+		} else {\n\
+			statusLine += \`Output: <span style=\"color: white;\">N/A</span>\`;\n\
+		}\n\
+\n\		
+		displayItems.push(statusLine);\n\
+\n\
+		// Combined battery and test line\n\
+		let batteryTestLine = '';\n\
+		if (batteryMfrDate) {\n\
+			batteryTestLine += \`<span style=\"color: white;\">Battery MFD: ${batteryMfrDate}</span>\`;\n\
+		} else {\n\
+			batteryTestLine += \`<span style=\"color: white;\">Battery MFD: N/A</span>\`;\n\
+		}\n\
+\n\		
+		if (testResult && !testResult.toLowerCase().includes('no test')) {\n\
+			const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';\n\
+			batteryTestLine += \` | <span style=\"color: ${testColor};\">Test: ${testResult}</span>\`;\n\
+		} else {\n\
+			batteryTestLine += \` | <span style=\"color: white;\">Test: N/A</span>\`;\n\
+		}\n\
+\n\		
+		displayItems.push(batteryTestLine);\n\
+\n\
+		// Format the final output\n\
+		return '<div style=\"text-align: right;\">' + displayItems.join('<br>') + '</div>';\n\
+	}\n\
+    }" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		if [ $ENABLE_RAM_TEMP = true ]; then
