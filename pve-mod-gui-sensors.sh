@@ -398,93 +398,16 @@ function install_mod {
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
-		sed -i "/^Ext.define('PVE.node.StatusView'/i\
-Ext.define('PVE.mod.TempHelper', {\n\
-	//singleton: true,\n\
-\n\
-	requires: ['Ext.util.Format'],\n\
-\n\
-	statics: {\n\
-		CELSIUS: 0,\n\
-		FAHRENHEIT: 1\n\
-	},\n\
-\n\
-	srcUnit: null,\n\
-	dstUnit: null,\n\
-\n\
-	isValidUnit: function (unit) {\n\
-		return (\n\
-			Ext.isNumber(unit) && (unit === this.self.CELSIUS || unit === this.self.FAHRENHEIT)\n\
-		);\n\
-	},\n\
-\n\
-	constructor: function (config) {\n\
-		this.srcUnit = config && this.isValidUnit(config.srcUnit) ? config.srcUnit : this.self.CELSIUS;\n\
-		this.dstUnit = config && this.isValidUnit(config.dstUnit) ? config.dstUnit : this.self.CELSIUS;\n\
-	},\n\
-\n\
-	toFahrenheit: function (tempCelsius) {\n\
-		return Ext.isNumber(tempCelsius)\n\
-			? tempCelsius * 9 / 5 + 32\n\
-			: NaN;\n\
-	},\n\
-\n\
-	toCelsius: function (tempFahrenheit) {\n\
-		return Ext.isNumber(tempFahrenheit)\n\
-			? (tempFahrenheit - 32) * 5 / 9\n\
-			: NaN;\n\
-	},\n\
-\n\
-	getTemp: function (value) {\n\
-		if (this.srcUnit !== this.dstUnit) {\n\
-			switch (this.srcUnit) {\n\
-				case this.self.CELSIUS:\n\
-					switch (this.dstUnit) {\n\
-						case this.self.FAHRENHEIT:\n\
-							return this.toFahrenheit(value);\n\
-\n\
-						default:\n\
-							Ext.raise({\n\
-								msg:\n\
-									'Unsupported destination temperature unit: ' + this.dstUnit,\n\
-							});\n\
-					}\n\
-				case this.self.FAHRENHEIT:\n\
-					switch (this.dstUnit) {\n\
-						case this.self.CELSIUS:\n\
-							return this.toCelsius(value);\n\
-\n\
-						default:\n\
-							Ext.raise({\n\
-								msg:\n\
-									'Unsupported destination temperature unit: ' + this.dstUnit,\n\
-							});\n\
-					}\n\
-				default:\n\
-					Ext.raise({\n\
-						msg: 'Unsupported source temperature unit: ' + this.srcUnit,\n\
-					});\n\
-			}\n\
-		} else {\n\
-			return value;\n\
-		}\n\
-	},\n\
-\n\
-	getUnit: function(plainText) {\n\
-		switch (this.dstUnit) {\n\
-			case this.self.CELSIUS:\n\
-				return plainText !== true ? '\&deg;C' : '\\\'C';\n\
-\n\
-			case this.self.FAHRENHEIT:\n\\n\
-				return plainText !== true ? '\&deg;F' : '\\\'F';\n\
-\n\
-			default:\n\
-				Ext.raise({\n\
-					msg: 'Unsupported destination temperature unit: ' + this.srcUnit,\n\
-				});\n\
-		}\n\
-	},\n\
-});\n" "$PVE_MANAGER_LIB_JS_FILE"
+		ENABLE_TEMP_HELPER=true
+		if [ $ENABLE_TEMP_HELPER = true ]; then
+			local TEMP_JS_FILE="/tmp/temp_helper.js"
+			generate_temp_helper $TEMP_JS_FILE
+
+			sed -i "/^Ext.define('PVE.node.StatusView'/r $TEMP_JS_FILE" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
+		fi
+
 
 		if [ $ENABLE_SYSTEM_INFO = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
@@ -692,14 +615,98 @@ Ext.define('PVE.mod.TempHelper', {\n\
 }
 
 generate_temp_helper() {
-		#region temp helper heredoc
+	#region temp helper heredoc
     cat > "$1" <<'EOF'
+	Ext.define('PVE.mod.TempHelper', {
+	//singleton: true,
 
+	requires: ['Ext.util.Format'],
+
+	statics: {
+		CELSIUS: 0,
+		FAHRENHEIT: 1
+	},
+
+	srcUnit: null,
+	dstUnit: null,
+
+	isValidUnit: function (unit) {
+		return (
+			Ext.isNumber(unit) && (unit === this.self.CELSIUS || unit === this.self.FAHRENHEIT)
+		);
+	},
+
+	constructor: function (config) {
+		this.srcUnit = config && this.isValidUnit(config.srcUnit) ? config.srcUnit : this.self.CELSIUS;
+		this.dstUnit = config && this.isValidUnit(config.dstUnit) ? config.dstUnit : this.self.CELSIUS;
+	},
+
+	toFahrenheit: function (tempCelsius) {
+		return Ext.isNumber(tempCelsius)
+			? tempCelsius * 9 / 5 + 32
+			: NaN;
+	},
+
+	toCelsius: function (tempFahrenheit) {
+		return Ext.isNumber(tempFahrenheit)
+			? (tempFahrenheit - 32) * 5 / 9
+			: NaN;
+	},
+
+	getTemp: function (value) {
+		if (this.srcUnit !== this.dstUnit) {
+			switch (this.srcUnit) {
+				case this.self.CELSIUS:
+					switch (this.dstUnit) {
+						case this.self.FAHRENHEIT:
+							return this.toFahrenheit(value);
+
+						default:
+							Ext.raise({
+								msg:
+									'Unsupported destination temperature unit: ' + this.dstUnit,
+							});
+					}
+				case this.self.FAHRENHEIT:
+					switch (this.dstUnit) {
+						case this.self.CELSIUS:
+							return this.toCelsius(value);
+
+						default:
+							Ext.raise({
+								msg:
+									'Unsupported destination temperature unit: ' + this.dstUnit,
+							});
+					}
+				default:
+					Ext.raise({
+						msg: 'Unsupported source temperature unit: ' + this.srcUnit,
+					});
+			}
+		} else {
+			return value;
+		}
+	},
+
+	getUnit: function(plainText) {
+		switch (this.dstUnit) {
+			case this.self.CELSIUS:
+				return plainText !== true ? '\&deg;C' : '\\\'C';
+
+			case this.self.FAHRENHEIT:
+				return plainText !== true ? '\&deg;F' : '\\\'F';
+
+			default:
+				Ext.raise({
+					msg: 'Unsupported destination temperature unit: ' + this.srcUnit,
+				});
+		}
+	},
+});
 EOF
-	#endregion 		#region temp helper heredoc
- heredoc
+	#endregion temp helper heredoc
     if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to generate temp widget code" >&2
+        echo "Error: Failed to generate temp helper code" >&2
         exit 1
     fi
 }
