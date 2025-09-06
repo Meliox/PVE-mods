@@ -407,42 +407,31 @@ function install_mod {
 		# Expand space in StatusView
 		expand_statusview_space
 
-		read -p "Press [Enter] key to continue..."
-
 		# Insert temp helper
 		generate_and_insert_temp_helper
-
-		read -p "Press [Enter] key to continue..."
 
 		# Generate and insert widgets using the helper function
 		generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
 		
-		# pause wait for user to press enter
-		read -p "Press [Enter] key to continue..."
-
-		ENABLE_CPU=true
-
 		#
 		# NOTE: The following items will be added in reverse order
 		#
 		generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
-		read -p "Press [Enter] key to continue..."
 		generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
-		read -p "Press [Enter] key to continue..."
 		generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
-		read -p "Press [Enter] key to continue..."
 
 		# Add drive header boxes if either nvme or drive temp is enabled
 		generate_drive_header
 		generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
 		generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
+		ENABLE_CPU=true
 		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		# Add an empty line to separate modified items as a visual group
-		#add_visual_separator
+		add_visual_separator
 
 		# Move the node summary box into its own container and deactivate the original box instance
-		#setup_node_summary_container
+		setup_node_summary_container
 
 		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
