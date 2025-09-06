@@ -408,26 +408,19 @@ function install_mod {
 			rm $TEMP_JS_FILE
 		fi
 
-
 		if [ $ENABLE_SYSTEM_INFO = true ]; then
+			local TEMP_JS_FILE="/tmp/system_info_widget.js"
+			generate_system_info $TEMP_JS_FILE
+
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
+				:a
 				/items:/!{N;ba;}
-				:b;
-				/cpus.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		itemId: 'sysinfo',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('System Information'),\n\
-		textField: 'systemInfo',\n\
-		renderer: function(value){\n\
-			return value;\n\
-		}\n\
-	},
+				:b
+				/'thermal.*},/!{N;bb;}
+				r $TEMP_JS_FILE
 			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
 		fi
 		
 		ENABLE_CPU=true
@@ -612,6 +605,27 @@ function install_mod {
 	else
 		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
+}
+
+generate_system_info() {
+	endregion system info heredoc
+    cat > "$1" <<'EOF'
+	{
+		itemId: 'sysinfo',
+		colspan: 2,
+		printBar: false,
+		title: gettext('System Information'),
+		textField: 'systemInfo',
+		renderer: function(value){
+			return value;
+		}
+	},
+EOF
+	#endregion system info heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate system info code" >&2
+        exit 1
+    fi
 }
 
 generate_temp_helper() {
