@@ -936,7 +936,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			if (!seconds || isNaN(seconds)) return 'N/A';\n\
 			const mins = Math.floor(seconds / 60);\n\
 			const secs = seconds % 60;\n\
-			return `${mins}m ${secs}s`;\n\
+			return \`\${mins}m \${secs}s\`;\n\
 		}\n\
 \n\
 		// Extract key UPS information\n\
@@ -958,7 +958,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		// First line: Model info\n\
 		let modelLine = '';\n\
 		if (upsModel) {\n\
-			modelLine = \`<span style=\"color: white;\">${upsModel}</span>\`;\n\
+			modelLine = \`<span style=\"color: white;\">\${upsModel}</span>\`;\n\
 		} else {\n\
 			modelLine = \`<span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -987,7 +987,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				statusColor = '#f0ad4e'; // Orange for unknown status\n\
 			}\n\
 \n\			
-			statusLine += \`Status: <span style=\"color: ${statusColor};\">${statusText}</span>\`;\n\
+			statusLine += \`Status: <span style=\"color: \${statusColor};\">\${statusText}</span>\`;\n\
 		} else {\n\
 			statusLine += \`Status: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -996,7 +996,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		if (statusLine) statusLine += ' | ';\n\
 		if (batteryCharge) {\n\
 			const chargeColor = getPercentageColor(batteryCharge, false);\n\
-			statusLine += \`Battery: <span style=\"color: ${chargeColor};\">${batteryCharge}%</span>\`;\n\
+			statusLine += \`Battery: <span style=\"color: \${chargeColor};\">\${batteryCharge}%</span>\`;\n\
 		} else {\n\
 			statusLine += \`Battery: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -1005,7 +1005,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		if (statusLine) statusLine += ' | ';\n\
 		if (upsLoad) {\n\
 			const loadColor = getPercentageColor(upsLoad, true);\n\
-			statusLine += \`Load: <span style=\"color: ${loadColor};\">${upsLoad}%</span>\`;\n\
+			statusLine += \`Load: <span style=\"color: \${loadColor};\">\${upsLoad}%</span>\`;\n\
 		} else {\n\
 			statusLine += \`Load: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -1019,7 +1019,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 			if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold\n\
 			else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold\n\
 \n\
-			statusLine += \`Runtime: <span style=\"color: ${runtimeColor};\">${formatRuntime(runtime)}</span>\`;\n\
+			statusLine += \`Runtime: <span style=\"color: \${runtimeColor};\">\${formatRuntime(runtime)}</span>\`;\n\
 		} else {\n\
 			statusLine += \`Runtime: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -1027,7 +1027,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		// Input voltage\n\
 		if (statusLine) statusLine += ' | ';\n\
 		if (inputVoltage) {\n\
-			statusLine += \`Input: <span style=\"color: white;\">${parseFloat(inputVoltage).toFixed(0)}V</span>\`;\n\
+			statusLine += \`Input: <span style=\"color: white;\">\${parseFloat(inputVoltage).toFixed(0)}V</span>\`;\n\
 		} else {\n\
 			statusLine += \`Input: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -1045,7 +1045,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 \n\
 		// Real power (calculated watt usage)\n\
 		if (actualWattage !== null) {\n\
-			statusLine += \`Output: <span style=\"color: white;\">${actualWattage}W</span>\`;\n\
+			statusLine += \`Output: <span style=\"color: white;\">\${actualWattage}W</span>\`;\n\
 		} else {\n\
 			statusLine += \`Output: <span style=\"color: white;\">N/A</span>\`;\n\
 		}\n\
@@ -1055,14 +1055,14 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		// Combined battery and test line\n\
 		let batteryTestLine = '';\n\
 		if (batteryMfrDate) {\n\
-			batteryTestLine += \`<span style=\"color: white;\">Battery MFD: ${batteryMfrDate}</span>\`;\n\
+			batteryTestLine += \`<span style=\"color: white;\">Battery MFD: \${batteryMfrDate}</span>\`;\n\
 		} else {\n\
 			batteryTestLine += \`<span style=\"color: white;\">Battery MFD: N/A</span>\`;\n\
 		}\n\
 \n\		
 		if (testResult && !testResult.toLowerCase().includes('no test')) {\n\
 			const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';\n\
-			batteryTestLine += \` | <span style=\"color: ${testColor};\">Test: ${testResult}</span>\`;\n\
+			batteryTestLine += \` | <span style=\"color: \${testColor};\">Test: \${testResult}</span>\`;\n\
 		} else {\n\
 			batteryTestLine += \` | <span style=\"color: white;\">Test: N/A</span>\`;\n\
 		}\n\
@@ -1071,8 +1071,9 @@ Ext.define('PVE.mod.TempHelper', {\n\
 \n\
 		// Format the final output\n\
 		return '<div style=\"text-align: right;\">' + displayItems.join('<br>') + '</div>';\n\
-	}\n\
-    }" "$PVE_MANAGER_LIB_JS_FILE"
+		}\n\
+	},
+		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
 		if [ $ENABLE_RAM_TEMP = true ]; then
