@@ -645,6 +645,22 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		#
 		# NOTE: The following items will be added in reverse order
 		#
+
+		if [ $ENABLE_UPS = true ]; then
+			local TEMP_JS_FILE="/tmp/ups_widget.js"
+			generate_ups_widget $TEMP_JS_FILE
+
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a
+				/items:/!{N;ba;}
+				:b
+				/'thermal.*},/!{N;bb;}
+				r /tmp/ups_widget.js
+			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
+		fi
+
 		if [ $ENABLE_HDD_TEMP = true ]; then
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
 				:a;
@@ -950,21 +966,6 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
 
-		if [ $ENABLE_UPS = true ]; then
-			local TEMP_JS_FILE="/tmp/ups_widget.js"
-			generate_ups_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r /tmp/ups_widget.js
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
@@ -975,7 +976,7 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		elif [ $ENABLE_FAN_SPEED = true ]; then
 			lastItemId="speedFan"
 		elif [ $ENABLE_UPS = true ]; then
-			lastItemId="UPS"			
+			lastItemId="upsc"			
 		else
 			lastItemId="thermalCpu"
 		fi
@@ -1039,7 +1040,8 @@ Ext.define('PVE.mod.TempHelper', {\n\
 }
 
 generate_ups_widget() {
-    cat > "$1" <<-EOF
+	#region UPS widget heredoc
+    cat > "$1" <<'EOF'
 	{
 		xtype: 'box',
 		colspan: 2,
@@ -1053,13 +1055,11 @@ generate_ups_widget() {
 		iconCls: 'fa fa-fw fa-battery-three-quarters',
 		textField: 'upsc',
 		renderer: function(value) {
-			console.log(value);
-
 			let objValue = {};
 			try {
 				// Parse the UPS data
 				if (typeof value === 'string') {
-					const lines = value.split('\\n');
+					const lines = value.split('\n');
 					lines.forEach(line => {
 						const colonIndex = line.indexOf(':');
 						if (colonIndex > 0) {
@@ -1111,7 +1111,7 @@ generate_ups_widget() {
 				if (!seconds || isNaN(seconds)) return 'N/A';
 				const mins = Math.floor(seconds / 60);
 				const secs = seconds % 60;
-				return \`\${mins}m \${secs}s\`;
+				return `${mins}m ${secs}s`;
 			}
 
 			// Extract key UPS information
@@ -1133,9 +1133,9 @@ generate_ups_widget() {
 			// First line: Model info
 			let modelLine = '';
 			if (upsModel) {
-				modelLine = \`<span style="color: white;">\${upsModel}</span>\`;
+				modelLine = `<span style="color: white;">${upsModel}</span>`;
 			} else {
-				modelLine = \`<span style="color: white;">N/A</span>\`;
+				modelLine = `<span style="color: white;">N/A</span>`;
 			}
 			displayItems.push(modelLine);
 
@@ -1162,27 +1162,27 @@ generate_ups_widget() {
 					statusColor = '#f0ad4e'; // Orange for unknown status
 				}
 
-				statusLine += \`Status: <span style="color: \${statusColor};">\${statusText}</span>\`;
+				statusLine += `Status: <span style="color: ${statusColor};">${statusText}</span>`;
 			} else {
-				statusLine += \`Status: <span style="color: white;">N/A</span>\`;
+				statusLine += `Status: <span style="color: white;">N/A</span>`;
 			}
 
 			// Battery charge
 			if (statusLine) statusLine += ' | ';
 			if (batteryCharge) {
 				const chargeColor = getPercentageColor(batteryCharge, false);
-				statusLine += \`Battery: <span style="color: \${chargeColor};">\${batteryCharge}%</span>\`;
+				statusLine += `Battery: <span style="color: ${chargeColor};">${batteryCharge}%</span>`;
 			} else {
-				statusLine += \`Battery: <span style="color: white;">N/A</span>\`;
+				statusLine += `Battery: <span style="color: white;">N/A</span>`;
 			}
 
 			// Load percentage
 			if (statusLine) statusLine += ' | ';
 			if (upsLoad) {
 				const loadColor = getPercentageColor(upsLoad, true);
-				statusLine += \`Load: <span style="color: \${loadColor};">\${upsLoad}%</span>\`;
+				statusLine += `Load: <span style="color: ${loadColor};">${upsLoad}%</span>`;
 			} else {
-				statusLine += \`Load: <span style="color: white;">N/A</span>\`;
+				statusLine += `Load: <span style="color: white;">N/A</span>`;
 			}
 
 			// Runtime
@@ -1194,17 +1194,17 @@ generate_ups_widget() {
 				if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold
 				else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold
 
-				statusLine += \`Runtime: <span style="color: \${runtimeColor};">\${formatRuntime(runtime)}</span>\`;
+				statusLine += `Runtime: <span style="color: ${runtimeColor};">${formatRuntime(runtime)}</span>`;
 			} else {
-				statusLine += \`Runtime: <span style="color: white;">N/A</span>\`;
+				statusLine += `Runtime: <span style="color: white;">N/A</span>`;
 			}
 
 			// Input voltage
 			if (statusLine) statusLine += ' | ';
 			if (inputVoltage) {
-				statusLine += \`Input: <span style="color: white;">\${parseFloat(inputVoltage).toFixed(0)}V</span>\`;
+				statusLine += `Input: <span style="color: white;">${parseFloat(inputVoltage).toFixed(0)}V</span>`;
 			} else {
-				statusLine += \`Input: <span style="color: white;">N/A</span>\`;
+				statusLine += `Input: <span style="color: white;">N/A</span>`;
 			}
 
 			// Calculate actual watt usage
@@ -1220,9 +1220,9 @@ generate_ups_widget() {
 
 			// Real power (calculated watt usage)
 			if (actualWattage !== null) {
-				statusLine += \`Output: <span style="color: white;">\${actualWattage}W</span>\`;
+				statusLine += `Output: <span style="color: white;">${actualWattage}W</span>`;
 			} else {
-				statusLine += \`Output: <span style="color: white;">N/A</span>\`;
+				statusLine += `Output: <span style="color: white;">N/A</span>`;
 			}
 
 			displayItems.push(statusLine);
@@ -1230,16 +1230,16 @@ generate_ups_widget() {
 			// Combined battery and test line
 			let batteryTestLine = '';
 			if (batteryMfrDate) {
-				batteryTestLine += \`<span style="color: white;">Battery MFD: \${batteryMfrDate}</span>\`;
+				batteryTestLine += `<span style="color: white;">Battery MFD: ${batteryMfrDate}</span>`;
 			} else {
-				batteryTestLine += \`<span style="color: white;">Battery MFD: N/A</span>\`;
+				batteryTestLine += `<span style="color: white;">Battery MFD: N/A</span>`;
 			}
 
 			if (testResult && !testResult.toLowerCase().includes('no test')) {
 				const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';
-				batteryTestLine += \` | <span style="color: \${testColor};">Test: \${testResult}</span>\`;
+				batteryTestLine += ` | <span style="color: ${testColor};">Test: ${testResult}</span>`;
 			} else {
-				batteryTestLine += \` | <span style="color: white;">Test: N/A</span>\`;
+				batteryTestLine += ` | <span style="color: white;">Test: N/A</span>`;
 			}
 
 			displayItems.push(batteryTestLine);
@@ -1248,8 +1248,8 @@ generate_ups_widget() {
 			return '<div style="text-align: right;">' + displayItems.join('<br>') + '</div>';
 		}
 	},
-	EOF
-
+EOF
+	#endregion UPS widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate UPS widget code" >&2
         exit 1
