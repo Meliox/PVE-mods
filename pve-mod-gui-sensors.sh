@@ -84,6 +84,7 @@ function usage {
 # System checks
 function check_root_privileges() {
 	[[ $EUID -eq 0 ]] || err "This script must be run as root. Please run it with 'sudo $0'."
+	info "Root privileges verified."
 }
 
 # Define a function to install packages
@@ -118,6 +119,7 @@ function configure {
     # Load sensor data
     if [ "$DEBUG_REMOTE" = true ]; then
         warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+		warn "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
         sensorsOutput=$(cat "$DEBUG_JSON_FILE")
     else
         sensorsOutput=$(sensors -j 2>/dev/null | python3 -m json.tool)
@@ -253,7 +255,7 @@ function configure {
         [yY]|"")
             if [ "$DEBUG_REMOTE" = true ]; then
                 upsOutput=$(cat "$DEBUG_UPS_FILE")
-                echo "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
+                info "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
                 upsConnection="DEBUG_UPS"
             else
                 upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])")
@@ -283,7 +285,7 @@ function configure {
     esac
 
     #### System Info ####
-    msgb "\n=== System Information ==="
+    msgb "\n=== Detecting System Information ==="
     for i in 1 2; do
         echo "type ${i})"
         dmidecode -t "$i" | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
@@ -320,7 +322,7 @@ function configure {
 
 # Function to install the modification
 function install_mod {
-    msgb "\n== Preparing mod installation =="
+    msgb "\n=== Preparing mod installation ==="
     check_root_privileges
     check_mod_installation
     configure
@@ -344,7 +346,7 @@ function install_mod {
     generate_and_insert_temp_helper
 
     #### Generate and insert widgets ####
-    msgb "\n=== Generating and inserting widgets ==="
+    msgb "\n=== Making visual adjustments ==="
 
     generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
     generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
@@ -369,13 +371,11 @@ function install_mod {
     info "Node summary box moved into its own container."
 
     msgb "\n=== Finalizing installation ==="
-    msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
     restart_proxy
-    msg "Installation completed."
-    info "Clear the browser cache to ensure all changes are visualized."
+    info "Installation completed."
+    ask "Clear the browser cache to ensure all changes are visualized. (any key to continue)"
 }
-
 
 #region node info insertion
 # Main insertion routine
@@ -492,6 +492,7 @@ generate_and_insert_widget() {
 		"$generator_func" "$temp_js_file"
 		insert_widget_after_thermal "$temp_js_file"
 		rm "$temp_js_file"
+		info "Inserted $widget_name widget."
 	fi
 }
 
@@ -1426,6 +1427,8 @@ EOF
 
 # Function to uninstall the modification
 function uninstall_mod {
+	msgb "=== Uninstalling Mod ==="
+
 	check_root_privileges
 
 	if [[ -z $(grep -e "$res->{sensorsOutput}" "$NODES_PM_FILE") ]] && [[ -z $(grep -e "$res->{systemInfo}" "$NODES_PM_FILE") ]]; then
@@ -1433,15 +1436,16 @@ function uninstall_mod {
 	fi
 
 	set_backup_directory
-	msg "\nRestoring modified files..."
+	info "Restoring modified files..."
 
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
 	if [ -n "$latest_nodes_pm" ]; then
 		# Remove the latest Nodes.pm file
+		msgb "Restoring latest Nodes.pm from backup: $latest_nodes_pm to \"$NODES_PM_FILE\"."
 		cp "$latest_nodes_pm" "$NODES_PM_FILE"
-		msg "Restoring latest Nodes.pm from backup: $latest_nodes_pm to \"$NODES_PM_FILE\"."
+		info "Restored Nodes.pm successfully."
 	else
 		warn "No Nodes.pm backup files found."
 	fi
@@ -1451,8 +1455,9 @@ function uninstall_mod {
 
 	if [ -n "$latest_pvemanagerlibjs" ]; then
 		# Remove the latest pvemanagerlib.js file
+		msgb "Restoring latest pvemanagerlib.js from backup: $latest_pvemanagerlibjs to \"$PVE_MANAGER_LIB_JS_FILE\"."
 		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
-		msg "Restoring latest pvemanagerlib.js from backup: $latest_pvemanagerlibjs to \"$PVE_MANAGER_LIB_JS_FILE\"."
+		info "Restored pvemanagerlib.js successfully."
 	else
 		warn "No pvemanagerlib.js backup files found."
 	fi
@@ -1461,6 +1466,8 @@ function uninstall_mod {
 		# At least one of the variables is not empty, restart the proxy
 		restart_proxy
 	fi
+
+	ask "Clear the browser cache to ensure all changes are visualized. (any key to continue)"
 }
 
 # Function to check if the modification is installed
@@ -1474,29 +1481,33 @@ check_mod_installation() {
 
 function restart_proxy {
 	# Restart pveproxy
-	msg "\nRestarting PVE proxy..."
+	info "Restarting PVE proxy..."
 	systemctl restart pveproxy
 }
 
 function save_sensors_data {
+	msgb "=== Saving Sensors Data ==="
+
 	# Check if JSON_EXPORT_DIRECTORY exists and is writable
 	if [[ ! -d "$JSON_EXPORT_DIRECTORY" || ! -w "$JSON_EXPORT_DIRECTORY" ]]; then
 		err "Directory $JSON_EXPORT_DIRECTORY does not exist or is not writable. No file could be saved."
 		return
 	fi
 
+
 	# Check if command exists
 	if (command -v sensors &>/dev/null); then
 		# Save sensors output
-		local filepath="${JSON_EXPORT_DIRECTORY}/${DEBUG_SAVE_FILENAME}"
-		msg "Sensors data will be saved in $filepath"
+		local debug_save_filename="sensorsdata.json"
+		local filepath="${JSON_EXPORT_DIRECTORY}/${debug_save_filename}"
+		msgb "Sensors data will be saved in $filepath"
 
 		# Prompt user for confirmation
-		local choiceContinue=$(ask "Do you wish to continue? (y/n)")
+		local choiceContinue=$(ask "Do you wish to continue? (Y/n)")
 		case "$choiceContinue" in
-			[yY])
+			[yY]|"")
 				sensors -j 2>/dev/null | python3 -m json.tool >"$filepath"
-				msgb "Sensors data saved in $filepath."
+				info "Sensors data saved in $filepath."
 				;;
 			*)
 				warn "Operation cancelled by user."
@@ -1505,6 +1516,7 @@ function save_sensors_data {
 	else
 		err "Sensors is not installed. No file could be saved."
 	fi
+	echo
 }
 
 function set_backup_directory {
@@ -1561,7 +1573,7 @@ function perform_backup {
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
     
-	msgb "\n===Creating backups of modified files ==="
+	msgb "\n=== Creating backups of modified files ==="
 
     create_backup_directory
     create_file_backup "$NODES_PM_FILE" "$timestamp"
@@ -1577,19 +1589,16 @@ while [[ $# -gt 0 ]]; do
 			msgb "\nInstalling the Proxmox VE sensors display mod..."
 			install_packages
 			install_mod
-			echo # add a new line
 			;;
 		uninstall)
 			executed=$(($executed + 1))
 			msgb "\nUninstalling the Proxmox VE sensors display mod..."
 			uninstall_mod
-			echo # add a new line
 			;;
 		save-sensors-data)
 			executed=$(($executed + 1))
 			msgb "\nSaving current sensor readings in a file for debugging..."
 			save_sensors_data
-			echo # add a new line
 			;;
 	esac
 	shift
