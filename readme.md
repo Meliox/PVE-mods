@@ -24,7 +24,7 @@ The modification involves the following steps:
    - Expand the node status view to full browser width.  
    - Add reading (depending on  & selections).  
    - Allow collapsing the panel vertically.  
-4. Restart the `pveproxy` service to apply changes.  
+4. Restart the `pveproxy` service to apply changes.
 
 The script provides three options:
 | **Option**             | **Description**                                                             |
