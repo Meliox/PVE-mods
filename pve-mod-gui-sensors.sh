@@ -384,7 +384,12 @@ function install_mod {
 			upsCmd="upsc \"$upsConnection\" 2>/dev/null"
 		fi
 
-		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{upsc} = \`$upsCmd\`;" "$NODES_PM_FILE"
+		# Insert UPS data collection before the disk info line
+		sed -i "/my \$dinfo = df('\/', 1);/i\\
+		\\
+		\t# Collect UPS status information\\
+		\t\$res->{upsc} = \\\`$upsCmd\\\`;" "$NODES_PM_FILE"
+		
 		msg "UPS output added to \"$NODES_PM_FILE\"."
 	fi
 
