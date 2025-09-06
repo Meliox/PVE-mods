@@ -743,77 +743,18 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		fi
 
 		if [ $ENABLE_FAN_SPEED = true ]; then
-			# Add fan speeds display
+			local TEMP_JS_FILE="/tmp/fan_widget.js"
+			generate_fan_widget $TEMP_JS_FILE
+
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
+				:a
 				/items:/!{N;ba;}
-				:b;
+				:b
 				/'thermal.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		xtype: 'box',\n\
-		colspan: 2,\n\
-		html: gettext('Cooling'),\n\
-	},\n\
-	{\n\
-		itemId: 'speedFan',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('Fan Speed(s)'),\n\
-		iconCls: 'fa fa-fw fa-snowflake-o',\n\
-		textField: 'sensorsOutput',\n\
-		renderer: function(value) {\n\
-			// ---\n\
-			let objValue;\n\
-			try {\n\
-				objValue = JSON.parse(value) || {};\n\
-			} catch(e) {\n\
-				objValue = {};\n\
-			}\n\
-\n\
-			// Recursive function to find fan keys and values\n\
-			function findFanKeys(obj, fanKeys, parentKey = null) {\n\
-				Object.keys(obj).forEach(key => {\n\
-				const value = obj[key];\n\
-				if (typeof value === 'object' && value !== null) {\n\
-					// If the value is an object, recursively call the function\n\
-					findFanKeys(value, fanKeys, key);\n\
-				} else if (/^fan[0-9]+(_input)?$/.test(key)) {\n\
-					if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {\n\
-						// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0\n\
-						return;\n\
-					}\n\
-					// If the key matches the pattern, add the parent key and value to the fanKeys array\n\
-					fanKeys.push({ key: parentKey, value: value });\n\
-				}\n\
-				});\n\
-			}\n\
-\n\
-			let speeds = [];\n\
-			// Loop through the parent keys\n\
-			Object.keys(objValue).forEach(parentKey => {\n\
-				const parentObj = objValue[parentKey];\n\
-				// Array to store fan keys and values\n\
-				const fanKeys = [];\n\
-				// Call the recursive function to find fan keys and values\n\
-				findFanKeys(parentObj, fanKeys);\n\
-				// Sort the fan keys\n\
-				fanKeys.sort();\n\
-				// Process each fan key and value\n\
-				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {\n\
-				try {\n\
-					const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey\n\
-					speeds.push(\`\${fan}:&nbsp;\${fanSpeed} RPM\`);\n\
-				} catch(e) {\n\
-					console.error(\`Error retrieving fan speed for \${fanKey} in \${parentKey}:\`, e); // Debug: Log specific error\n\
-				}\n\
-				});\n\
-			});\n\
-			return '<div style=\"text-align: left; margin-left: 28px;\">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';\n\
-		}\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
+				r $TEMP_JS_FILE
+			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
 		fi
 
 		if [ $ENABLE_RAM_TEMP = true ]; then
@@ -904,6 +845,79 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	fi
 }
 
+generate_fan_widget() {
+	#region fan widget heredoc
+    cat > "$1" <<'EOF'
+	{
+		xtype: 'box',
+		colspan: 2,
+		html: gettext('Cooling'),
+	},
+	{
+		itemId: 'speedFan',
+		colspan: 2,
+		printBar: false,
+		title: gettext('Fan Speed(s)'),
+		iconCls: 'fa fa-fw fa-snowflake-o',
+		textField: 'sensorsOutput',
+		renderer: function(value) {
+			// ---
+			let objValue;
+			try {
+				objValue = JSON.parse(value) || {};
+			} catch(e) {
+				objValue = {};
+			}
+
+			// Recursive function to find fan keys and values
+			function findFanKeys(obj, fanKeys, parentKey = null) {
+				Object.keys(obj).forEach(key => {
+				const value = obj[key];
+				if (typeof value === 'object' && value !== null) {
+					// If the value is an object, recursively call the function
+					findFanKeys(value, fanKeys, key);
+				} else if (/^fan[0-9]+(_input)?$/.test(key)) {
+					if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {
+						// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
+						return;
+					}
+					// If the key matches the pattern, add the parent key and value to the fanKeys array
+					fanKeys.push({ key: parentKey, value: value });
+				}
+				});
+			}
+
+			let speeds = [];
+			// Loop through the parent keys
+			Object.keys(objValue).forEach(parentKey => {
+				const parentObj = objValue[parentKey];
+				// Array to store fan keys and values
+				const fanKeys = [];
+				// Call the recursive function to find fan keys and values
+				findFanKeys(parentObj, fanKeys);
+				// Sort the fan keys
+				fanKeys.sort();
+				// Process each fan key and value
+				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
+				try {
+					const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
+					speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
+				} catch(e) {
+					console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
+				}
+				});
+			});
+			return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+		}
+	},
+EOF
+	#endregion fan widget heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate fan widget code" >&2
+        exit 1
+    fi
+}
+
 generate_hdd_widget() {
 	#region hdd widget heredoc
     cat > "$1" <<'EOF'
@@ -958,7 +972,7 @@ generate_hdd_widget() {
 			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
 			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
 		}
-	},	
+	},
 EOF
 	#endregion hdd widget heredoc
     if [[ $? -ne 0 ]]; then
