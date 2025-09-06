@@ -248,9 +248,9 @@ function configure {
     fi
 
     #### UPS ####
-    local choiceUPS=$(ask "Enable UPS information? (Y/n)")
+    local choiceUPS=$(ask "Enable UPS information? (y/N)")
     case "$choiceUPS" in
-        [yY]|"")
+        [yY])
             if [ "$DEBUG_REMOTE" = true ]; then
                 upsOutput=$(cat "$DEBUG_UPS_FILE")
                 echo "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
@@ -272,12 +272,12 @@ function configure {
                 ENABLE_UPS=false
             fi
             ;;
-        [nN])
+        [nN]|"")
             ENABLE_UPS=false
-            info "UPS information will NOT be displayed."
+            info "UPS information will not be displayed."
             ;;
         *)
-            warn "Invalid selection. UPS info will NOT be displayed."
+            warn "Invalid selection. UPS info will not be displayed."
             ENABLE_UPS=false
             ;;
     esac
