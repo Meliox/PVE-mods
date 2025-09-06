@@ -442,7 +442,7 @@ insert_widget_after_thermal() {
 		/items:/!{N;ba;}
 		:b
 		/'thermal.*},/!{N;bb;}
-		r $widget_file
+		cat $widget_file
 	}" "$PVE_MANAGER_LIB_JS_FILE"
 }
 
@@ -625,7 +625,7 @@ generate_and_insert_temp_helper() {
 
 	#region temp helper heredoc
     cat > "$temp_js_file" <<'EOF'
-	Ext.define('PVE.mod.TempHelper', {
+Ext.define('PVE.mod.TempHelper', {
 	//singleton: true,
 
 	requires: ['Ext.util.Format'],
@@ -718,7 +718,7 @@ EOF
         exit 1
     fi
 
-	sed -i "/^Ext.define('PVE.node.StatusView'/r $temp_js_file" "$PVE_MANAGER_LIB_JS_FILE"
+	sed -i "/^Ext.define('PVE.node.StatusView'/e cat /tmp/temp_helper.js" "$PVE_MANAGER_LIB_JS_FILE"
 	rm "$temp_js_file"
 }
 
