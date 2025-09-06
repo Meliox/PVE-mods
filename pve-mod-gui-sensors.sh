@@ -384,7 +384,7 @@ function install_mod {
 			upsCmd="upsc \"$upsConnection\" 2>/dev/null"
 		fi
 
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{upsc} = `'"$upsCmd"'`;' "$NODES_PM_FILE"
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{upsc} = `'"$upsCmd"'`;\n' "$NODES_PM_FILE"
 		msg "UPS output added to \"$NODES_PM_FILE\"."
 	fi
 
