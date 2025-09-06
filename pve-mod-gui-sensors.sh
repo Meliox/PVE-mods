@@ -332,13 +332,34 @@ function install_mod {
 			#local sensorsCmd=$([[ "$TEMP_UNIT" = "F" ]] && echo "sensors -j -f" || echo "sensors -j")
 			sensorsCmd="sensors -j 2>/dev/null | python3 -m json.tool"
 		fi
-		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\'$'\t''$res->{sensorsOutput} = `'"$sensorsCmd"'`;\n\t# sanitize JSON output\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\n\t$res->{sensorsOutput} =~ s/,\\s*(\})/$1/g;\n\t$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\n' "$NODES_PM_FILE"
+		# Insert sensor data collection and JSON sanitization before the disk info line
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
+		\
+		# Collect sensor data from lm-sensors\
+		$res->{sensorsOutput} = `'"$sensorsCmd"'`;\
+		\
+		# Sanitize JSON output to handle common lm-sensors parsing issues\
+		# Replace ERROR lines with placeholder values\
+		$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\
+		$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\
+		\
+		# Remove trailing commas before closing braces\
+		$res->{sensorsOutput} =~ s/,\\s*(\})/$1/g;\
+		\
+		# Replace NaN values with null for valid JSON\
+		$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\
+		\
+		# Fix duplicate SODIMM keys by appending temperature sensor number\
+		# This prevents JSON key overwrites when multiple SODIMM sensors exist\
+		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM3":{"temp3_input":34.0}\
+		$res->{sensorsOutput} =~ s/\\"SODIMM\\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM$1\\":\\{\\"temp$1_input\\"/g;\
+		' "$NODES_PM_FILE"	
 		msg "Sensors' output added to \"$NODES_PM_FILE\"."
 	fi
 
 	if [ $ENABLE_SYSTEM_INFO = true ]; then
 		local systemInfoCmd=$(dmidecode -t ${SYSTEM_INFO_TYPE} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
-		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
+		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
 		msg "System information output added to \"$NODES_PM_FILE\"."
 	fi
 
