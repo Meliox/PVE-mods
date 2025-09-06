@@ -394,31 +394,42 @@ function install_mod {
 		# Expand space in StatusView
 		expand_statusview_space
 
+		read -p "Press [Enter] key to continue..."
+
 		# Insert temp helper
 		generate_and_insert_temp_helper
 
+		read -p "Press [Enter] key to continue..."
+
 		# Generate and insert widgets using the helper function
 		generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
+		
+		# pause wait for user to press enter
+		read -p "Press [Enter] key to continue..."
+
 		ENABLE_CPU=true
-		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		#
 		# NOTE: The following items will be added in reverse order
 		#
 		generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
+		read -p "Press [Enter] key to continue..."
 		generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
+		read -p "Press [Enter] key to continue..."
 		generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
+		read -p "Press [Enter] key to continue..."
 
 		# Add drive header boxes if either nvme or drive temp is enabled
 		generate_drive_header
 		generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
 		generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
+		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		# Add an empty line to separate modified items as a visual group
-		add_visual_separator
+		#add_visual_separator
 
 		# Move the node summary box into its own container and deactivate the original box instance
-		setup_node_summary_container
+		#setup_node_summary_container
 
 		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
@@ -441,8 +452,8 @@ insert_widget_after_thermal() {
 		:a
 		/items:/!{N;ba;}
 		:b
-		/'thermal.*},/!{N;bb;}
-		cat $widget_file
+		/'cpus.*},/!{N;bb;}
+		r $widget_file
 	}" "$PVE_MANAGER_LIB_JS_FILE"
 }
 
@@ -491,7 +502,7 @@ expand_statusview_space() {
         s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
         s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
     }" "$PVE_MANAGER_LIB_JS_FILE"
-    
+
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to expand StatusView space" >&2
         exit 1
@@ -601,16 +612,16 @@ EOF
 generate_system_info() {
 	#region system info heredoc
     cat > "$1" <<'EOF'
-	{
-		itemId: 'sysinfo',
-		colspan: 2,
-		printBar: false,
-		title: gettext('System Information'),
-		textField: 'systemInfo',
-		renderer: function(value){
-			return value;
-		}
-	},
+		{
+			itemId: 'sysinfo',
+			colspan: 2,
+			printBar: false,
+			title: gettext('System Information'),
+			textField: 'systemInfo',
+			renderer: function(value){
+				return value;
+			}
+		},
 EOF
 	#endregion system info heredoc
     if [[ $? -ne 0 ]]; then
@@ -731,7 +742,7 @@ generate_cpu_widget() {
 		export CPU_TEMP_TARGET
 		export HELPERCTORPARAMS
 		
-		cat <<'EOF' | envsubst > "$1"
+		cat <<'EOF' | envsubst '$CPU_ITEMS_PER_ROW $CPU_TEMP_TARGET $HELPERCTORPARAMS' > "$1"
 		{
 			itemId: 'thermalCpu',
 			colspan: 2,
@@ -859,60 +870,61 @@ generate_nvme_widget() {
 	#region nvme widget heredoc
 	# use subshell to allow variable expansion
 	(
-		export HELPERCTORPARAMS	
-		cat <<'EOF' | envsubst > "$1"
-	{
-		itemId: 'thermalNvme',
-		colspan: 2,
-		printBar: false,
-		title: gettext('NVMe Thermal State'),
-		iconCls: 'fa fa-fw fa-thermometer-half',
-		textField: 'sensorsOutput',
-		renderer: function(value) {
-			// sensors configuration
-			const addressPrefix = "nvme-pci-";
-			const sensorName = "Composite";
-			const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
-			// display configuration
-			const itemsPerRow = ${NVME_ITEMS_PER_ROW};
-			// ---
-			let objValue;
-			try {
-				objValue = JSON.parse(value) || {};
-			} catch(e) {
-				objValue = {};
-			}
-			const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
-			let temps = [];
-			nvmeKeys.forEach((nvmeKey, index) => {
+		export HELPERCTORPARAMS
+		export NVME_ITEMS_PER_ROW
+		cat <<'EOF' | envsubst '$HELPERCTORPARAMS $NVME_ITEMS_PER_ROW' > "$1"
+		{
+			itemId: 'thermalNvme',
+			colspan: 2,
+			printBar: false,
+			title: gettext('NVMe Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				// sensors configuration
+				const addressPrefix = "nvme-pci-";
+				const sensorName = "Composite";
+				const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
+				// display configuration
+				const itemsPerRow = $NVME_ITEMS_PER_ROW;
+				// ---
+				let objValue;
 				try {
-					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-					Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {
-						if (secondLevelKey.endsWith('_input')) {
-							tempVal = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
-						} else if (secondLevelKey.endsWith('_max')) {
-							tempMax = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
-						} else if (secondLevelKey.endsWith('_crit')) {
-							tempCrit = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
+					objValue = JSON.parse(value) || {};
+				} catch(e) {
+					objValue = {};
+				}
+				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
+				let temps = [];
+				nvmeKeys.forEach((nvmeKey, index) => {
+					try {
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+						Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {
+							if (secondLevelKey.endsWith('_input')) {
+								tempVal = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_max')) {
+								tempMax = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_crit')) {
+								tempCrit = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
+							}
+						});
+						if (!isNaN(tempVal)) {
+							let tempStyle = '';
+							if (!isNaN(tempMax) && tempVal >= tempMax) {
+								tempStyle = 'color: #FFC300; font-weight: bold;';
+							}
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+								tempStyle = 'color: red; font-weight: bold;';
+							}
+							const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
+							temps.push(tempStr);
 						}
-					});
-					if (!isNaN(tempVal)) {
-						let tempStyle = '';
-						if (!isNaN(tempMax) && tempVal >= tempMax) {
-							tempStyle = 'color: #FFC300; font-weight: bold;';
-						}
-						if (!isNaN(tempCrit) && tempVal >= tempCrit) {
-							tempStyle = 'color: red; font-weight: bold;';
-						}
-						const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
-						temps.push(tempStr);
-					}
-				} catch(e) { /*_*/ }
-			});
-			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
-			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
-		}
-	},
+					} catch(e) { /*_*/ }
+				});
+				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
+				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
+			}
+		},
 EOF
 	)
 	#endregion nvme widget heredoc
@@ -925,70 +937,74 @@ EOF
 # Function to generate UPS widget
 generate_fan_widget() {
 	#region fan widget heredoc
-    cat > "$1" <<'EOF'
-	{
-		xtype: 'box',
-		colspan: 2,
-		html: gettext('Cooling'),
-	},
-	{
-		itemId: 'speedFan',
-		colspan: 2,
-		printBar: false,
-		title: gettext('Fan Speed(s)'),
-		iconCls: 'fa fa-fw fa-snowflake-o',
-		textField: 'sensorsOutput',
-		renderer: function(value) {
-			// ---
-			let objValue;
-			try {
-				objValue = JSON.parse(value) || {};
-			} catch(e) {
-				objValue = {};
-			}
-
-			// Recursive function to find fan keys and values
-			function findFanKeys(obj, fanKeys, parentKey = null) {
-				Object.keys(obj).forEach(key => {
-				const value = obj[key];
-				if (typeof value === 'object' && value !== null) {
-					// If the value is an object, recursively call the function
-					findFanKeys(value, fanKeys, key);
-				} else if (/^fan[0-9]+(_input)?$/.test(key)) {
-					if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {
-						// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
-						return;
+	# use subshell to allow variable expansion
+	(
+		export DISPLAY_ZERO_SPEED_FANS
+		cat <<'EOF' | envsubst '$DISPLAY_ZERO_SPEED_FANS' > "$1"
+			{
+				xtype: 'box',
+				colspan: 2,
+				html: gettext('Cooling'),
+			},
+			{
+				itemId: 'speedFan',
+				colspan: 2,
+				printBar: false,
+				title: gettext('Fan Speed(s)'),
+				iconCls: 'fa fa-fw fa-snowflake-o',
+				textField: 'sensorsOutput',
+				renderer: function(value) {
+					// ---
+					let objValue;
+					try {
+						objValue = JSON.parse(value) || {};
+					} catch(e) {
+						objValue = {};
 					}
-					// If the key matches the pattern, add the parent key and value to the fanKeys array
-					fanKeys.push({ key: parentKey, value: value });
-				}
-				});
-			}
 
-			let speeds = [];
-			// Loop through the parent keys
-			Object.keys(objValue).forEach(parentKey => {
-				const parentObj = objValue[parentKey];
-				// Array to store fan keys and values
-				const fanKeys = [];
-				// Call the recursive function to find fan keys and values
-				findFanKeys(parentObj, fanKeys);
-				// Sort the fan keys
-				fanKeys.sort();
-				// Process each fan key and value
-				fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
-				try {
-					const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
-					speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
-				} catch(e) {
-					console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
+					// Recursive function to find fan keys and values
+					function findFanKeys(obj, fanKeys, parentKey = null) {
+						Object.keys(obj).forEach(key => {
+						const value = obj[key];
+						if (typeof value === 'object' && value !== null) {
+							// If the value is an object, recursively call the function
+							findFanKeys(value, fanKeys, key);
+						} else if (/^fan[0-9]+(_input)?$/.test(key)) {
+							if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {
+								// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
+								return;
+							}
+							// If the key matches the pattern, add the parent key and value to the fanKeys array
+							fanKeys.push({ key: parentKey, value: value });
+						}
+						});
+					}
+
+					let speeds = [];
+					// Loop through the parent keys
+					Object.keys(objValue).forEach(parentKey => {
+						const parentObj = objValue[parentKey];
+						// Array to store fan keys and values
+						const fanKeys = [];
+						// Call the recursive function to find fan keys and values
+						findFanKeys(parentObj, fanKeys);
+						// Sort the fan keys
+						fanKeys.sort();
+						// Process each fan key and value
+						fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
+						try {
+							const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
+							speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
+						} catch(e) {
+							console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
+						}
+						});
+					});
+					return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
 				}
-				});
-			});
-			return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
-		}
-	},
+			},
 EOF
+	)
 	#endregion fan widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate fan widget code" >&2
@@ -1002,59 +1018,59 @@ generate_hdd_widget() {
 	# use subshell to allow variable expansion
 	(
 		export HELPERCTORPARAMS	
-		cat <<'EOF' | envsubst > "$1"	
-	{
-		itemId: 'thermalHdd',
-		colspan: 2,
-		printBar: false,
-		title: gettext('HDD/SSD Thermal State'),
-		iconCls: 'fa fa-fw fa-thermometer-half',
-		textField: 'sensorsOutput',
-		renderer: function(value) {
-			// sensors configuration
-			const addressPrefix = "drivetemp-scsi-";
-			const sensorName = "temp1";
-			const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
-			// display configuration
-			const itemsPerRow = ${HDD_ITEMS_PER_ROW};
-			// ---
-			let objValue;
-			try {
-				objValue = JSON.parse(value) || {};
-			} catch(e) {
-				objValue = {};
-			}
-			const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
-			let temps = [];
-			drvKeys.forEach((drvKey, index) => {
+		cat <<'EOF' | envsubst '$HELPERCTORPARAMS' > "$1"
+		{
+			itemId: 'thermalHdd',
+			colspan: 2,
+			printBar: false,
+			title: gettext('HDD/SSD Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				// sensors configuration
+				const addressPrefix = "drivetemp-scsi-";
+				const sensorName = "temp1";
+				const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
+				// display configuration
+				const itemsPerRow = ${HDD_ITEMS_PER_ROW};
+				// ---
+				let objValue;
 				try {
-					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {
-						if (secondLevelKey.endsWith('_input')) {
-							tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
-						} else if (secondLevelKey.endsWith('_max')) {
-							tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
-						} else if (secondLevelKey.endsWith('_crit')) {
-							tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+					objValue = JSON.parse(value) || {};
+				} catch(e) {
+					objValue = {};
+				}
+				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
+				let temps = [];
+				drvKeys.forEach((drvKey, index) => {
+					try {
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+						Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {
+							if (secondLevelKey.endsWith('_input')) {
+								tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_max')) {
+								tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_crit')) {
+								tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							}
+						});
+						if (!isNaN(tempVal)) {
+							let tempStyle = '';
+							if (!isNaN(tempMax) && tempVal >= tempMax) {
+								tempStyle = 'color: #FFC300; font-weight: bold;';
+							}
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+								tempStyle = 'color: red; font-weight: bold;';
+							}
+							const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
+							temps.push(tempStr);
 						}
-					});
-					if (!isNaN(tempVal)) {
-						let tempStyle = '';
-						if (!isNaN(tempMax) && tempVal >= tempMax) {
-							tempStyle = 'color: #FFC300; font-weight: bold;';
-						}
-						if (!isNaN(tempCrit) && tempVal >= tempCrit) {
-							tempStyle = 'color: red; font-weight: bold;';
-						}
-						const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
-						temps.push(tempStr);
-					}
-				} catch(e) { /*_*/ }
-			});
-			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
-			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
-		}
-	},
+					} catch(e) { /*_*/ }
+				});
+				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
+				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
+			}
+		},
 EOF
 	)
 	#endregion hdd widget heredoc
@@ -1070,85 +1086,84 @@ generate_ram_widget() {
 	# use subshell to allow variable expansion
 	(
 		export HELPERCTORPARAMS	
-		cat <<'EOF' | envsubst > "$1"	
-	{
-	{
-		xtype: 'box',
-		colspan: 2,
-		html: gettext('RAM'),
-	},
-	{
-		itemId: 'thermalRam',
-		colspan: 2,
-		printBar: false,
-		title: gettext('Thermal State'),
-		iconCls: 'fa fa-fw fa-thermometer-half',
-		textField: 'sensorsOutput',
-		renderer: function(value) {
-			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
-			// Make SODIMM unique keys
-			value = value.split('\n'); // Split by newlines
-			for (let i = 0; i < value.length; i++) {
-				// Check if the current line contains 'SODIMM'
-				if (value[i].includes('SODIMM') && i + 1 < value.length) {
-					// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)
-					let nextLine = value[i + 1];
-					let match = nextLine.match(/"temp(\d+)_input": (\d+\.\d+)/);
+		cat <<'EOF' | envsubst '$HELPERCTORPARAMS' > "$1"
+		{
+			xtype: 'box',
+			colspan: 2,
+			html: gettext('RAM'),
+		},
+		{
+			itemId: 'thermalRam',
+			colspan: 2,
+			printBar: false,
+			title: gettext('Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
+				// Make SODIMM unique keys
+				value = value.split('\n'); // Split by newlines
+				for (let i = 0; i < value.length; i++) {
+					// Check if the current line contains 'SODIMM'
+					if (value[i].includes('SODIMM') && i + 1 < value.length) {
+						// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)
+						let nextLine = value[i + 1];
+						let match = nextLine.match(/"temp(\d+)_input": (\d+\.\d+)/);
 
-					if (match) {
-						let number = match[1]; // Extracted number
-						// Replace the current line with SODIMM by the extracted number
-						value[i] = value[i].replace('SODIMM', `SODIMM${number}`);
+						if (match) {
+							let number = match[1]; // Extracted number
+							// Replace the current line with SODIMM by the extracted number
+							value[i] = value[i].replace('SODIMM', `SODIMM${number}`);
+						}
 					}
 				}
-			}
-			value = value.join('\n'); // Reverse line split
+				value = value.join('\n'); // Reverse line split
 
-			let objValue;
-			try {
-				objValue = JSON.parse(value) || {};
-			} catch(e) {
-				objValue = {};
-			}
-
-			// Recursive function to find ram keys and values
-			function findRamKeys(obj, ramKeys, parentKey = null) {
-				Object.keys(obj).forEach(key => {
-				const value = obj[key];
-				if (typeof value === 'object' && value !== null) {
-					// If the value is an object, recursively call the function
-					findRamKeys(value, ramKeys, key);
-				} else if (/^temp\d+_input$/.test(key) && parentKey && parentKey.startsWith("SODIMM")) {
-					if (value !== 0) {
-						ramKeys.push({ key: parentKey, value: value});
-					}
-				}
-				});
-			}
-
-			let ramTemps = [];
-			// Loop through the parent keys
-			Object.keys(objValue).forEach(parentKey => {
-				const parentObj = objValue[parentKey];
-				// Array to store ram keys and values
-				const ramKeys = [];
-				// Call the recursive function to find ram keys and values
-				findRamKeys(parentObj, ramKeys);
-				// Sort the ramKeys keys
-				ramKeys.sort();
-				// Process each ram key and value
-				ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {
+				let objValue;
 				try {
-					ram = ramKey.replace('SODIMM', 'SODIMM ');
-					ramTemps.push(`${ram}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
+					objValue = JSON.parse(value) || {};
 				} catch(e) {
-					console.error(`Error retrieving Ram Temp for ${ramTemps} in ${parentKey}:`, e); // Debug: Log specific error
+					objValue = {};
 				}
+
+				// Recursive function to find ram keys and values
+				function findRamKeys(obj, ramKeys, parentKey = null) {
+					Object.keys(obj).forEach(key => {
+					const value = obj[key];
+					if (typeof value === 'object' && value !== null) {
+						// If the value is an object, recursively call the function
+						findRamKeys(value, ramKeys, key);
+					} else if (/^temp\d+_input$/.test(key) && parentKey && parentKey.startsWith("SODIMM")) {
+						if (value !== 0) {
+							ramKeys.push({ key: parentKey, value: value});
+						}
+					}
+					});
+				}
+
+				let ramTemps = [];
+				// Loop through the parent keys
+				Object.keys(objValue).forEach(parentKey => {
+					const parentObj = objValue[parentKey];
+					// Array to store ram keys and values
+					const ramKeys = [];
+					// Call the recursive function to find ram keys and values
+					findRamKeys(parentObj, ramKeys);
+					// Sort the ramKeys keys
+					ramKeys.sort();
+					// Process each ram key and value
+					ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {
+					try {
+						ram = ramKey.replace('SODIMM', 'SODIMM ');
+						ramTemps.push(`${ram}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
+					} catch(e) {
+						console.error(`Error retrieving Ram Temp for ${ramTemps} in ${parentKey}:`, e); // Debug: Log specific error
+					}
+					});
 				});
-			});
-			return '<div style="text-align: left; margin-left: 28px;">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';
-		}
-	},
+				return '<div style="text-align: left; margin-left: 28px;">' + (ramTemps.length > 0 ? ramTemps.join(' | ') : 'N/A') + '</div>';
+			}
+		},
 EOF
 	)
 	#endregion ram widget heredoc
@@ -1162,212 +1177,212 @@ EOF
 generate_ups_widget() {
 	#region UPS widget heredoc
     cat > "$1" <<'EOF'
-	{
-		xtype: 'box',
-		colspan: 2,
-		html: gettext('UPS'),
-	},
-	{
-		itemId: 'upsc',
-		colspan: 2,
-		printBar: false,
-		title: gettext('Device'),
-		iconCls: 'fa fa-fw fa-battery-three-quarters',
-		textField: 'upsc',
-		renderer: function(value) {
-			let objValue = {};
-			try {
-				// Parse the UPS data
-				if (typeof value === 'string') {
-					const lines = value.split('\n');
-					lines.forEach(line => {
-						const colonIndex = line.indexOf(':');
-						if (colonIndex > 0) {
-							const key = line.substring(0, colonIndex).trim();
-							const val = line.substring(colonIndex + 1).trim();
-							objValue[key] = val;
-						}
-					});
-				} else if (typeof value === 'object') {
-					objValue = value || {};
+		{
+			xtype: 'box',
+			colspan: 2,
+			html: gettext('UPS'),
+		},
+		{
+			itemId: 'upsc',
+			colspan: 2,
+			printBar: false,
+			title: gettext('Device'),
+			iconCls: 'fa fa-fw fa-battery-three-quarters',
+			textField: 'upsc',
+			renderer: function(value) {
+				let objValue = {};
+				try {
+					// Parse the UPS data
+					if (typeof value === 'string') {
+						const lines = value.split('\n');
+						lines.forEach(line => {
+							const colonIndex = line.indexOf(':');
+							if (colonIndex > 0) {
+								const key = line.substring(0, colonIndex).trim();
+								const val = line.substring(colonIndex + 1).trim();
+								objValue[key] = val;
+							}
+						});
+					} else if (typeof value === 'object') {
+						objValue = value || {};
+					}
+				} catch(e) {
+					objValue = {};
 				}
-			} catch(e) {
-				objValue = {};
-			}
 
-			// If objValue is null or empty, return N/A
-			if (!objValue || Object.keys(objValue).length === 0) {
-				return '<div style="text-align: right;"><span style="color: white;">N/A</span></div>';
-			}
+				// If objValue is null or empty, return N/A
+				if (!objValue || Object.keys(objValue).length === 0) {
+					return '<div style="text-align: right;"><span style="color: white;">N/A</span></div>';
+				}
 
-			// Helper function to get status color
-			function getStatusColor(status) {
-				if (!status) return '#999';
-				const statusUpper = status.toUpperCase();
-				if (statusUpper.includes('OL')) return 'white'; // White for online
-				if (statusUpper.includes('OB')) return '#d9534f'; // Red for on battery
-				if (statusUpper.includes('LB')) return '#d9534f'; // Red for low battery
-				return '#f0ad4e'; // Orange for other states
-			}
+				// Helper function to get status color
+				function getStatusColor(status) {
+					if (!status) return '#999';
+					const statusUpper = status.toUpperCase();
+					if (statusUpper.includes('OL')) return 'white'; // White for online
+					if (statusUpper.includes('OB')) return '#d9534f'; // Red for on battery
+					if (statusUpper.includes('LB')) return '#d9534f'; // Red for low battery
+					return '#f0ad4e'; // Orange for other states
+				}
 
-			// Helper function to get load/charge color
-			function getPercentageColor(value, isLoad = false) {
-				if (!value || isNaN(value)) return '#999';
-				const num = parseFloat(value);
-				if (isLoad) {
-					if (num >= 80) return '#d9534f'; // Red for high load
-					if (num >= 60) return '#f0ad4e'; // Orange for medium load
-					return 'white'; // White for low load
+				// Helper function to get load/charge color
+				function getPercentageColor(value, isLoad = false) {
+					if (!value || isNaN(value)) return '#999';
+					const num = parseFloat(value);
+					if (isLoad) {
+						if (num >= 80) return '#d9534f'; // Red for high load
+						if (num >= 60) return '#f0ad4e'; // Orange for medium load
+						return 'white'; // White for low load
+					} else {
+						// For battery charge
+						if (num <= 20) return '#d9534f'; // Red for low charge
+						if (num <= 50) return '#f0ad4e'; // Orange for medium charge
+						return 'white'; // White for good charge
+					}
+				}
+
+				// Helper function to format runtime
+				function formatRuntime(seconds) {
+					if (!seconds || isNaN(seconds)) return 'N/A';
+					const mins = Math.floor(seconds / 60);
+					const secs = seconds % 60;
+					return `${mins}m ${secs}s`;
+				}
+
+				// Extract key UPS information
+				const batteryCharge = objValue['battery.charge'];
+				const batteryRuntime = objValue['battery.runtime'];
+				const inputVoltage = objValue['input.voltage'];
+				const upsLoad = objValue['ups.load'];
+				const upsStatus = objValue['ups.status'];
+				const upsModel = objValue['ups.model'] || objValue['device.model'];
+				const testResult = objValue['ups.test.result'];
+				const batteryChargeLow = objValue['battery.charge.low'];
+				const batteryRuntimeLow = objValue['battery.runtime.low'];
+				const upsRealPowerNominal = objValue['ups.realpower.nominal'];
+				const batteryMfrDate = objValue['battery.mfr.date'];
+
+				// Build the status display
+				let displayItems = [];
+
+				// First line: Model info
+				let modelLine = '';
+				if (upsModel) {
+					modelLine = `<span style="color: white;">${upsModel}</span>`;
 				} else {
-					// For battery charge
-					if (num <= 20) return '#d9534f'; // Red for low charge
-					if (num <= 50) return '#f0ad4e'; // Orange for medium charge
-					return 'white'; // White for good charge
+					modelLine = `<span style="color: white;">N/A</span>`;
 				}
-			}
+				displayItems.push(modelLine);
 
-			// Helper function to format runtime
-			function formatRuntime(seconds) {
-				if (!seconds || isNaN(seconds)) return 'N/A';
-				const mins = Math.floor(seconds / 60);
-				const secs = seconds % 60;
-				return `${mins}m ${secs}s`;
-			}
+				// Main status line with all metrics
+				let statusLine = '';
 
-			// Extract key UPS information
-			const batteryCharge = objValue['battery.charge'];
-			const batteryRuntime = objValue['battery.runtime'];
-			const inputVoltage = objValue['input.voltage'];
-			const upsLoad = objValue['ups.load'];
-			const upsStatus = objValue['ups.status'];
-			const upsModel = objValue['ups.model'] || objValue['device.model'];
-			const testResult = objValue['ups.test.result'];
-			const batteryChargeLow = objValue['battery.charge.low'];
-			const batteryRuntimeLow = objValue['battery.runtime.low'];
-			const upsRealPowerNominal = objValue['ups.realpower.nominal'];
-			const batteryMfrDate = objValue['battery.mfr.date'];
+				// Status
+				if (upsStatus) {
+					const statusUpper = upsStatus.toUpperCase();
+					let statusText = 'Unknown';
+					let statusColor = '#f0ad4e';
 
-			// Build the status display
-			let displayItems = [];
+					if (statusUpper.includes('OL')) {
+						statusText = 'Online';
+						statusColor = 'white'; // White for good status
+					} else if (statusUpper.includes('OB')) {
+						statusText = 'On Battery';
+						statusColor = '#d9534f'; // Red for on battery
+					} else if (statusUpper.includes('LB')) {
+						statusText = 'Low Battery';
+						statusColor = '#d9534f'; // Red for low battery
+					} else {
+						statusText = upsStatus;
+						statusColor = '#f0ad4e'; // Orange for unknown status
+					}
 
-			// First line: Model info
-			let modelLine = '';
-			if (upsModel) {
-				modelLine = `<span style="color: white;">${upsModel}</span>`;
-			} else {
-				modelLine = `<span style="color: white;">N/A</span>`;
-			}
-			displayItems.push(modelLine);
-
-			// Main status line with all metrics
-			let statusLine = '';
-
-			// Status
-			if (upsStatus) {
-				const statusUpper = upsStatus.toUpperCase();
-				let statusText = 'Unknown';
-				let statusColor = '#f0ad4e';
-
-				if (statusUpper.includes('OL')) {
-					statusText = 'Online';
-					statusColor = 'white'; // White for good status
-				} else if (statusUpper.includes('OB')) {
-					statusText = 'On Battery';
-					statusColor = '#d9534f'; // Red for on battery
-				} else if (statusUpper.includes('LB')) {
-					statusText = 'Low Battery';
-					statusColor = '#d9534f'; // Red for low battery
+					statusLine += `Status: <span style="color: ${statusColor};">${statusText}</span>`;
 				} else {
-					statusText = upsStatus;
-					statusColor = '#f0ad4e'; // Orange for unknown status
+					statusLine += `Status: <span style="color: white;">N/A</span>`;
 				}
 
-				statusLine += `Status: <span style="color: ${statusColor};">${statusText}</span>`;
-			} else {
-				statusLine += `Status: <span style="color: white;">N/A</span>`;
-			}
-
-			// Battery charge
-			if (statusLine) statusLine += ' | ';
-			if (batteryCharge) {
-				const chargeColor = getPercentageColor(batteryCharge, false);
-				statusLine += `Battery: <span style="color: ${chargeColor};">${batteryCharge}%</span>`;
-			} else {
-				statusLine += `Battery: <span style="color: white;">N/A</span>`;
-			}
-
-			// Load percentage
-			if (statusLine) statusLine += ' | ';
-			if (upsLoad) {
-				const loadColor = getPercentageColor(upsLoad, true);
-				statusLine += `Load: <span style="color: ${loadColor};">${upsLoad}%</span>`;
-			} else {
-				statusLine += `Load: <span style="color: white;">N/A</span>`;
-			}
-
-			// Runtime
-			if (statusLine) statusLine += ' | ';
-			if (batteryRuntime) {
-				const runtime = parseInt(batteryRuntime);
-				const runtimeLowThreshold = batteryRuntimeLow ? parseInt(batteryRuntimeLow) : 600;
-				let runtimeColor = 'white';
-				if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold
-				else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold
-
-				statusLine += `Runtime: <span style="color: ${runtimeColor};">${formatRuntime(runtime)}</span>`;
-			} else {
-				statusLine += `Runtime: <span style="color: white;">N/A</span>`;
-			}
-
-			// Input voltage
-			if (statusLine) statusLine += ' | ';
-			if (inputVoltage) {
-				statusLine += `Input: <span style="color: white;">${parseFloat(inputVoltage).toFixed(0)}V</span>`;
-			} else {
-				statusLine += `Input: <span style="color: white;">N/A</span>`;
-			}
-
-			// Calculate actual watt usage
-			if (statusLine) statusLine += ' | ';
-			let actualWattage = null;
-			if (upsLoad && upsRealPowerNominal) {
-				const load = parseFloat(upsLoad);
-				const nominal = parseFloat(upsRealPowerNominal);
-				if (!isNaN(load) && !isNaN(nominal)) {
-					actualWattage = Math.round((load / 100) * nominal);
+				// Battery charge
+				if (statusLine) statusLine += ' | ';
+				if (batteryCharge) {
+					const chargeColor = getPercentageColor(batteryCharge, false);
+					statusLine += `Battery: <span style="color: ${chargeColor};">${batteryCharge}%</span>`;
+				} else {
+					statusLine += `Battery: <span style="color: white;">N/A</span>`;
 				}
+
+				// Load percentage
+				if (statusLine) statusLine += ' | ';
+				if (upsLoad) {
+					const loadColor = getPercentageColor(upsLoad, true);
+					statusLine += `Load: <span style="color: ${loadColor};">${upsLoad}%</span>`;
+				} else {
+					statusLine += `Load: <span style="color: white;">N/A</span>`;
+				}
+
+				// Runtime
+				if (statusLine) statusLine += ' | ';
+				if (batteryRuntime) {
+					const runtime = parseInt(batteryRuntime);
+					const runtimeLowThreshold = batteryRuntimeLow ? parseInt(batteryRuntimeLow) : 600;
+					let runtimeColor = 'white';
+					if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold
+					else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold
+
+					statusLine += `Runtime: <span style="color: ${runtimeColor};">${formatRuntime(runtime)}</span>`;
+				} else {
+					statusLine += `Runtime: <span style="color: white;">N/A</span>`;
+				}
+
+				// Input voltage
+				if (statusLine) statusLine += ' | ';
+				if (inputVoltage) {
+					statusLine += `Input: <span style="color: white;">${parseFloat(inputVoltage).toFixed(0)}V</span>`;
+				} else {
+					statusLine += `Input: <span style="color: white;">N/A</span>`;
+				}
+
+				// Calculate actual watt usage
+				if (statusLine) statusLine += ' | ';
+				let actualWattage = null;
+				if (upsLoad && upsRealPowerNominal) {
+					const load = parseFloat(upsLoad);
+					const nominal = parseFloat(upsRealPowerNominal);
+					if (!isNaN(load) && !isNaN(nominal)) {
+						actualWattage = Math.round((load / 100) * nominal);
+					}
+				}
+
+				// Real power (calculated watt usage)
+				if (actualWattage !== null) {
+					statusLine += `Output: <span style="color: white;">${actualWattage}W</span>`;
+				} else {
+					statusLine += `Output: <span style="color: white;">N/A</span>`;
+				}
+
+				displayItems.push(statusLine);
+
+				// Combined battery and test line
+				let batteryTestLine = '';
+				if (batteryMfrDate) {
+					batteryTestLine += `<span style="color: white;">Battery MFD: ${batteryMfrDate}</span>`;
+				} else {
+					batteryTestLine += `<span style="color: white;">Battery MFD: N/A</span>`;
+				}
+
+				if (testResult && !testResult.toLowerCase().includes('no test')) {
+					const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';
+					batteryTestLine += ` | <span style="color: ${testColor};">Test: ${testResult}</span>`;
+				} else {
+					batteryTestLine += ` | <span style="color: white;">Test: N/A</span>`;
+				}
+
+				displayItems.push(batteryTestLine);
+
+				// Format the final output
+				return '<div style="text-align: right;">' + displayItems.join('<br>') + '</div>';
 			}
-
-			// Real power (calculated watt usage)
-			if (actualWattage !== null) {
-				statusLine += `Output: <span style="color: white;">${actualWattage}W</span>`;
-			} else {
-				statusLine += `Output: <span style="color: white;">N/A</span>`;
-			}
-
-			displayItems.push(statusLine);
-
-			// Combined battery and test line
-			let batteryTestLine = '';
-			if (batteryMfrDate) {
-				batteryTestLine += `<span style="color: white;">Battery MFD: ${batteryMfrDate}</span>`;
-			} else {
-				batteryTestLine += `<span style="color: white;">Battery MFD: N/A</span>`;
-			}
-
-			if (testResult && !testResult.toLowerCase().includes('no test')) {
-				const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';
-				batteryTestLine += ` | <span style="color: ${testColor};">Test: ${testResult}</span>`;
-			} else {
-				batteryTestLine += ` | <span style="color: white;">Test: N/A</span>`;
-			}
-
-			displayItems.push(batteryTestLine);
-
-			// Format the final output
-			return '<div style="text-align: right;">' + displayItems.join('<br>') + '</div>';
-		}
-	},
+		},
 EOF
 	#endregion UPS widget heredoc
     if [[ $? -ne 0 ]]; then
