@@ -125,33 +125,33 @@ function configure {
 	msg "\nDetecting support for CPU temperature sensors..."
 	supportedCPU=false
 	for item in "${KNOWN_CPU_SENSORS[@]}"; do
-			if (echo "$sensorsOutput" | grep -q "$item"); then
-					echo $item
-					supportedCPU=true
-			fi
+		if (echo "$sensorsOutput" | grep -q "$item"); then
+			echo $item
+			supportedCPU=true
+		fi
 	done
 
 	# Prompt user for which CPU temperature to use
 	if [ $supportedCPU = true ]; then
 		while true; do
-				local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
-				case "$choiceTempDisplayType" in
-						# Set temperature search criteria
-						[cC] | "")
-							CPU_TEMP_TARGET="Core"
-							info "Temperatures will be displayed for all cores."
-							;;
-						[aA])
-							CPU_TEMP_TARGET="Package"
-							info "An average temperature will be displayed per CPU."
-							;;
-						*)
-							# If the user enters an invalid input, print an warning message and retry as>
-							warn "Invalid input."
-							continue
-							;;
-				esac
-				break
+			local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
+			case "$choiceTempDisplayType" in
+				# Set temperature search criteria
+				[cC] | "")
+					CPU_TEMP_TARGET="Core"
+					info "Temperatures will be displayed for all cores."
+					;;
+				[aA])
+					CPU_TEMP_TARGET="Package"
+					info "An average temperature will be displayed per CPU."
+					;;
+				*)
+					# If the user enters an invalid input, print an warning message and retry as>
+					warn "Invalid input."
+					continue
+					;;
+			esac
+			break
 		done
 		SENSORS_DETECTED=true
 	else
@@ -160,7 +160,7 @@ function configure {
 
 	# Look for ram temps
 	msg "\nDetecting support for RAM temperature sensors..."
-	if (echo "$sensorsOutput" | grep -q '"SODIMM":'); then
+	if echo "$sensorsOutput" | grep -Eq '"SODIMM[0-9]{0,2}":'; then
 		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
 		ENABLE_RAM_TEMP=true
 		SENSORS_DETECTED=true
@@ -169,7 +169,6 @@ function configure {
 		ENABLE_RAM_TEMP=false
 	fi
 
-	# Check if HDD/SSD data is installed
 	# Check if HDD/SSD data is installed
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
 	if [ $DEBUG_REMOTE = true ]; then
@@ -1031,8 +1030,9 @@ generate_hdd_widget() {
 	#region hdd widget heredoc
 	# use subshell to allow variable expansion
 	(
-		export HELPERCTORPARAMS	
-		cat <<'EOF' | envsubst '$HELPERCTORPARAMS' > "$1"
+		export HELPERCTORPARAMS
+		export HDD_ITEMS_PER_ROW
+		cat <<'EOF' | envsubst '$HDD_ITEMS_PER_ROW $HELPERCTORPARAMS' > "$1"
 		{
 			itemId: 'thermalHdd',
 			colspan: 2,
@@ -1046,7 +1046,7 @@ generate_hdd_widget() {
 				const sensorName = "temp1";
 				const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
 				// display configuration
-				const itemsPerRow = ${HDD_ITEMS_PER_ROW};
+				const itemsPerRow = $HDD_ITEMS_PER_ROW;
 				// ---
 				let objValue;
 				try {
