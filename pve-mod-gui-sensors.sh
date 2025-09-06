@@ -144,7 +144,7 @@ function configure {
         info "Detected CPU sensors (${#cpuList[@]}): $(IFS=,; echo "${cpuList[*]}")"
         SENSORS_DETECTED=true
         while true; do
-            local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (AMD only supports average)? (C/a)")
+            local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
             case "$choice" in
                 [cC]|"")
                     CPU_TEMP_TARGET="Core"
@@ -799,41 +799,58 @@ generate_cpu_widget() {
 				const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';
 				const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';
 				let AMDPackagePrefix = 'Tccd';
-				let AMDPackageCaption = 'Chiplet';
+				let AMDPackageCaption = 'CCD';
+				
 				if (cpuKeysA.length > 0) {
 					let bTccd = false;
 					let bTctl = false;
 					let bTdie = false;
+					let bCpuCoreTemp = false;
 					cpuKeysA.forEach((cpuKey, cpuIndex) => {
 						let items = objValue[cpuKey];
 						bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;
 						bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;
 						bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;
+						bCpuCoreTemp = Object.keys(items).findIndex(item => { return String(item) === 'CPU Core Temp'; }) >= 0;
 					});
-					if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {
+					if (bTccd && '$CPU_TEMP_TARGET' == 'Core') {
 						AMDPackagePrefix = 'Tccd';
-						AMDPackageCaption = 'Chiplet';
+						AMDPackageCaption = 'ccd';
+					} else if (bCpuCoreTemp && '$CPU_TEMP_TARGET' == 'Package') {
+						AMDPackagePrefix = 'CPU Core Temp';
+						AMDPackageCaption = 'CPU Core Temp';
 					} else if (bTdie) {
 						AMDPackagePrefix = 'Tdie';
-						AMDPackageCaption = 'Temp';
+						AMDPackageCaption = 'die';
 					} else if (bTctl) {
 						AMDPackagePrefix = 'Tctl';
-						AMDPackageCaption = 'Temp';
+						AMDPackageCaption = 'ctl';
 					} else {
 						AMDPackagePrefix = 'temp';
 						AMDPackageCaption = 'Temp';
 					}
 				}
+				
 				const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;
 				const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;
 				const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;
 				const formatTemp = bINTEL ? '0' : '0.0';
 				const cpuCount = cpuKeys.length;
 				let temps = [];
+				
 				cpuKeys.forEach((cpuKey, cpuIndex) => {
 					let cpuTemps = [];
 					const items = objValue[cpuKey];
-					const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });
+					const itemKeys = Object.keys(items).filter(item => { 
+						if ('$CPU_TEMP_TARGET' == 'Core') {
+							// In Core mode: only show individual cores/CCDs, exclude overall CPU temp
+							return String(item).includes(cpuItemPrefix) || String(item).startsWith('Tccd');
+						} else {
+							// In Package mode: show overall CPU temp and package-level readings
+							return String(item).includes(cpuItemPrefix) || String(item) === 'CPU Core Temp';
+						}
+					});
+					
 					itemKeys.forEach((coreKey) => {
 						try {
 							let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
@@ -846,6 +863,7 @@ generate_cpu_widget() {
 									tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
 								}
 							});
+							
 							if (!isNaN(tempVal)) {
 								let tempStyle = '';
 								if (!isNaN(tempMax) && tempVal >= tempMax) {
@@ -854,36 +872,61 @@ generate_cpu_widget() {
 								if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 									tempStyle = 'color: red; font-weight: bold;';
 								}
+								
 								let tempStr = '';
-								let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
-								if (tempIndex !== null && tempIndex.length > 1) {
-									tempIndex = tempIndex[1];
-									let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-												coreKey.startsWith('E Core') ? 'E Core' :
-												cpuTempCaption;
-									tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
-								} else {
-									// fallback for CPUs which do not have a core index
-									let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-										coreKey.startsWith('E Core') ? 'E Core' :
-										cpuTempCaption;
-									tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+								
+								// Enhanced parsing for AMD temperatures
+								if (coreKey.startsWith('Tccd')) {
+									let tempIndex = coreKey.match(/Tccd(\d+)/);
+									if (tempIndex !== null && tempIndex.length > 1) {
+										tempIndex = tempIndex[1];
+										tempStr = `${cpuTempCaption}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+									} else {
+										tempStr = `${cpuTempCaption}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+									}
 								}
+								// Handle CPU Core Temp (single overall temperature)
+								else if (coreKey === 'CPU Core Temp') {
+									tempStr = `${cpuTempCaption}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+								}
+								// Enhanced parsing for Intel cores (P-Core, E-Core, regular Core)
+								else {
+									let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
+									if (tempIndex !== null && tempIndex.length > 1) {
+										tempIndex = tempIndex[1];
+										let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+													coreKey.startsWith('E Core') ? 'E Core' :
+													cpuTempCaption;
+										tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+									} else {
+										// fallback for CPUs which do not have a core index
+										let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+											coreKey.startsWith('E Core') ? 'E Core' :
+											cpuTempCaption;
+										tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+									}
+								}
+								
 								cpuTemps.push(tempStr);
 							}
 						} catch (e) { /*_*/ }
 					});
+					
 					if(cpuTemps.length > 0) {
 						temps.push(cpuTemps);
 					}
 				});
+				
 				let result = '';
 				temps.forEach((cpuTemps, cpuIndex) => {
-					const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })
+					const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { 
+						return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); 
+					})
 					if(strCoreTemps.length > 0) {
 						result += (cpuCount > 1 ? `CPU ${cpuIndex+1}: ` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');
 					}
 				});
+				
 				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
 			}
 		},
