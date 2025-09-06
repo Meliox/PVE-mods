@@ -16,19 +16,8 @@ HDD_ITEMS_PER_ROW=0
 # Should new ones be added, also update logic in configure() function.
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
 
-# This script's working directory
-SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
-
-# Files backup location
-BACKUP_DIR="$SCRIPT_CWD/backup"
-
-# File paths
-PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
-NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
-
-# Debug location
-DEBUG_SAVE_PATH="$SCRIPT_CWD"
-DEBUG_SAVE_FILENAME="sensorsdata.json"
+# Overwrite default backup location
+BACKUP_DIR=""
 
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
@@ -38,6 +27,17 @@ DEBUG_SAVE_FILENAME="sensorsdata.json"
 
 DEBUG_REMOTE=false
 DEBUG_JSON_FILE="/tmp/sensordata.json"
+
+# This script's working directory
+SCRIPT_CWD="$(dirname "$(readlink -f "$0")")"
+
+# Debug location
+JSON_EXPORT_DIRECTORY="$SCRIPT_CWD"
+JSON_EXPORT_FILENAME="sensorsdata.json"
+
+# File paths
+PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
+NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 # Helper functions
 function msg {
@@ -277,51 +277,11 @@ function install_mod {
 
 	if [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{sensorsOutput}") ]] && [[ -n $(cat $NODES_PM_FILE | grep -e "$res->{systemInfo}") ]]; then
 		err "Mod is already installed. Uninstall existing before installing."
-		exit
 	fi
 
 	msg "\nPreparing mod installation..."
-
-	# Provide sensor configuration
 	configure
-
-	# Create backup of original files
-	mkdir -p "$BACKUP_DIR"
-
-	local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-
-	# Perform backup
-	# Create backup of original file
-	cp "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"
-
-	# Verify backup file was created and is identical
-	if [ -f "$BACKUP_DIR/Nodes.pm.$timestamp" ]; then
-		if cmp -s "$NODES_PM_FILE" "$BACKUP_DIR/Nodes.pm.$timestamp"; then
-			msg "Backup of \"$NODES_PM_FILE\" saved to \"$BACKUP_DIR/Nodes.pm.$timestamp\" and verified."
-		else
-			msg "WARNING: Backup file \"$BACKUP_DIR/Nodes.pm.$timestamp\" differs from original. Exiting..."
-			exit 1
-		fi
-	else
-		msg "ERROR: Failed to create backup \"$BACKUP_DIR/Nodes.pm.$timestamp\". Exiting..."
-		exit 1
-	fi
-
-	# Create backup of original file
-	cp "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"
-
-	# Verify backup file was created and is identical
-	if [ -f "$BACKUP_DIR/pvemanagerlib.js.$timestamp" ]; then
-		if cmp -s "$PVE_MANAGER_LIB_JS_FILE" "$BACKUP_DIR/pvemanagerlib.js.$timestamp"; then
-			msg "Backup of \"$PVE_MANAGER_LIB_JS_FILE\" saved to \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" and verified."
-		else
-			msg "WARNING: Backup file \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\" differs from original. Exiting..."
-			exit 1
-		fi
-	else
-		msg "ERROR: Failed to create backup \"$BACKUP_DIR/pvemanagerlib.js.$timestamp\". Exiting..."
-		exit 1
-	fi
+	perform_backup
 
 	if [ $SENSORS_DETECTED = true ]; then
 		local sensorsCmd
@@ -988,16 +948,22 @@ Ext.define('PVE.mod.TempHelper', {\n\
 function uninstall_mod {
 	check_root_privileges
 
+	if [[ -z $(grep -e "$res->{sensorsOutput}" "$NODES_PM_FILE") ]] && [[ -z $(grep -e "$res->{systemInfo}" "$NODES_PM_FILE") ]]; then
+		err "Mod is not installed."
+	fi
+
+	set_backup_directory
 	msg "\nRestoring modified files..."
+
 	# Find the latest Nodes.pm file using the find command
 	local latest_nodes_pm=$(find "$BACKUP_DIR" -name "Nodes.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
 
 	if [ -n "$latest_nodes_pm" ]; then
 		# Remove the latest Nodes.pm file
 		cp "$latest_nodes_pm" "$NODES_PM_FILE"
-		msg "Copied latest backup to $NODES_PM_FILE."
+		msg "Restoring latest Nodes.pm from backup: $latest_nodes_pm to \"$NODES_PM_FILE\"."
 	else
-		warn "No Nodes.pm files found."
+		warn "No Nodes.pm backup files found."
 	fi
 
 	# Find the latest pvemanagerlib.js file using the find command
@@ -1006,9 +972,9 @@ function uninstall_mod {
 	if [ -n "$latest_pvemanagerlibjs" ]; then
 		# Remove the latest pvemanagerlib.js file
 		cp "$latest_pvemanagerlibjs" "$PVE_MANAGER_LIB_JS_FILE"
-		msg "Copied latest backup to \"$PVE_MANAGER_LIB_JS_FILE\"."
+		msg "Restoring latest pvemanagerlib.js from backup: $latest_pvemanagerlibjs to \"$PVE_MANAGER_LIB_JS_FILE\"."
 	else
-		warn "No pvemanagerlib.js files found."
+		warn "No pvemanagerlib.js backup files found."
 	fi
 
 	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
@@ -1024,16 +990,16 @@ function restart_proxy {
 }
 
 function save_sensors_data {
-	# Check if DEBUG_SAVE_PATH exists and is writable
-	if [[ ! -d "$DEBUG_SAVE_PATH" || ! -w "$DEBUG_SAVE_PATH" ]]; then
-		err "Directory $DEBUG_SAVE_PATH does not exist or is not writable. No file could be saved."
+	# Check if JSON_EXPORT_DIRECTORY exists and is writable
+	if [[ ! -d "$JSON_EXPORT_DIRECTORY" || ! -w "$JSON_EXPORT_DIRECTORY" ]]; then
+		err "Directory $JSON_EXPORT_DIRECTORY does not exist or is not writable. No file could be saved."
 		return
 	fi
 
 	# Check if command exists
 	if (command -v sensors &>/dev/null); then
 		# Save sensors output
-		local filepath="${DEBUG_SAVE_PATH}/${DEBUG_SAVE_FILENAME}"
+		local filepath="${JSON_EXPORT_DIRECTORY}/${DEBUG_SAVE_FILENAME}"
 		msg "Sensors data will be saved in $filepath"
 
 		# Prompt user for confirmation
@@ -1050,6 +1016,65 @@ function save_sensors_data {
 	else
 		err "Sensors is not installed. No file could be saved."
 	fi
+}
+
+function set_backup_directory {
+	# Check if the BACKUP_DIR variable is set, if not, use the default backup
+	if [[ -z "$BACKUP_DIR" ]]; then
+		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
+		BACKUP_DIR="$HOME/PVE-MODS"
+		msg "Using default backup directory: $BACKUP_DIR"
+	else
+		# If set, ensure it is a valid directory
+		if [[ ! -d "$BACKUP_DIR" ]]; then
+			err "The specified backup directory does not exist: $BACKUP_DIR"
+		fi
+		msg "Using custom backup directory: $BACKUP_DIR"
+	fi
+}
+
+function create_backup_directory {
+	set_backup_directory
+
+	# Create the backup directory if it does not exist
+	if [[ ! -d "$BACKUP_DIR" ]]; then
+		mkdir -p "$BACKUP_DIR" 2>/dev/null || {
+			err "Failed to create backup directory: $BACKUP_DIR. Please check permissions."
+		}
+		msg "Created backup directory: $BACKUP_DIR"
+	else
+		msg "Backup directory already exists: $BACKUP_DIR"
+	fi
+}
+
+function create_file_backup() {
+    local source_file="$1"
+    local timestamp="$2"
+    local filename
+    
+    filename=$(basename "$source_file")
+    local backup_file="$BACKUP_DIR/${filename}.$timestamp"
+    
+    [[ -f "$source_file" ]] || err "Source file does not exist: $source_file"
+    [[ -r "$source_file" ]] || err "Cannot read source file: $source_file"
+       
+    cp "$source_file" "$backup_file" || err "Failed to create backup: $backup_file"
+    
+    # Verify backup integrity
+    if ! cmp -s "$source_file" "$backup_file"; then
+        err "Backup verification failed for: $backup_file"
+    fi
+    
+    msg "Created backup: $backup_file"
+}
+
+function perform_backup {
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    create_backup_directory
+    create_file_backup "$NODES_PM_FILE" "$timestamp"
+    create_file_backup "$PVE_MANAGER_LIB_JS_FILE" "$timestamp"
 }
 
 # Process the arguments using a while loop and a case statement
