@@ -17,8 +17,7 @@ The following readings are possible:
 The modification involves the following steps:
 1. Backup original files in the home directory/backup
    - `/usr/share/pve-manager/js/pvemanagerlib.js`
-   - `/usr/share/perl5/PVE/API2/Nodes.pm`  
-   Backups are saved in a `backup/` directory alongside the script.  
+   - `/usr/share/perl5/PVE/API2/Nodes.pm`   
 2. Patch `Nodes.pm` to enable readings.  
 3. Modify `pvemanagerlib.js` to:  
    - Expand the node status view to full browser width.  
