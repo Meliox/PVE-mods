@@ -390,210 +390,34 @@ function install_mod {
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$PVE_MANAGER_LIB_JS_FILE" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
 		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
-		# Expand space in StatusView
-		sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
-			s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
-			s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
-			s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
-		}" "$PVE_MANAGER_LIB_JS_FILE"
-		msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
-
-		ENABLE_TEMP_HELPER=true
-		if [ $ENABLE_TEMP_HELPER = true ]; then
-			local TEMP_JS_FILE="/tmp/temp_helper.js"
-			generate_temp_helper $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView'/r $TEMP_JS_FILE" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
-		if [ $ENABLE_SYSTEM_INFO = true ]; then
-			local TEMP_JS_FILE="/tmp/system_info_widget.js"
-			generate_system_info $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
 		
-		ENABLE_CPU=true
-		if [ $ENABLE_CPU = true ]; then
-			local TEMP_JS_FILE="/tmp/cpu_widget.js"
-			generate_cpu_widget $TEMP_JS_FILE
+		# Expand space in StatusView
+		expand_statusview_space
 
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
+		# Insert temp helper
+		generate_and_insert_temp_helper
 
-			rm $TEMP_JS_FILE
-		fi
+		# Generate and insert widgets using the helper function
+		generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
+		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		#
 		# NOTE: The following items will be added in reverse order
 		#
+		generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
+		generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
+		generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
 
-		if [ $ENABLE_UPS = true ]; then
-			local TEMP_JS_FILE="/tmp/ups_widget.js"
-			generate_ups_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
-		if [ $ENABLE_HDD_TEMP = true ]; then
-			local TEMP_JS_FILE="/tmp/hdd_widget.js"
-			generate_hdd_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
-		if [ $ENABLE_NVME_TEMP = true ]; then
-			local TEMP_JS_FILE="/tmp/nvme_widget.js"
-			generate_nvme_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
-		if [ $ENABLE_NVME_TEMP = true -o $ENABLE_HDD_TEMP = true ]; then
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
-				/items:/!{N;ba;}
-				:b;
-				/'thermal.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		xtype: 'box',\n\
-		colspan: 2,\n\
-		html: gettext('Drive(s)'),\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
-		fi
-
-		if [ $ENABLE_FAN_SPEED = true ]; then
-			local TEMP_JS_FILE="/tmp/fan_widget.js"
-			generate_fan_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
-
-		if [ $ENABLE_RAM_TEMP = true ]; then
-			local TEMP_JS_FILE="/tmp/ram_widget.js"
-			generate_ram_widget $TEMP_JS_FILE
-
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a
-				/items:/!{N;ba;}
-				:b
-				/'thermal.*},/!{N;bb;}
-				r $TEMP_JS_FILE
-			}" "$PVE_MANAGER_LIB_JS_FILE"
-
-			rm $TEMP_JS_FILE
-		fi
+		# Add drive header boxes if either nvme or drive temp is enabled
+		generate_drive_header
+		generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
+		generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
 
 		# Add an empty line to separate modified items as a visual group
-		# NOTE: Check for the presence of items in the reverse order of display
-		local lastItemId=""
-		if [ $ENABLE_UPS = true ]; then
-			lastItemId="upsc"			
-		elif [ $ENABLE_HDD_TEMP = true ]; then
-			lastItemId="thermalHdd"
-		elif [ $ENABLE_NVME_TEMP = true ]; then
-			lastItemId="thermalNvme"
-		elif [ $ENABLE_FAN_SPEED = true ]; then
-			lastItemId="speedFan"
-		else
-			lastItemId="thermalCpu"
-		fi
+		add_visual_separator
 
-		if [ -n "$lastItemId" ]; then
-			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-			:a;
-			/^.*{.*'$lastItemId'.*},/!{N;ba;}
-			a\
-			\\
-	{\n\
-		xtype: 'box',\n\
-		colspan: 2,\n\
-		padding: '0 0 20 0',\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
-		fi
-
-		# Move the node summary box into its own container
-		sed -i "/^\s*nodeStatus: nodeStatus,/ {
-			:a
-			/items: \[/ !{N;ba;}
-			a\
-			\\
-		{\n\
-			xtype: 'container',\n\
-			itemId: 'summarycontainer',\n\
-			layout: 'column',\n\
-			minWidth: 700,\n\
-			defaults: {\n\
-				minHeight: 350,\n\
-				padding: 5,\n\
-				columnWidth: 1,\n\
-			},\n\
-			items: [\n\
-				nodeStatus,\n\
-			]\n\
-		},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
-
-		# Deactivate the original box instance
-		sed -i "/^\s*nodeStatus: nodeStatus,/ {
-			:a
-			/itemId: 'itemcontainer',/ !{N;ba;}
-			n;
-			:b
-			/nodeStatus,/ !{N;bb;}
-			s/nodeStatus/\/\/nodeStatus/
-		}" "$PVE_MANAGER_LIB_JS_FILE"
+		# Move the node summary box into its own container and deactivate the original box instance
+		setup_node_summary_container
 
 		msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 
@@ -609,6 +433,174 @@ function install_mod {
 
 #region widget generation functions
 
+# Helper function to insert widget after thermal items
+insert_widget_after_thermal() {
+	local widget_file="$1"
+	sed -i "/^Ext.define('PVE.node.StatusView',/ {
+		:a
+		/items:/!{N;ba;}
+		:b
+		/'thermal.*},/!{N;bb;}
+		r $widget_file
+	}" "$PVE_MANAGER_LIB_JS_FILE"
+}
+
+# Helper function to generate widget and insert it
+generate_and_insert_widget() {
+	local enable_flag="$1"
+	local generator_func="$2"
+	local widget_name="$3"
+	
+	if [ "$enable_flag" = true ]; then
+		local temp_js_file="/tmp/${widget_name}_widget.js"
+		"$generator_func" "$temp_js_file"
+		insert_widget_after_thermal "$temp_js_file"
+		rm "$temp_js_file"
+	fi
+}
+
+# Function to generate drive header
+generate_drive_header() {
+
+	if [ "$ENABLE_NVME_TEMP" = true ] || [ "$ENABLE_HDD_TEMP" = true ]; then
+        local temp_js_file="/tmp/drive_header.js"	
+		#region drive header heredoc
+		cat > "$1" <<'EOF'
+{
+	xtype: 'box',
+	colspan: 2,
+	html: gettext('Drive(s)'),
+},
+EOF
+#endregion drive header heredoc  
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to generate drive header code" >&2
+            exit 1
+        fi
+        
+        insert_widget_after_thermal "$temp_js_file"
+        rm "$temp_js_file"
+    fi
+}
+
+# Function to expand space and modify StatusView properties
+expand_statusview_space() {
+    # Apply multiple modifications to the StatusView definition
+    sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
+        s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
+        s/height: [0-9]\+/minHeight: 360,\n\tflex: 1,\n\tcollapsible: true,\n\ttitleCollapse: true/
+        s/\(tableAttrs:.*$\)/trAttrs: \{ valign: 'top' \},\n\t\1/
+    }" "$PVE_MANAGER_LIB_JS_FILE"
+    
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to expand StatusView space" >&2
+        exit 1
+    fi
+    
+    msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
+}
+
+# Function to move node summary into its own container
+setup_node_summary_container() {
+    # Move the node summary box into its own container
+    local temp_js_file="/tmp/summary_container.js"
+    #region summary container heredoc
+    cat > "$temp_js_file" <<'EOF'
+{
+	xtype: 'container',
+	itemId: 'summarycontainer',
+	layout: 'column',
+	minWidth: 700,
+	defaults: {
+		minHeight: 350,
+		padding: 5,
+		columnWidth: 1,
+	},
+	items: [
+		nodeStatus,
+	]
+},
+EOF
+#endregion summary container heredoc    
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate summary container code" >&2
+        exit 1
+    fi
+    
+    # Insert the new container after finding the nodeStatus and items pattern
+    sed -i "/^\s*nodeStatus: nodeStatus,/ {
+        :a
+        /items: \[/ !{N;ba;}
+        r $temp_js_file
+    }" "$PVE_MANAGER_LIB_JS_FILE"
+    
+    rm "$temp_js_file"
+    
+    # Deactivate the original box instance
+    sed -i "/^\s*nodeStatus: nodeStatus,/ {
+        :a
+        /itemId: 'itemcontainer',/ !{N;ba;}
+        n;
+        :b
+        /nodeStatus,/ !{N;bb;}
+        s/nodeStatus/\/\/nodeStatus/
+    }" "$PVE_MANAGER_LIB_JS_FILE"
+    
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to deactivate original nodeStatus instance" >&2
+        exit 1
+    fi
+}
+
+# Call the function
+setup_node_summary_container
+
+# Function to add visual spacing separator after the last widget
+add_visual_separator() {
+    # Check for the presence of items in the reverse order of display
+    local lastItemId=""
+    
+    if [ "$ENABLE_UPS" = true ]; then
+        lastItemId="upsc"
+    elif [ "$ENABLE_HDD_TEMP" = true ]; then
+        lastItemId="thermalHdd"
+    elif [ "$ENABLE_NVME_TEMP" = true ]; then
+        lastItemId="thermalNvme"
+    elif [ "$ENABLE_FAN_SPEED" = true ]; then
+        lastItemId="speedFan"
+    else
+        lastItemId="thermalCpu"
+    fi
+
+    if [ -n "$lastItemId" ]; then
+        local temp_js_file="/tmp/visual_separator.js"
+        
+		#region visual spacing heredoc
+        cat > "$temp_js_file" <<'EOF'
+{
+	xtype: 'box',
+	colspan: 2,
+	padding: '0 0 20 0',
+},
+EOF
+#endregion visual spacing heredoc        
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to generate visual separator code" >&2
+            exit 1
+        fi
+        
+        # Insert after the specific lastItemId (different pattern than thermal)
+        sed -i "/^Ext.define('PVE.node.StatusView',/ {
+            :a;
+            /^.*{.*'$lastItemId'.*},/!{N;ba;}
+            r $temp_js_file
+        }" "$PVE_MANAGER_LIB_JS_FILE"
+        
+        rm "$temp_js_file"
+    fi
+}
+
+# Function to generate system info widget
 generate_system_info() {
 	#region system info heredoc
     cat > "$1" <<'EOF'
@@ -630,9 +622,12 @@ EOF
     fi
 }
 
-generate_temp_helper() {
+# Function to generate and insert temperature conversion helper class
+generate_and_insert_temp_helper() {
+	local temp_js_file="/tmp/temp_helper.js"
+	fi	
 	#region temp helper heredoc
-    cat > "$1" <<'EOF'
+    cat > "$temp_js_file" <<'EOF'
 	Ext.define('PVE.mod.TempHelper', {
 	//singleton: true,
 
@@ -725,8 +720,12 @@ EOF
         echo "Error: Failed to generate temp helper code" >&2
         exit 1
     fi
+
+	sed -i "/^Ext.define('PVE.node.StatusView'/r $temp_js_file" "$PVE_MANAGER_LIB_JS_FILE"
+	rm "$temp_js_file"
 }
 
+# Function to generate CPU widget
 generate_cpu_widget() {
 	#region cpu widget heredoc
     cat > "$1" <<'EOF'
@@ -851,6 +850,7 @@ EOF
     fi
 }
 
+# Function to generate UPS widget
 generate_nvme_widget() {
 	#region nvme widget heredoc
     cat > "$1" <<'EOF'
@@ -914,6 +914,7 @@ EOF
     fi
 }
 
+# Function to generate UPS widget
 generate_fan_widget() {
 	#region fan widget heredoc
     cat > "$1" <<'EOF'
@@ -987,6 +988,7 @@ EOF
     fi
 }
 
+# Function to generate UPS widget
 generate_hdd_widget() {
 	#region hdd widget heredoc
     cat > "$1" <<'EOF'
@@ -1050,6 +1052,7 @@ EOF
     fi
 }
 
+# Function to generate RAM widget
 generate_ram_widget() {
 	#region ram widget heredoc
     cat > "$1" <<'EOF'
@@ -1138,6 +1141,7 @@ EOF
     fi
 }
 
+# Function to generate UPS widget
 generate_ups_widget() {
 	#region UPS widget heredoc
     cat > "$1" <<'EOF'
