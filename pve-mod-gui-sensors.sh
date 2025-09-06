@@ -389,7 +389,7 @@ function install_mod {
 
 	# Add new item to the items array in PVE.node.StatusView
 	if [[ -z $(cat "$PVE_MANAGER_LIB_JS_FILE" | grep -e "itemId: 'thermal[[:alnum:]]*'") ]]; then
-		local tempHelperCtorParams=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
+		HELPERCTORPARAMS=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
 		
 		# Expand space in StatusView
 		expand_statusview_space
@@ -399,6 +399,7 @@ function install_mod {
 
 		# Generate and insert widgets using the helper function
 		generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
+		ENABLE_CPU=true
 		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		#
@@ -455,17 +456,16 @@ generate_and_insert_widget() {
 		local temp_js_file="/tmp/${widget_name}_widget.js"
 		"$generator_func" "$temp_js_file"
 		insert_widget_after_thermal "$temp_js_file"
-		rm "$temp_js_file"
+		#rm "$temp_js_file"
 	fi
 }
 
 # Function to generate drive header
 generate_drive_header() {
-
 	if [ "$ENABLE_NVME_TEMP" = true ] || [ "$ENABLE_HDD_TEMP" = true ]; then
         local temp_js_file="/tmp/drive_header.js"	
 		#region drive header heredoc
-		cat > "$1" <<'EOF'
+		cat > "$temp_js_file" <<'EOF'
 {
 	xtype: 'box',
 	colspan: 2,
@@ -551,9 +551,6 @@ EOF
         exit 1
     fi
 }
-
-# Call the function
-setup_node_summary_container
 
 # Function to add visual spacing separator after the last widget
 add_visual_separator() {
@@ -702,10 +699,10 @@ generate_and_insert_temp_helper() {
 	getUnit: function(plainText) {
 		switch (this.dstUnit) {
 			case this.self.CELSIUS:
-				return plainText !== true ? '\&deg;C' : '\\\'C';
+				return plainText !== true ? '&deg;C' : '\'C';
 
 			case this.self.FAHRENHEIT:
-				return plainText !== true ? '\&deg;F' : '\\\'F';
+				return plainText !== true ? '&deg;F' : '\'F';
 
 			default:
 				Ext.raise({
@@ -728,121 +725,128 @@ EOF
 # Function to generate CPU widget
 generate_cpu_widget() {
 	#region cpu widget heredoc
-    cat > "$1" <<'EOF'
-	{
-		itemId: 'thermalCpu',
-		colspan: 2,
-		printBar: false,
-		title: gettext('CPU Thermal State'),
-		iconCls: 'fa fa-fw fa-thermometer-half',
-		textField: 'sensorsOutput',
-		renderer: function(value){
-			// sensors configuration
-			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);
-			// display configuration
-			const itemsPerRow = $CPU_ITEMS_PER_ROW;
-			// ---
-			let objValue;
-			try {
-				objValue = JSON.parse(value) || {};
-			} catch(e) {
-				objValue = {};
-			}
-			const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
-			const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
-			const bINTEL = cpuKeysI.length > 0 ? true : false;
-			const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';
-			const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';
-			let AMDPackagePrefix = 'Tccd';
-			let AMDPackageCaption = 'Chiplet';
-			if (cpuKeysA.length > 0) {
-				let bTccd = false;
-				let bTctl = false;
-				let bTdie = false;
-				cpuKeysA.forEach((cpuKey, cpuIndex) => {
-					let items = objValue[cpuKey];
-					bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;
-					bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;
-					bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;
+	# use subshell to allow variable expansion
+	(
+		export CPU_ITEMS_PER_ROW
+		export CPU_TEMP_TARGET
+		export HELPERCTORPARAMS
+		
+		cat <<'EOF' | envsubst > "$1"
+		{
+			itemId: 'thermalCpu',
+			colspan: 2,
+			printBar: false,
+			title: gettext('CPU Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value){
+				// sensors configuration
+				const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
+				// display configuration
+				const itemsPerRow = $CPU_ITEMS_PER_ROW;
+				// ---
+				let objValue;
+				try {
+					objValue = JSON.parse(value) || {};
+				} catch(e) {
+					objValue = {};
+				}
+				const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
+				const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
+				const bINTEL = cpuKeysI.length > 0 ? true : false;
+				const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';
+				const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';
+				let AMDPackagePrefix = 'Tccd';
+				let AMDPackageCaption = 'Chiplet';
+				if (cpuKeysA.length > 0) {
+					let bTccd = false;
+					let bTctl = false;
+					let bTdie = false;
+					cpuKeysA.forEach((cpuKey, cpuIndex) => {
+						let items = objValue[cpuKey];
+						bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;
+						bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;
+						bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;
+					});
+					if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {
+						AMDPackagePrefix = 'Tccd';
+						AMDPackageCaption = 'Chiplet';
+					} else if (bTdie) {
+						AMDPackagePrefix = 'Tdie';
+						AMDPackageCaption = 'Temp';
+					} else if (bTctl) {
+						AMDPackagePrefix = 'Tctl';
+						AMDPackageCaption = 'Temp';
+					} else {
+						AMDPackagePrefix = 'temp';
+						AMDPackageCaption = 'Temp';
+					}
+				}
+				const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;
+				const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;
+				const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;
+				const formatTemp = bINTEL ? '0' : '0.0';
+				const cpuCount = cpuKeys.length;
+				let temps = [];
+				cpuKeys.forEach((cpuKey, cpuIndex) => {
+					let cpuTemps = [];
+					const items = objValue[cpuKey];
+					const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });
+					itemKeys.forEach((coreKey) => {
+						try {
+							let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+							Object.keys(items[coreKey]).forEach((secondLevelKey) => {
+								if (secondLevelKey.endsWith('_input')) {
+									tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+								} else if (secondLevelKey.endsWith('_max')) {
+									tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+								} else if (secondLevelKey.endsWith('_crit')) {
+									tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+								}
+							});
+							if (!isNaN(tempVal)) {
+								let tempStyle = '';
+								if (!isNaN(tempMax) && tempVal >= tempMax) {
+									tempStyle = 'color: #FFC300; font-weight: bold;';
+								}
+								if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+									tempStyle = 'color: red; font-weight: bold;';
+								}
+								let tempStr = '';
+								let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
+								if (tempIndex !== null && tempIndex.length > 1) {
+									tempIndex = tempIndex[1];
+									let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+												coreKey.startsWith('E Core') ? 'E Core' :
+												cpuTempCaption;
+									tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+								} else {
+									// fallback for CPUs which do not have a core index
+									let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+										coreKey.startsWith('E Core') ? 'E Core' :
+										cpuTempCaption;
+									tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+								}
+								cpuTemps.push(tempStr);
+							}
+						} catch (e) { /*_*/ }
+					});
+					if(cpuTemps.length > 0) {
+						temps.push(cpuTemps);
+					}
 				});
-				if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {
-					AMDPackagePrefix = 'Tccd';
-					AMDPackageCaption = 'Chiplet';
-				} else if (bTdie) {
-					AMDPackagePrefix = 'Tdie';
-					AMDPackageCaption = 'Temp';
-				} else if (bTctl) {
-					AMDPackagePrefix = 'Tctl';
-					AMDPackageCaption = 'Temp';
-				} else {
-					AMDPackagePrefix = 'temp';
-					AMDPackageCaption = 'Temp';
-				}
-			}
-			const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;
-			const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;
-			const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;
-			const formatTemp = bINTEL ? '0' : '0.0';
-			const cpuCount = cpuKeys.length;
-			let temps = [];
-			cpuKeys.forEach((cpuKey, cpuIndex) => {
-				let cpuTemps = [];
-				const items = objValue[cpuKey];
-				const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });
-				itemKeys.forEach((coreKey) => {
-					try {
-						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-						Object.keys(items[coreKey]).forEach((secondLevelKey) => {
-							if (secondLevelKey.endsWith('_input')) {
-								tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_max')) {
-								tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_crit')) {
-								tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-							}
-						});
-						if (!isNaN(tempVal)) {
-							let tempStyle = '';
-							if (!isNaN(tempMax) && tempVal >= tempMax) {
-								tempStyle = 'color: #FFC300; font-weight: bold;';
-							}
-							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
-								tempStyle = 'color: red; font-weight: bold;';
-							}
-							let tempStr = '';
-							let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
-							if (tempIndex !== null && tempIndex.length > 1) {
-								tempIndex = tempIndex[1];
-								let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-											   coreKey.startsWith('E Core') ? 'E Core' :
-											   cpuTempCaption;
-								tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
-							} else {
-								// fallback for CPUs which do not have a core index
-								let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-									coreKey.startsWith('E Core') ? 'E Core' :
-									cpuTempCaption;
-								tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
-							}
-							cpuTemps.push(tempStr);
-						}
-					} catch (e) { /*_*/ }
+				let result = '';
+				temps.forEach((cpuTemps, cpuIndex) => {
+					const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })
+					if(strCoreTemps.length > 0) {
+						result += (cpuCount > 1 ? `CPU ${cpuIndex+1}: ` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');
+					}
 				});
-				if(cpuTemps.length > 0) {
-					temps.push(cpuTemps);
-				}
-			});
-			let result = '';
-			temps.forEach((cpuTemps, cpuIndex) => {
-				const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })
-				if(strCoreTemps.length > 0) {
-					result += (cpuCount > 1 ? `CPU ${cpuIndex+1}: ` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');
-				}
-			});
-			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
-		}
-	},
+				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
+			}
+		},
 EOF
+	)
 	#endregion cpu widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate cpu widget code" >&2
@@ -853,7 +857,10 @@ EOF
 # Function to generate UPS widget
 generate_nvme_widget() {
 	#region nvme widget heredoc
-    cat > "$1" <<'EOF'
+	# use subshell to allow variable expansion
+	(
+		export HELPERCTORPARAMS	
+		cat <<'EOF' | envsubst > "$1"
 	{
 		itemId: 'thermalNvme',
 		colspan: 2,
@@ -865,7 +872,7 @@ generate_nvme_widget() {
 			// sensors configuration
 			const addressPrefix = "nvme-pci-";
 			const sensorName = "Composite";
-			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);
+			const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
 			// display configuration
 			const itemsPerRow = ${NVME_ITEMS_PER_ROW};
 			// ---
@@ -907,6 +914,7 @@ generate_nvme_widget() {
 		}
 	},
 EOF
+	)
 	#endregion nvme widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate nvme widget code" >&2
@@ -991,7 +999,10 @@ EOF
 # Function to generate UPS widget
 generate_hdd_widget() {
 	#region hdd widget heredoc
-    cat > "$1" <<'EOF'
+	# use subshell to allow variable expansion
+	(
+		export HELPERCTORPARAMS	
+		cat <<'EOF' | envsubst > "$1"	
 	{
 		itemId: 'thermalHdd',
 		colspan: 2,
@@ -1003,7 +1014,7 @@ generate_hdd_widget() {
 			// sensors configuration
 			const addressPrefix = "drivetemp-scsi-";
 			const sensorName = "temp1";
-			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);
+			const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
 			// display configuration
 			const itemsPerRow = ${HDD_ITEMS_PER_ROW};
 			// ---
@@ -1045,6 +1056,7 @@ generate_hdd_widget() {
 		}
 	},
 EOF
+	)
 	#endregion hdd widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate hhd widget code" >&2
@@ -1055,7 +1067,11 @@ EOF
 # Function to generate RAM widget
 generate_ram_widget() {
 	#region ram widget heredoc
-    cat > "$1" <<'EOF'
+	# use subshell to allow variable expansion
+	(
+		export HELPERCTORPARAMS	
+		cat <<'EOF' | envsubst > "$1"	
+	{
 	{
 		xtype: 'box',
 		colspan: 2,
@@ -1069,7 +1085,7 @@ generate_ram_widget() {
 		iconCls: 'fa fa-fw fa-thermometer-half',
 		textField: 'sensorsOutput',
 		renderer: function(value) {
-			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
+			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
 			// Make SODIMM unique keys
 			value = value.split('\n'); // Split by newlines
 			for (let i = 0; i < value.length; i++) {
@@ -1134,6 +1150,7 @@ generate_ram_widget() {
 		}
 	},
 EOF
+	)
 	#endregion ram widget heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate ram widget code" >&2
