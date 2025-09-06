@@ -815,16 +815,16 @@ generate_cpu_widget() {
 					});
 					if (bTccd && '$CPU_TEMP_TARGET' == 'Core') {
 						AMDPackagePrefix = 'Tccd';
-						AMDPackageCaption = 'CCD';
+						AMDPackageCaption = 'ccd';
 					} else if (bCpuCoreTemp && '$CPU_TEMP_TARGET' == 'Package') {
 						AMDPackagePrefix = 'CPU Core Temp';
 						AMDPackageCaption = 'CPU Core Temp';
 					} else if (bTdie) {
 						AMDPackagePrefix = 'Tdie';
-						AMDPackageCaption = 'Die';
+						AMDPackageCaption = 'die';
 					} else if (bTctl) {
 						AMDPackagePrefix = 'Tctl';
-						AMDPackageCaption = 'Die';
+						AMDPackageCaption = 'ctl';
 					} else {
 						AMDPackagePrefix = 'temp';
 						AMDPackageCaption = 'Temp';
