@@ -502,11 +502,11 @@ generate_drive_header() {
         local temp_js_file="/tmp/drive_header.js"	
 		#region drive header heredoc
 		cat > "$temp_js_file" <<'EOF'
-{
-	xtype: 'box',
-	colspan: 2,
-	html: gettext('Drive(s)'),
-},
+		{
+			xtype: 'box',
+			colspan: 2,
+			html: gettext('Drive(s)'),
+		},
 EOF
 #endregion drive header heredoc  
         if [[ $? -ne 0 ]]; then
@@ -612,11 +612,11 @@ add_visual_separator() {
         
 		#region visual spacing heredoc
         cat > "$temp_js_file" <<'EOF'
-{
-	xtype: 'box',
-	colspan: 2,
-	padding: '0 0 20 0',
-},
+		{
+			xtype: 'box',
+			colspan: 2,
+			padding: '0 0 20 0',
+		},
 EOF
 #endregion visual spacing heredoc        
         if [[ $? -ne 0 ]]; then
@@ -1015,68 +1015,68 @@ generate_fan_widget() {
 	(
 		export DISPLAY_ZERO_SPEED_FANS
 		cat <<'EOF' | envsubst '$DISPLAY_ZERO_SPEED_FANS' > "$1"
-			{
-				xtype: 'box',
-				colspan: 2,
-				html: gettext('Cooling'),
-			},
-			{
-				itemId: 'speedFan',
-				colspan: 2,
-				printBar: false,
-				title: gettext('Fan Speed(s)'),
-				iconCls: 'fa fa-fw fa-snowflake-o',
-				textField: 'sensorsOutput',
-				renderer: function(value) {
-					// ---
-					let objValue;
-					try {
-						objValue = JSON.parse(value) || {};
-					} catch(e) {
-						objValue = {};
-					}
-
-					// Recursive function to find fan keys and values
-					function findFanKeys(obj, fanKeys, parentKey = null) {
-						Object.keys(obj).forEach(key => {
-						const value = obj[key];
-						if (typeof value === 'object' && value !== null) {
-							// If the value is an object, recursively call the function
-							findFanKeys(value, fanKeys, key);
-						} else if (/^fan[0-9]+(_input)?$/.test(key)) {
-							if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {
-								// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
-								return;
-							}
-							// If the key matches the pattern, add the parent key and value to the fanKeys array
-							fanKeys.push({ key: parentKey, value: value });
-						}
-						});
-					}
-
-					let speeds = [];
-					// Loop through the parent keys
-					Object.keys(objValue).forEach(parentKey => {
-						const parentObj = objValue[parentKey];
-						// Array to store fan keys and values
-						const fanKeys = [];
-						// Call the recursive function to find fan keys and values
-						findFanKeys(parentObj, fanKeys);
-						// Sort the fan keys
-						fanKeys.sort();
-						// Process each fan key and value
-						fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
-						try {
-							const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
-							speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
-						} catch(e) {
-							console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
-						}
-						});
-					});
-					return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+		{
+			xtype: 'box',
+			colspan: 2,
+			html: gettext('Cooling'),
+		},
+		{
+			itemId: 'speedFan',
+			colspan: 2,
+			printBar: false,
+			title: gettext('Fan Speed(s)'),
+			iconCls: 'fa fa-fw fa-snowflake-o',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				// ---
+				let objValue;
+				try {
+					objValue = JSON.parse(value) || {};
+				} catch(e) {
+					objValue = {};
 				}
-			},
+
+				// Recursive function to find fan keys and values
+				function findFanKeys(obj, fanKeys, parentKey = null) {
+					Object.keys(obj).forEach(key => {
+					const value = obj[key];
+					if (typeof value === 'object' && value !== null) {
+						// If the value is an object, recursively call the function
+						findFanKeys(value, fanKeys, key);
+					} else if (/^fan[0-9]+(_input)?$/.test(key)) {
+						if ($DISPLAY_ZERO_SPEED_FANS != true && value === 0) {
+							// Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
+							return;
+						}
+						// If the key matches the pattern, add the parent key and value to the fanKeys array
+						fanKeys.push({ key: parentKey, value: value });
+					}
+					});
+				}
+
+				let speeds = [];
+				// Loop through the parent keys
+				Object.keys(objValue).forEach(parentKey => {
+					const parentObj = objValue[parentKey];
+					// Array to store fan keys and values
+					const fanKeys = [];
+					// Call the recursive function to find fan keys and values
+					findFanKeys(parentObj, fanKeys);
+					// Sort the fan keys
+					fanKeys.sort();
+					// Process each fan key and value
+					fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
+					try {
+						const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
+						speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
+					} catch(e) {
+						console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
+					}
+					});
+				});
+				return '<div style="text-align: left; margin-left: 28px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+			}
+		},
 EOF
 	)
 	#endregion fan widget heredoc
