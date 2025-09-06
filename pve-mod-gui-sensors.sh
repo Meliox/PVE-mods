@@ -394,7 +394,6 @@ function install_mod {
 		msg "UPS output added to \"$NODES_PM_FILE\"."
 	fi
 
-
 	if [ $ENABLE_SYSTEM_INFO = true ]; then
 		local systemInfoCmd=$(dmidecode -t ${SYSTEM_INFO_TYPE} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' | awk '{$1=$1};1' | sed 's/$/ |/' | paste -sd " " - | sed 's/ |$//')
 		sed -i "/my \$dinfo = df('\/', 1);/i\\\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
