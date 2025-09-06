@@ -170,20 +170,34 @@ function configure {
 	fi
 
 	# Check if HDD/SSD data is installed
+	# Check if HDD/SSD data is installed
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
-	if (lsmod | grep -wq "drivetemp"); then
-		# Check if SDD/HDD data is available
+	if [ $DEBUG_REMOTE = true ]; then
+		# Check if debug file contains HDD/SSD data
 		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
 			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
 			ENABLE_HDD_TEMP=true
 			SENSORS_DETECTED=true
 		else
-			warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
+			warn "No HDD/SSD temperature sensors found in debug data."
 			ENABLE_HDD_TEMP=false
 		fi
 	else
-		warn "No HDD/SSD temperature sensors found."
-		ENABLE_HDD_TEMP=false
+		# Check if kernel module is loaded
+		if (lsmod | grep -wq "drivetemp"); then
+			# Check if SDD/HDD data is available
+			if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
+				msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
+				ENABLE_HDD_TEMP=true
+				SENSORS_DETECTED=true
+			else
+				warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
+				ENABLE_HDD_TEMP=false
+			fi
+		else
+			warn "No HDD/SSD temperature sensors found."
+			ENABLE_HDD_TEMP=false
+		fi
 	fi
 
 	# Check if NVMe data is available
