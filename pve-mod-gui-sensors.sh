@@ -642,73 +642,25 @@ Ext.define('PVE.mod.TempHelper', {\n\
 				/items:/!{N;ba;}
 				:b
 				/'thermal.*},/!{N;bb;}
-				r /tmp/ups_widget.js
+				r $TEMP_JS_FILE
 			}" "$PVE_MANAGER_LIB_JS_FILE"
 
 			rm $TEMP_JS_FILE
 		fi
 
 		if [ $ENABLE_HDD_TEMP = true ]; then
+			local TEMP_JS_FILE="/tmp/hdd_widget.js"
+			generate_hdd_widget $TEMP_JS_FILE
+
 			sed -i "/^Ext.define('PVE.node.StatusView',/ {
-				:a;
+				:a
 				/items:/!{N;ba;}
-				:b;
+				:b
 				/'thermal.*},/!{N;bb;}
-				a\
-				\\
-	{\n\
-		itemId: 'thermalHdd',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('HDD/SSD Thermal State'),\n\
-		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'sensorsOutput',\n\
-		renderer: function(value) {\n\
-			// sensors configuration\n\
-			const addressPrefix = \"drivetemp-scsi-\";\n\
-			const sensorName = \"temp1\";\n\
-			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
-			// display configuration\n\
-			const itemsPerRow = ${HDD_ITEMS_PER_ROW};\n\
-			// ---\n\
-			let objValue;\n\
-			try {\n\
-				objValue = JSON.parse(value) || {};\n\
-			} catch(e) {\n\
-				objValue = {};\n\
-			}\n\
-			const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();\n\
-			let temps = [];\n\
-			drvKeys.forEach((drvKey, index) => {\n\
-				try {\n\
-					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
-					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {\n\
-						if (secondLevelKey.endsWith('_input')) {\n\
-							tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
-						} else if (secondLevelKey.endsWith('_max')) {\n\
-							tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
-						} else if (secondLevelKey.endsWith('_crit')) {\n\
-							tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));\n\
-						}\n\
-					});\n\
-					if (!isNaN(tempVal)) {\n\
-						let tempStyle = '';\n\
-						if (!isNaN(tempMax) && tempVal >= tempMax) {\n\
-							tempStyle = 'color: #FFC300; font-weight: bold;';\n\
-						}\n\
-						if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
-							tempStyle = 'color: red; font-weight: bold;';\n\
-						}\n\
-						const tempStr = \`Drive&nbsp;\${index + 1}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, '0.0')}\${tempHelper.getUnit()}</span>\`;\n\
-						temps.push(tempStr);\n\
-					}\n\
-				} catch(e) { /*_*/ }\n\
-			});\n\
-			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });\n\
-			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';\n\
-		}\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
+				r $TEMP_JS_FILE
+			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
 		fi
 
 		if [ $ENABLE_NVME_TEMP = true ]; then
@@ -950,6 +902,69 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	else
 		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
+}
+
+generate_hdd_widget() {
+	#region hdd widget heredoc
+    cat > "$1" <<'EOF'
+	{
+		itemId: 'thermalHdd',
+		colspan: 2,
+		printBar: false,
+		title: gettext('HDD/SSD Thermal State'),
+		iconCls: 'fa fa-fw fa-thermometer-half',
+		textField: 'sensorsOutput',
+		renderer: function(value) {
+			// sensors configuration
+			const addressPrefix = "drivetemp-scsi-";
+			const sensorName = "temp1";
+			const tempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);
+			// display configuration
+			const itemsPerRow = ${HDD_ITEMS_PER_ROW};
+			// ---
+			let objValue;
+			try {
+				objValue = JSON.parse(value) || {};
+			} catch(e) {
+				objValue = {};
+			}
+			const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
+			let temps = [];
+			drvKeys.forEach((drvKey, index) => {
+				try {
+					let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+					Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {
+						if (secondLevelKey.endsWith('_input')) {
+							tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+						} else if (secondLevelKey.endsWith('_max')) {
+							tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+						} else if (secondLevelKey.endsWith('_crit')) {
+							tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+						}
+					});
+					if (!isNaN(tempVal)) {
+						let tempStyle = '';
+						if (!isNaN(tempMax) && tempVal >= tempMax) {
+							tempStyle = 'color: #FFC300; font-weight: bold;';
+						}
+						if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+							tempStyle = 'color: red; font-weight: bold;';
+						}
+						const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
+						temps.push(tempStr);
+					}
+				} catch(e) { /*_*/ }
+			});
+			const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
+			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
+		}
+	},	
+EOF
+	#endregion hdd widget heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate hhd widget code" >&2
+        exit 1
+    fi
 }
 
 generate_ram_widget() {
