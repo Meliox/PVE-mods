@@ -625,7 +625,7 @@ EOF
 # Function to generate and insert temperature conversion helper class
 generate_and_insert_temp_helper() {
 	local temp_js_file="/tmp/temp_helper.js"
-	fi	
+
 	#region temp helper heredoc
     cat > "$temp_js_file" <<'EOF'
 	Ext.define('PVE.mod.TempHelper', {
