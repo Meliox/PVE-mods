@@ -242,7 +242,7 @@ function configure {
 	fi
 
 	# Prompt user for enabling UPS
-	local choiseEnableUPS=$(ask "Do you wish to enable information from an attached UPS (requires configured UPS server and UPS client using Network UPS Tools. Both must be configured beforehand). (Y/n)")
+	local choiseEnableUPS=$(ask "Do you wish to enable information from an attached UPS (requires configured UPS server and installed UPS client from Network UPS Tools already configured beforehand). (Y/n)")
 	case "$choiseEnableUPS" in
 		[yY] | "")
 			# Test the connection using upsc command
@@ -253,6 +253,11 @@ function configure {
 			else
 				# Prompt user for UPS connection details
 				upsConnection=$(ask "Enter connection details for the UPS (e.g., upsname[@hostname[:port]])")
+
+				if (! command -v upsc &>/dev/null); then
+					err "The 'upsc' command is not available. Please install the 'nut-client' package and ensure it is configured correctly. Exiting..."
+				fi
+
 				upsOutput=$(upsc "$upsConnection" 2>&1)
 			fi
 
@@ -279,6 +284,7 @@ function configure {
 			ENABLE_UPS=false
 			;;
 	esac
+	echo ""
 
 	# DMI Type:
 	# 1 ... System Information
