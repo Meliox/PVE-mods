@@ -7,24 +7,35 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 (Tested compatibility: 9.x. Using older version (7.x-8.x), use git version from Apr 6th 2025)
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner. Supported are CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit), fan speeds, ram temperatures, mixed CPU's core nodes setups, motherboard information or system information.
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner.
+The following reading are possible:
+- CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit), fan speeds, ram temperatures via lm-sensors. Note: Hdds require kernel module *drivetemp* module installed.
+- UPS information via Network Monitoring Tool
+- Motherboard information or system information via dmidecode
 
-The modification includes three main steps:
-
-1. Create backups of the original files located at `/usr/share/pve-manager/js/pvemanagerlib.js` and `/usr/share/perl5/PVE/API2/Nodes.pm` in the the `backup` directory relative to the script location.
-2. Add a new code to the `Nodes.pm` file that enables host system sensor readings using the `sensors` command.
-3. Modify the `pvemanagerlib.js` file to expand the space in the node status view, add new items that display the temperature information in Celsius for CPUs, NVMe drives, HDDs/SSDs and fan speeds (the actual item list depends on the sensor readings available during the installation). The view layout is also adjusted to no longer match the column number setting and always expands to the full width of the browser window. It is also possible to collapse the panel vertically.
-4. Finally, the script also restarts the `pveproxy` service to apply the changes.
+### How it works
+The modification involves the following steps:
+1. Backup original files:
+   - `/usr/share/pve-manager/js/pvemanagerlib.js`
+   - `/usr/share/perl5/PVE/API2/Nodes.pm`  
+   Backups are saved in a `backup/` directory alongside the script.  
+2. Patch `Nodes.pm` to enable readings.  
+3. Modify `pvemanagerlib.js` to:  
+   - Expand the node status view to full browser width.  
+   - Add reading (depending on  & selections).  
+   - Allow collapsing the panel vertically.  
+4. Restart the `pveproxy` service to apply changes.  
 
 The script provides three options:
 | **Option**             | **Description**                                                             |
 |-------------------------|-----------------------------------------------------------------------------|
-| `install`              | Installs the modification by applying the necessary changes.                |
-| `uninstall`            | Removes the modification by restoring the original files from backups.      |
-| `save-sensors-data`    | Saves a local copy of your sensor data for reference or backup.             |
+| `install`              | Apply the modification.                |
+| `uninstall`            | Restore original files from backups.      |
+| `save-sensors-data`    | Save a local copy of detected sensor data for reference or troubleshooting.             |
 
-Note:
-For HDDs/SSDs readings to work, the kernel module *drivetemp* must be installed.
+Notes:
+- UPS support in multi-node setups require identical login credentials across nodes. This has not been fully tested.  
+- Proxmox upgrades may overwrite modified files; reinstallation of this mod could be required.  
 
 ### Install
 Instructions be performed as 'root', as normal users do not have access to the files.
