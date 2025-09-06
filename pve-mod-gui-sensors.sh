@@ -40,35 +40,40 @@ JSON_EXPORT_FILENAME="sensorsdata.json"
 PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
 NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
-# Helper functions
-function msg {
-	echo -e "\e[0m$1\e[0m"
+#region message tools
+# Section header (bold)
+function msgb() {
+    local message="$1"
+    echo -e "\e[1m${message}\e[0m"
 }
 
-#echo message in bold
-function msgb {
-	echo -e "\e[1m$1\e[0m"
+# Info (green)
+function info() {
+    local message="$1"
+    echo -e "\e[0;32m[info] ${message}\e[0m"
 }
 
-function info {
-	echo -e "\e[0;32m[info] $1\e[0m"
+# Warning (yellow)
+function warn() {
+    local message="$1"
+    echo -e "\e[0;33m[warning] ${message}\e[0m"
 }
 
-function warn {
-	echo -e "\e[0;93m[warning] $1\e[0m"
+# Error (red)
+function err() {
+    local message="$1"
+    echo -e "\e[0;31m[error] ${message}\e[0m"
+    exit 1
 }
 
-function err {
-	echo -e "\e[0;31m[error] $1\e[0m"
-	exit 1
+# Prompts (cyan or bold)
+function ask() {
+    local prompt="$1"
+    local response
+    read -p $'\n\e[1;36m'"${prompt}:"$'\e[0m ' response
+    echo "$response"
 }
-
-function ask {
-	read -p $'\n\e[0;32m'"$1:"$'\e[0m'" " response
-	echo $response
-}
-
-# End of helper functions
+#endregion message tools
 
 # Function to display usage information
 function usage {
@@ -107,285 +112,270 @@ function install_packages {
 }
 
 function configure {
-	SENSORS_DETECTED=false
-	local sensorsOutput
+    SENSORS_DETECTED=false
+    local sensorsOutput
 
-	if [ $DEBUG_REMOTE = true ]; then
-		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
-		sensorsOutput=$(cat $DEBUG_JSON_FILE)
-	else
-		sensorsOutput=$(sensors -j 2>/dev/null | python3 -m json.tool)
-	fi
+    # Load sensor data
+    if [ "$DEBUG_REMOTE" = true ]; then
+        warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+        sensorsOutput=$(cat "$DEBUG_JSON_FILE")
+    else
+        sensorsOutput=$(sensors -j 2>/dev/null | python3 -m json.tool)
+    fi
 
-	if [ $? -ne 0 ]; then
-		err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting...\n"
-	fi
+    if [ $? -ne 0 ]; then
+        err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting..."
+    fi
 
-	# Check if CPU is part of known list for autoconfiguration
-	msg "\nDetecting support for CPU temperature sensors..."
-	for item in "${KNOWN_CPU_SENSORS[@]}"; do
-		if (echo "$sensorsOutput" | grep -q "$item"); then
-			echo $item
-			ENABLE_CPU=true
-		fi
-	done
+    #### CPU ####
+    msgb "\n=== Detecting CPU temperature sensors ==="
+    ENABLE_CPU=false
+    local cpuList=()
+    for item in "${KNOWN_CPU_SENSORS[@]}"; do
+        if echo "$sensorsOutput" | grep -q "$item"; then
+            cpuList+=("$item")
+            ENABLE_CPU=true
+        fi
+    done
 
-	# Prompt user for which CPU temperature to use
-	if [ $ENABLE_CPU = true ]; then
-		while true; do
-			local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
-			case "$choiceTempDisplayType" in
-				# Set temperature search criteria
-				[cC] | "")
-					CPU_TEMP_TARGET="Core"
-					info "Temperatures will be displayed for all cores."
-					;;
-				[aA])
-					CPU_TEMP_TARGET="Package"
-					info "An average temperature will be displayed per CPU."
-					;;
-				*)
-					# If the user enters an invalid input, print an warning message and retry as>
-					warn "Invalid input."
-					continue
-					;;
-			esac
-			break
-		done
-		SENSORS_DETECTED=true
-	else
-			warn "No CPU temperature sensors found."
-	fi
+    if [ "$ENABLE_CPU" = true ]; then
+        info "Detected CPU sensors (${#cpuList[@]}): $(IFS=,; echo "${cpuList[*]}")"
+        SENSORS_DETECTED=true
+        while true; do
+            local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (AMD only supports average)? (C/a)")
+            case "$choice" in
+                [cC]|"")
+                    CPU_TEMP_TARGET="Core"
+                    info "Temperatures will be displayed for all cores."
+                    break
+                    ;;
+                [aA])
+                    CPU_TEMP_TARGET="Package"
+                    info "An average temperature will be displayed per CPU."
+                    break
+                    ;;
+                *)
+                    warn "Invalid input, please choose C or a."
+                    ;;
+            esac
+        done
+    else
+        warn "No CPU temperature sensors found."
+    fi
 
-	# Check if RAM temperature sensors are available
-	msg "\nDetecting support for RAM temperature sensors..."
-	if echo "$sensorsOutput" | grep -Eq '"SODIMM[0-9]{0,2}":'; then
-		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
-		ENABLE_RAM_TEMP=true
-		SENSORS_DETECTED=true
-	else
-		warn "No RAM temperature sensors found."
-		ENABLE_RAM_TEMP=false
-	fi
+    #### RAM ####
+    msgb "\n=== Detecting RAM temperature sensors ==="
+    local ramList=($(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g'))
+    if [ ${#ramList[@]} -gt 0 ]; then
+        info "Detected RAM sensors (${#ramList[@]}): $(IFS=,; echo "${ramList[*]}")"
+        ENABLE_RAM_TEMP=true
+        SENSORS_DETECTED=true
+    else
+        warn "No RAM temperature sensors found."
+        ENABLE_RAM_TEMP=false
+    fi
 
-	# Check if HDD/SDD data is available
-	msg "\nDetecting support for HDD/SDD temperature sensors..."
-	if [ $DEBUG_REMOTE = true ]; then
-		# Check if debug file contains HDD/SSD data
-		if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
-			msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
-			ENABLE_HDD_TEMP=true
-			SENSORS_DETECTED=true
-		else
-			warn "No HDD/SSD temperature sensors found in debug data."
-			ENABLE_HDD_TEMP=false
-		fi
-	else
-		# Check if kernel module is loaded
-		if (lsmod | grep -wq "drivetemp"); then
-			# Check if SDD/HDD data is available
-			if (echo "$sensorsOutput" | grep -q "drivetemp-scsi-"); then
-				msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g')"
-				ENABLE_HDD_TEMP=true
-				SENSORS_DETECTED=true
-			else
-				warn "Kernel module \"drivetemp\" is not installed. HDD/SDD temperatures will not be available."
-				ENABLE_HDD_TEMP=false
-			fi
-		else
-			warn "No HDD/SSD temperature sensors found."
-			ENABLE_HDD_TEMP=false
-		fi
-	fi
+    #### HDD/SSD ####
+    msgb "\n=== Detecting HDD/SSD temperature sensors ==="
+    local hddList=($(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
+    if [ ${#hddList[@]} -gt 0 ]; then
+        info "Detected HDD/SSD sensors (${#hddList[@]}): $(IFS=,; echo "${hddList[*]}")"
+        ENABLE_HDD_TEMP=true
+        SENSORS_DETECTED=true
+    else
+        warn "No HDD/SSD temperature sensors found."
+        ENABLE_HDD_TEMP=false
+    fi
 
-	# Check if NVMe temperature sensors are available
-	msg "\nDetecting support for NVMe temperature sensors..."
-	if (echo "$sensorsOutput" | grep -q "nvme-"); then
-		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
-		ENABLE_NVME_TEMP=true
-		SENSORS_DETECTED=true
-	else
-		warn "No NVMe temperature sensors found."
-		ENABLE_NVME_TEMP=false
-	fi
+    #### NVMe ####
+    msgb "\n=== Detecting NVMe temperature sensors ==="
+    local nvmeList=($(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
+    if [ ${#nvmeList[@]} -gt 0 ]; then
+        info "Detected NVMe sensors (${#nvmeList[@]}): $(IFS=,; echo "${nvmeList[*]}")"
+        ENABLE_NVME_TEMP=true
+        SENSORS_DETECTED=true
+    else
+        warn "No NVMe temperature sensors found."
+        ENABLE_NVME_TEMP=false
+    fi
 
-	# Check if fan speed sensors are available
-	msg "\nDetecting support for fan speed readings..."
-	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
-		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
-		ENABLE_FAN_SPEED=true
-		SENSORS_DETECTED=true
-		# Prompt user for display zero speed fans
-		local choiceDisplayZeroSpeedFans=$(ask "Do you wish to display fans reporting a speed of zero? If no, only active fans will be displayed. (Y/n)")
-		case "$choiceDisplayZeroSpeedFans" in
-			# Set temperature search criteria
-			[yY]|"")
-				DISPLAY_ZERO_SPEED_FANS=true
-				info "Fans reporting a speed of zero will be displayed."
-				;;
-			[nN] )
-				DISPLAY_ZERO_SPEED_FANS=false
-				info "Fans reporting a speed of zero will NOT be displayed."
-				;;
-			*)
-				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
-				err "Invalid input. Exiting..."
-				;;
-		esac
-	else
-		warn "No fan speed sensors found."
-		ENABLE_FAN_SPEED=false
-	fi
+    #### Fans ####
+    msgb "\n=== Detecting fan speed sensors ==="
+	local fanList=$(echo "$sensorsOutput" | grep -B 1 '"fan[0-9]*_input"' | grep -Po '"[^"]*":\s*\{$' | sed 's/"//g' | sed 's/: {//' | paste -sd ',' -)
+	local fanCount=$(echo "$sensorsOutput" | grep -c '"fan[0-9]*_input"')
+    if [ ${#fanList[@]} -gt 0 ]; then
+        info "Detected fan speed sensors ($fanCount): $fanList"
+        ENABLE_FAN_SPEED=true
+        SENSORS_DETECTED=true
 
-	if [ $SENSORS_DETECTED = true ]; then
-		local choiceTempUnit=$(ask "Do you wish to display temperatures in degrees Celsius [C] or Fahrenheit [f]? (C/f)")
-		case "$choiceTempUnit" in
-			[cC] | "")
-				TEMP_UNIT="C"
-				info "Temperatures will be presented in degrees Celsius."
-				;;
-			[fF])
-				TEMP_UNIT="F"
-				info "Temperatures will be presented in degrees Fahrenheit."
-				;;
-			*)
-				warn "Invalid unit selected. Temperatures will be displayed in degrees Celsius."
-				TEMP_UNIT="C"
-				;;
-		esac
-	fi
+        local choice=$(ask "Display fans reporting zero speed? (Y/n)")
+        case "$choice" in
+            [yY]|"")
+                DISPLAY_ZERO_SPEED_FANS=true
+                info "Zero-speed fans will be displayed."
+                ;;
+            [nN])
+                DISPLAY_ZERO_SPEED_FANS=false
+                info "Only active fans will be displayed."
+                ;;
+            *)
+                warn "Invalid input. Defaulting to show zero-speed fans."
+                DISPLAY_ZERO_SPEED_FANS=true
+                ;;
+        esac
+    else
+        warn "No fan speed sensors found."
+        ENABLE_FAN_SPEED=false
+    fi
 
-	# Prompt user for enabling UPS
-	local choiseEnableUPS=$(ask "Do you wish to enable information from an attached UPS (requires configured UPS server and installed UPS client from Network UPS Tools already configured beforehand). (Y/n)")
-	case "$choiseEnableUPS" in
-		[yY] | "")
-			# Test the connection using upsc command
-			if [ $DEBUG_REMOTE = true ]; then
-				upsOutput=$(cat $DEBUG_UPS_FILE)
-				echo "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
-				upsConnection="DEBUG_UPS"
-			else
-				# Prompt user for UPS connection details
-				upsConnection=$(ask "Enter connection details for the UPS (e.g., upsname[@hostname[:port]])")
+    #### Temperature Units ####
+    if [ "$SENSORS_DETECTED" = true ]; then
+        local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+        case "$unit" in
+            [cC]|"")
+                TEMP_UNIT="C"
+                info "Using Celsius."
+                ;;
+            [fF])
+                TEMP_UNIT="F"
+                info "Using Fahrenheit."
+                ;;
+            *)
+                warn "Invalid selection. Defaulting to Celsius."
+                TEMP_UNIT="C"
+                ;;
+        esac
+    fi
 
-				if (! command -v upsc &>/dev/null); then
-					err "The 'upsc' command is not available. Please install the 'nut-client' package and ensure it is configured correctly. Exiting..."
-				fi
+    #### UPS ####
+    local choiceUPS=$(ask "Enable UPS information? (Y/n)")
+    case "$choiceUPS" in
+        [yY]|"")
+            if [ "$DEBUG_REMOTE" = true ]; then
+                upsOutput=$(cat "$DEBUG_UPS_FILE")
+                echo "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
+                upsConnection="DEBUG_UPS"
+            else
+                upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])")
+                if ! command -v upsc &>/dev/null; then
+                    err "The 'upsc' command is not available. Install 'nut-client'."
+                fi
+                upsOutput=$(upsc "$upsConnection" 2>&1)
+            fi
 
-				upsOutput=$(upsc "$upsConnection" 2>&1)
-			fi
+            if echo "$upsOutput" | grep -q "device.model:"; then
+                modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d':' -f2- | xargs)
+                ENABLE_UPS=true
+                info "Connected to UPS model: $modelName at $upsConnection."
+            else
+                warn "Failed to connect to UPS at '$upsConnection'."
+                ENABLE_UPS=false
+            fi
+            ;;
+        [nN])
+            ENABLE_UPS=false
+            info "UPS information will NOT be displayed."
+            ;;
+        *)
+            warn "Invalid selection. UPS info will NOT be displayed."
+            ENABLE_UPS=false
+            ;;
+    esac
 
-			# Check for device.model in the output to confirm successful connection
-			if (echo "$upsOutput" | grep -q "device.model:"); then
-				# Extract the model name
-				modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d':' -f2- | xargs)
-				ENABLE_UPS=true
-				echo "Successfully connected to UPS model: $modelName at $upsConnection."
-				info "UPS information will be displayed..."
-			else
-				warn "Failed to connect to UPS at '$upsConnection'. No valid UPS model found."
-				warn "Error: $upsOutput"
-				ENABLE_UPS=false
-			fi
+    #### System Info ####
+    msgb "\n=== System Information ==="
+    for i in 1 2; do
+        echo "type ${i})"
+        dmidecode -t "$i" | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
+    done
+    local choiceSysInfo=$(ask "Enable system information? (1/2/n)")
+    case "$choiceSysInfo" in
+        [1]|"")
+            ENABLE_SYSTEM_INFO=true
+            SYSTEM_INFO_TYPE=1
+            info "System information will be displayed."
+            ;;
+        [2])
+            ENABLE_SYSTEM_INFO=true
+            SYSTEM_INFO_TYPE=2
+            info "Motherboard information will be displayed."
+            ;;
+        [nN])
+            ENABLE_SYSTEM_INFO=false
+            info "System information will NOT be displayed."
+            ;;
+        *)
+            warn "Invalid selection. Defaulting to system information."
+            ENABLE_SYSTEM_INFO=true
+            SYSTEM_INFO_TYPE=1
+            ;;
+    esac
 
-			;;
-		[nN])
-			ENABLE_UPS=false
-			info "UPS information will NOT be displayed..."
-			;;
-		*)
-			warn "Invalid selection. UPS information will not be displayed."
-			ENABLE_UPS=false
-			;;
-	esac
-	echo ""
-
-	# DMI Type:
-	# 1 ... System Information
-	# 2 ... Base Board Information (for self-made PC)
-	for i in 1 2; do
-		echo "type ${i})"
-		dmidecode -t ${i} | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
-	done
-	local choiceEnableSystemInfo=$(ask "Do you wish to enable system information? (1/2/n)")
-	case "$choiceEnableSystemInfo" in
-		[1] | "")
-			ENABLE_SYSTEM_INFO=true
-			SYSTEM_INFO_TYPE=1
-			info "System information will be displayed..."
-			;;
-		[2])
-			ENABLE_SYSTEM_INFO=true
-			SYSTEM_INFO_TYPE=2
-			info "Motherboard information will be displayed..."
-			;;
-		[nN])
-			ENABLE_SYSTEM_INFO=false
-			info "System information will NOT be displayed..."
-			;;
-		*)
-			warn "Invalid selection. System information will be displayed."
-			ENABLE_SYSTEM_INFO=true
-			;;
-	esac
-
-	if [ $SENSORS_DETECTED = false ] && [ $ENABLE_UPS = false ] && [ $ENABLE_SYSTEM_INFO = false ]; then
-		err "No sensors detected and neither UPS nor system information enabled. Exiting..."
-	fi
-
-	echo # add a new line
+    #### Final Check ####
+    if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
+        err "No sensors detected, UPS or system info enabled. Exiting."
+    fi
 }
+
 
 # Function to install the modification
 function install_mod {
-	msg "\nPreparing mod installation..."
-	check_root_privileges
-	check_mod_installation
-	configure
-	perform_backup
+    msgb "\n== Preparing mod installation =="
+    check_root_privileges
+    check_mod_installation
+    configure
+    perform_backup
 
-	# Insert information retrieval code
-	insert_node_info
+    #### Insert information retrieval code ####
+    msgb "\n=== Inserting information retrieval code ==="
+    insert_node_info
 
-	# Create temperature conversion helper parameters
-	HELPERCTORPARAMS=$([[ "$TEMP_UNIT" = "F" ]] && echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
-	
-	# Expand space in StatusView
-	expand_statusview_space
+    #### Temperature helper parameters ####
+    msgb "\n=== Creating temperature conversion helper ==="
+    HELPERCTORPARAMS=$([[ "$TEMP_UNIT" = "F" ]] && \
+        echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.FAHRENHEIT}' || \
+        echo '{srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS}')
+    info "Temperature helper configured for $TEMP_UNIT."
 
-	# Insert temp helper
-	generate_and_insert_temp_helper
+    #### Expand StatusView space ####
+    expand_statusview_space
 
-	# Generate and insert widgets using the helper function
-	generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
-	
-	#
-	# NOTE: The following items will be added in reverse order
-	#
-	generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
-	generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
-	generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
+    #### Insert temperature helper ####
+    generate_and_insert_temp_helper
 
-	# Add drive header boxes if either nvme or drive temp is enabled
-	generate_drive_header
-	generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
-	generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
-	generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
+    #### Generate and insert widgets ####
+    msgb "\n=== Generating and inserting widgets ==="
 
-	# Add an empty line to separate modified items as a visual group
-	add_visual_separator
+    generate_and_insert_widget "$ENABLE_SYSTEM_INFO" "generate_system_info" "system_info"
+    generate_and_insert_widget "$ENABLE_UPS" "generate_ups_widget" "ups"
+    generate_and_insert_widget "$ENABLE_HDD_TEMP" "generate_hdd_widget" "hdd"
+    generate_and_insert_widget "$ENABLE_NVME_TEMP" "generate_nvme_widget" "nvme"
 
-	# Move the node summary box into its own container and deactivate the original box instance
-	setup_node_summary_container
+    if [[ "$ENABLE_HDD_TEMP" = true || "$ENABLE_NVME_TEMP" = true ]]; then
+        generate_drive_header
+        info "Drive headers added."
+    fi
 
-	msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
+    generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
+    generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
+    generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
-	restart_proxy
+    #### Visual separation ####
+    add_visual_separator
+    info "Added visual separator for modified items."
 
-	msg "Installation completed."
+    #### Node summary ####
+    setup_node_summary_container
+    info "Node summary box moved into its own container."
 
-	info "Clear the browser cache to ensure all changes are visualized."
+    msgb "\n=== Finalizing installation ==="
+    msg "Sensor display items added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
+
+    restart_proxy
+    msg "Installation completed."
+    info "Clear the browser cache to ensure all changes are visualized."
 }
+
 
 #region node info insertion
 # Main insertion routine
@@ -437,7 +427,7 @@ collect_sensors_output() {
 		$res->{sensorsOutput} =~ s/\\"SODIMM\\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM$1\\":\\{\\"temp$1_input\\"/g;\
 	' "$NODES_PM_FILE"
 	#endregion sensors heredoc
-    msg "Sensors' retriever added to \"$output_file\"."
+    info "Sensors' retriever added to \"$output_file\"."
 }
 
 # Collect UPS data
@@ -457,7 +447,7 @@ collect_ups_output() {
 		\$res->{upsc} = \\\`$ups_cmd\\\`;\\
 	" "$NODES_PM_FILE"
 	#endregion ups heredoc
-    msg "UPS retriever added to \"$output_file\"."
+    info "UPS retriever added to \"$output_file\"."
 }
 
 # Collect system information
@@ -474,7 +464,7 @@ collect_system_info() {
 	#region system info heredoc
 	sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
 	#endregion system info heredoc
-    msg "System information retriever added to \"$output_file\"."
+    info "System information retriever added to \"$output_file\"."
 }
 #endregion node info insertion
 
@@ -530,6 +520,8 @@ EOF
 
 # Function to expand space and modify StatusView properties
 expand_statusview_space() {
+	msgb "\n=== Expanding StatusView space ==="
+
     # Apply multiple modifications to the StatusView definition
     sed -i "/Ext.define('PVE\.node\.StatusView'/,/\},/ {
         s/\(bodyPadding:\) '[^']*'/\1 '20 15 20 15'/
@@ -542,7 +534,7 @@ expand_statusview_space() {
         exit 1
     fi
     
-    msg "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
+    info "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
 }
 
 # Function to move node summary into its own container
@@ -668,6 +660,8 @@ EOF
 generate_and_insert_temp_helper() {
 	local temp_js_file="/tmp/temp_helper.js"
 
+	msgb "\n=== Inserting temperature helper ==="
+
 	#region temp helper heredoc
     cat > "$temp_js_file" <<'EOF'
 Ext.define('PVE.mod.TempHelper', {
@@ -765,6 +759,8 @@ EOF
 
 	sed -i "/^Ext.define('PVE.node.StatusView'/e cat /tmp/temp_helper.js" "$PVE_MANAGER_LIB_JS_FILE"
 	rm "$temp_js_file"
+
+	info "Temperature helper inserted successfully."
 }
 
 # Function to generate CPU widget
@@ -1516,13 +1512,13 @@ function set_backup_directory {
 	if [[ -z "$BACKUP_DIR" ]]; then
 		# If not set, use the default backup directory, which is based on the home directory and PVE-MODS
 		BACKUP_DIR="$HOME/PVE-MODS"
-		msg "Using default backup directory: $BACKUP_DIR"
+		info "Using default backup directory: $BACKUP_DIR"
 	else
 		# If set, ensure it is a valid directory
 		if [[ ! -d "$BACKUP_DIR" ]]; then
 			err "The specified backup directory does not exist: $BACKUP_DIR"
 		fi
-		msg "Using custom backup directory: $BACKUP_DIR"
+		info "Using custom backup directory: $BACKUP_DIR"
 	fi
 }
 
@@ -1534,9 +1530,9 @@ function create_backup_directory {
 		mkdir -p "$BACKUP_DIR" 2>/dev/null || {
 			err "Failed to create backup directory: $BACKUP_DIR. Please check permissions."
 		}
-		msg "Created backup directory: $BACKUP_DIR"
+		info "Created backup directory: $BACKUP_DIR"
 	else
-		msg "Backup directory already exists: $BACKUP_DIR"
+		info "Backup directory already exists: $BACKUP_DIR"
 	fi
 }
 
@@ -1558,13 +1554,15 @@ function create_file_backup() {
         err "Backup verification failed for: $backup_file"
     fi
     
-    msg "Created backup: $backup_file"
+    info "Created backup: $backup_file"
 }
 
 function perform_backup {
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
     
+	msgb "\n===Creating backups of modified files ==="
+
     create_backup_directory
     create_file_backup "$NODES_PM_FILE" "$timestamp"
     create_file_backup "$PVE_MANAGER_LIB_JS_FILE" "$timestamp"
