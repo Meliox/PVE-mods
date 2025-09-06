@@ -818,7 +818,7 @@ generate_cpu_widget() {
 						AMDPackageCaption = 'CCD';
 					} else if (bCpuCoreTemp && '$CPU_TEMP_TARGET' == 'Package') {
 						AMDPackagePrefix = 'CPU Core Temp';
-						AMDPackageCaption = 'CPU';
+						AMDPackageCaption = 'CPU Core Temp';
 					} else if (bTdie) {
 						AMDPackagePrefix = 'Tdie';
 						AMDPackageCaption = 'Die';
