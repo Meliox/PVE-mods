@@ -969,14 +969,14 @@ Ext.define('PVE.mod.TempHelper', {\n\
 		# Add an empty line to separate modified items as a visual group
 		# NOTE: Check for the presence of items in the reverse order of display
 		local lastItemId=""
-		if [ $ENABLE_HDD_TEMP = true ]; then
+		if [ $ENABLE_UPS = true ]; then
+			lastItemId="upsc"			
+		elif [ $ENABLE_HDD_TEMP = true ]; then
 			lastItemId="thermalHdd"
 		elif [ $ENABLE_NVME_TEMP = true ]; then
 			lastItemId="thermalNvme"
 		elif [ $ENABLE_FAN_SPEED = true ]; then
 			lastItemId="speedFan"
-		elif [ $ENABLE_UPS = true ]; then
-			lastItemId="upsc"			
 		else
 			lastItemId="thermalCpu"
 		fi
