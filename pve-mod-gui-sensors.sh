@@ -506,128 +506,22 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	},
 			}" "$PVE_MANAGER_LIB_JS_FILE"
 		fi
+		
+		ENABLE_CPU=true
+		if [ $ENABLE_CPU = true ]; then
+			local TEMP_JS_FILE="/tmp/cpu_widget.js"
+			generate_cpu_widget $TEMP_JS_FILE
 
-		sed -i "/^Ext.define('PVE.node.StatusView',/ {
-			:a;
-			/items:/!{N;ba;}
-			:b;
-			/cpus.*},/!{N;bb;}
-			a\
-			\\
-	{\n\
-		itemId: 'thermalCpu',\n\
-		colspan: 2,\n\
-		printBar: false,\n\
-		title: gettext('CPU Thermal State'),\n\
-		iconCls: 'fa fa-fw fa-thermometer-half',\n\
-		textField: 'sensorsOutput',\n\
-		renderer: function(value){\n\
-			// sensors configuration\n\
-			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);\n\
-			// display configuration\n\
-			const itemsPerRow = $CPU_ITEMS_PER_ROW;\n\
-			// ---\n\
-			let objValue;\n\
-			try {\n\
-				objValue = JSON.parse(value) || {};\n\
-			} catch(e) {\n\
-				objValue = {};\n\
-			}\n\
-			const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();\n\
-			const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();\n\
-			const bINTEL = cpuKeysI.length > 0 ? true : false;\n\
-			const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';\n\
-			const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';\n\
-			let AMDPackagePrefix = 'Tccd';\n\
-			let AMDPackageCaption = 'Chiplet';\n\
-			if (cpuKeysA.length > 0) {\n\
-				let bTccd = false;\n\
-				let bTctl = false;\n\
-				let bTdie = false;\n\
-				cpuKeysA.forEach((cpuKey, cpuIndex) => {\n\
-					let items = objValue[cpuKey];\n\
-					bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;\n\
-					bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;\n\
-					bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;\n\
-				});\n\
-				if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {\n\
-					AMDPackagePrefix = 'Tccd';\n\
-					AMDPackageCaption = 'Chiplet';\n\
-				} else if (bTdie) {\n\
-					AMDPackagePrefix = 'Tdie';\n\
-					AMDPackageCaption = 'Temp';\n\
-				} else if (bTctl) {\n\
-					AMDPackagePrefix = 'Tctl';\n\
-					AMDPackageCaption = 'Temp';\n\
-				} else {\n\
-					AMDPackagePrefix = 'temp';\n\
-					AMDPackageCaption = 'Temp';\n\
-				}\n\
-			}\n\
-			const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;\n\
-			const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;\n\
-			const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;\n\
-			const formatTemp = bINTEL ? '0' : '0.0';\n\
-			const cpuCount = cpuKeys.length;\n\
-			let temps = [];\n\
-			cpuKeys.forEach((cpuKey, cpuIndex) => {\n\
-				let cpuTemps = [];\n\
-				const items = objValue[cpuKey];\n\
-				const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });\n\
-				itemKeys.forEach((coreKey) => {\n\
-					try {\n\
-						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;\n\
-						Object.keys(items[coreKey]).forEach((secondLevelKey) => {\n\
-							if (secondLevelKey.endsWith('_input')) {\n\
-								tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
-							} else if (secondLevelKey.endsWith('_max')) {\n\
-								tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
-							} else if (secondLevelKey.endsWith('_crit')) {\n\
-								tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));\n\
-							}\n\
-						});\n\
-						if (!isNaN(tempVal)) {\n\
-							let tempStyle = '';\n\
-							if (!isNaN(tempMax) && tempVal >= tempMax) {\n\
-								tempStyle = 'color: #FFC300; font-weight: bold;';\n\
-							}\n\
-							if (!isNaN(tempCrit) && tempVal >= tempCrit) {\n\
-								tempStyle = 'color: red; font-weight: bold;';\n\
-							}\n\
-							let tempStr = '';\n\
-							let tempIndex = coreKey.match(\/(?:P\\\s+Core|E\\\s+Core|Core)\\\s*(\\\d+)\/);\n\
-							if (tempIndex !== null && tempIndex.length > 1) {\n\
-								tempIndex = tempIndex[1];\n\
-								let coreType = coreKey.startsWith('P Core') ? 'P Core' :\n\
-											   coreKey.startsWith('E Core') ? 'E Core' :\n\
-											   cpuTempCaption;\n\
-								tempStr = \`\${coreType}&nbsp;\${tempIndex}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
-							} else {\n\
-								// fallback for CPUs which do not have a core index\n\
-								let coreType = coreKey.startsWith('P Core') ? 'P Core' :\n\
-									coreKey.startsWith('E Core') ? 'E Core' :\n\
-									cpuTempCaption;\n\
-								tempStr = \`\${coreType}:&nbsp;<span style=\"\${tempStyle}\">\${Ext.util.Format.number(tempVal, formatTemp)}\${cpuTempHelper.getUnit()}</span>\`;\n\
-							}\n\
-							cpuTemps.push(tempStr);\n\
-						}\n\
-					} catch (e) { /*_*/ }\n\
-				});\n\
-				if(cpuTemps.length > 0) {\n\
-					temps.push(cpuTemps);\n\
-				}\n\
-			});\n\
-			let result = '';\n\
-			temps.forEach((cpuTemps, cpuIndex) => {\n\
-				const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })\n\
-				if(strCoreTemps.length > 0) {\n\
-					result += (cpuCount > 1 ? \`CPU \${cpuIndex+1}: \` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');\n\
-				}\n\
-			});\n\
-			return '<div style=\"text-align: left; margin-left: 28px;\">' + (result.length > 0 ? result : 'N/A') + '</div>';\n\
-		}\n\
-	},
-		}" "$PVE_MANAGER_LIB_JS_FILE"
+			sed -i "/^Ext.define('PVE.node.StatusView',/ {
+				:a
+				/items:/!{N;ba;}
+				:b
+				/'thermal.*},/!{N;bb;}
+				r $TEMP_JS_FILE
+			}" "$PVE_MANAGER_LIB_JS_FILE"
+
+			rm $TEMP_JS_FILE
+		fi
 
 		#
 		# NOTE: The following items will be added in reverse order
@@ -795,6 +689,143 @@ Ext.define('PVE.mod.TempHelper', {\n\
 	else
 		warn "Sensor display items already added to the summary panel in \"$PVE_MANAGER_LIB_JS_FILE\"."
 	fi
+}
+
+generate_temp_helper() {
+		#region temp helper heredoc
+    cat > "$1" <<'EOF'
+
+EOF
+	#endregion 		#region temp helper heredoc
+ heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate temp widget code" >&2
+        exit 1
+    fi
+}
+
+generate_cpu_widget() {
+	#region cpu widget heredoc
+    cat > "$1" <<'EOF'
+	{
+		itemId: 'thermalCpu',
+		colspan: 2,
+		printBar: false,
+		title: gettext('CPU Thermal State'),
+		iconCls: 'fa fa-fw fa-thermometer-half',
+		textField: 'sensorsOutput',
+		renderer: function(value){
+			// sensors configuration
+			const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $tempHelperCtorParams);
+			// display configuration
+			const itemsPerRow = $CPU_ITEMS_PER_ROW;
+			// ---
+			let objValue;
+			try {
+				objValue = JSON.parse(value) || {};
+			} catch(e) {
+				objValue = {};
+			}
+			const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
+			const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
+			const bINTEL = cpuKeysI.length > 0 ? true : false;
+			const INTELPackagePrefix = '$CPU_TEMP_TARGET' == 'Core' ? 'Core ' : 'Package id';
+			const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';
+			let AMDPackagePrefix = 'Tccd';
+			let AMDPackageCaption = 'Chiplet';
+			if (cpuKeysA.length > 0) {
+				let bTccd = false;
+				let bTctl = false;
+				let bTdie = false;
+				cpuKeysA.forEach((cpuKey, cpuIndex) => {
+					let items = objValue[cpuKey];
+					bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;
+					bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;
+					bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;
+				});
+				if (bTccd && bTctl && '$CPU_TEMP_TARGET' == 'Core') {
+					AMDPackagePrefix = 'Tccd';
+					AMDPackageCaption = 'Chiplet';
+				} else if (bTdie) {
+					AMDPackagePrefix = 'Tdie';
+					AMDPackageCaption = 'Temp';
+				} else if (bTctl) {
+					AMDPackagePrefix = 'Tctl';
+					AMDPackageCaption = 'Temp';
+				} else {
+					AMDPackagePrefix = 'temp';
+					AMDPackageCaption = 'Temp';
+				}
+			}
+			const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;
+			const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;
+			const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;
+			const formatTemp = bINTEL ? '0' : '0.0';
+			const cpuCount = cpuKeys.length;
+			let temps = [];
+			cpuKeys.forEach((cpuKey, cpuIndex) => {
+				let cpuTemps = [];
+				const items = objValue[cpuKey];
+				const itemKeys = Object.keys(items).filter(item => { return String(item).includes(cpuItemPrefix); });
+				itemKeys.forEach((coreKey) => {
+					try {
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+						Object.keys(items[coreKey]).forEach((secondLevelKey) => {
+							if (secondLevelKey.endsWith('_input')) {
+								tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_max')) {
+								tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_crit')) {
+								tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
+							}
+						});
+						if (!isNaN(tempVal)) {
+							let tempStyle = '';
+							if (!isNaN(tempMax) && tempVal >= tempMax) {
+								tempStyle = 'color: #FFC300; font-weight: bold;';
+							}
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+								tempStyle = 'color: red; font-weight: bold;';
+							}
+							let tempStr = '';
+							let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
+							if (tempIndex !== null && tempIndex.length > 1) {
+								tempIndex = tempIndex[1];
+								let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+											   coreKey.startsWith('E Core') ? 'E Core' :
+											   cpuTempCaption;
+								tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+							} else {
+								// fallback for CPUs which do not have a core index
+								let coreType = coreKey.startsWith('P Core') ? 'P Core' :
+									coreKey.startsWith('E Core') ? 'E Core' :
+									cpuTempCaption;
+								tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
+							}
+							cpuTemps.push(tempStr);
+						}
+					} catch (e) { /*_*/ }
+				});
+				if(cpuTemps.length > 0) {
+					temps.push(cpuTemps);
+				}
+			});
+			let result = '';
+			temps.forEach((cpuTemps, cpuIndex) => {
+				const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); })
+				if(strCoreTemps.length > 0) {
+					result += (cpuCount > 1 ? `CPU ${cpuIndex+1}: ` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');
+				}
+			});
+			return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
+		}
+	},
+EOF
+	#endregion cpu widget heredoc
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to generate cpu widget code" >&2
+        exit 1
+    fi
 }
 
 generate_nvme_widget() {
