@@ -123,16 +123,15 @@ function configure {
 
 	# Check if CPU is part of known list for autoconfiguration
 	msg "\nDetecting support for CPU temperature sensors..."
-	supportedCPU=false
 	for item in "${KNOWN_CPU_SENSORS[@]}"; do
 		if (echo "$sensorsOutput" | grep -q "$item"); then
 			echo $item
-			supportedCPU=true
+			ENABLE_CPU=true
 		fi
 	done
 
 	# Prompt user for which CPU temperature to use
-	if [ $supportedCPU = true ]; then
+	if [ $ENABLE_CPU = true ]; then
 		while true; do
 			local choiceTempDisplayType=$(ask "Do you wish to display temperatures for all cores [C] or just an average temperature per CPU [a] (note: AMD only supports average)? (C/a)")
 			case "$choiceTempDisplayType" in
@@ -158,7 +157,7 @@ function configure {
 			warn "No CPU temperature sensors found."
 	fi
 
-	# Look for ram temps
+	# Check if RAM temperature sensors are available
 	msg "\nDetecting support for RAM temperature sensors..."
 	if echo "$sensorsOutput" | grep -Eq '"SODIMM[0-9]{0,2}":'; then
 		msg "Detected RAM temperature sensors:\n$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g')"
@@ -169,7 +168,7 @@ function configure {
 		ENABLE_RAM_TEMP=false
 	fi
 
-	# Check if HDD/SSD data is installed
+	# Check if HDD/SDD data is available
 	msg "\nDetecting support for HDD/SDD temperature sensors..."
 	if [ $DEBUG_REMOTE = true ]; then
 		# Check if debug file contains HDD/SSD data
@@ -199,7 +198,7 @@ function configure {
 		fi
 	fi
 
-	# Check if NVMe data is available
+	# Check if NVMe temperature sensors are available
 	msg "\nDetecting support for NVMe temperature sensors..."
 	if (echo "$sensorsOutput" | grep -q "nvme-"); then
 		msg "Detected sensors:\n$(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g')"
@@ -210,7 +209,7 @@ function configure {
 		ENABLE_NVME_TEMP=false
 	fi
 
-	# Look for fan speeds
+	# Check if fan speed sensors are available
 	msg "\nDetecting support for fan speed readings..."
 	if (echo "$sensorsOutput" | grep -q "fan[0-9]*_input"); then
 		msg "Detected fan speed sensors:\n$(echo $sensorsOutput | grep -Po '"[^"]*":\s*\{\s*"fan[0-9]*_input[^}]*' | sed -E 's/"([^"]*)":.*/\1/')"
@@ -424,7 +423,6 @@ function install_mod {
 		generate_drive_header
 		generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
 		generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
-		ENABLE_CPU=true
 		generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
 		# Add an empty line to separate modified items as a visual group
