@@ -101,14 +101,19 @@ function install_packages {
 				;;
 			[nN])
 				# If the user chooses not to install lm-sensors, exit the script with a zero status code
-				msg "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
-				exit 0
+				msgb "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
+				err "lm-sensors is required. Exiting..."
 				;;
 			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
 				err "Invalid input. Exiting..."
 				;;
 		esac
+	fi
+
+	# Check if lm-sensors is installed correctly and exit if not
+	if (! command -v sensors &>/dev/null); then
+		err "lm-sensors installation failed or 'sensors' command is not available. Please install lm-sensors manually and re-run the script."
 	fi
 }
 
