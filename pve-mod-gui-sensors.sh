@@ -406,7 +406,6 @@ collect_sensors_output() {
     fi
 	#region sensors heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
-		\
 		# Collect sensor data from lm-sensors\
 		$res->{sensorsOutput} = `'"$sensorsCmd"'`;\
 		\
@@ -443,7 +442,6 @@ collect_ups_output() {
 
     # region ups heredoc
     sed -i "/my \$dinfo = df('\/', 1);/i\\
-\\
 		# Collect UPS status information\\
 		sub get_upsc {\\
 			my \$cmd = '$ups_cmd';\\
@@ -470,7 +468,10 @@ collect_system_info() {
         | paste -sd " " - \
         | sed 's/ |$//')
 	#region system info heredoc
-	sed -i "/my \$dinfo = df('\/', 1);/i\\\t\t\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\n" "$NODES_PM_FILE"
+	sed -i "/my \$dinfo = df('\/', 1);/i\\
+		# Add system information to response\\
+		\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\\
+" "$NODES_PM_FILE"
 	#endregion system info heredoc
     info "System information retriever added to \"$output_file\"."
 }
