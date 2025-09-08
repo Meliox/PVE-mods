@@ -444,13 +444,13 @@ collect_ups_output() {
     # region ups heredoc
     sed -i "/my \$dinfo = df('\/', 1);/i\\
 \\
-# Collect UPS status information\\
-sub get_upsc {\\
-    my \$cmd = '$ups_cmd';\\
-    my \$output = \`\\\$cmd\`;\\
-    return \$output;\\
-}\\
-\$res->{upsc} = get_upsc();\\
+		# Collect UPS status information\\
+		sub get_upsc {\\
+			my \$cmd = '$ups_cmd';\\
+			my \$output = \`\\\$cmd\`;\\
+			return \$output;\\
+		}\\
+		\$res->{upsc} = get_upsc();\\
 " "$NODES_PM_FILE"
     # endregion ups heredoc
 
@@ -947,7 +947,7 @@ EOF
     fi
 }
 
-# Function to generate UPS widget
+# Function to generate nvme widget
 generate_nvme_widget() {
 	#region nvme widget heredoc
 	# use subshell to allow variable expansion
@@ -1016,7 +1016,7 @@ EOF
     fi
 }
 
-# Function to generate UPS widget
+# Function to generate Fan widget
 generate_fan_widget() {
 	#region fan widget heredoc
 	# use subshell to allow variable expansion
