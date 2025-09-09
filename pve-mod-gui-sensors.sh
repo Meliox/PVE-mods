@@ -138,6 +138,7 @@ function configure {
     fi
 
 	#### CPU ####
+	#region cpu setup
 	msgb "\n=== Detecting CPU temperature sensors ==="
 	ENABLE_CPU=false
 	local cpuList=""
@@ -185,16 +186,13 @@ function configure {
 	else
 		warn "No CPU temperature sensors found."
 	fi
+	#endregion cpu setup
 
 	#### RAM ####
+	#region ram setup
 	msgb "\n=== Detecting RAM temperature sensors ==="
 	local ramList=$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
 	local ramCount=$(echo "$ramList" | tr ',' '\n' | wc -l)
-
-	# Clean up if no RAM found
-	if [ -z "$ramList" ]; then
-		ramCount=0
-	fi
 
 	if [ "$ramCount" -gt 0 ]; then
 		info "Detected RAM sensors ($ramCount): $ramList"
@@ -204,8 +202,10 @@ function configure {
 		warn "No RAM temperature sensors found."
 		ENABLE_RAM_TEMP=false
 	fi
+	#endregion ram setup
 
     #### HDD/SSD ####
+	#region hdd setup
     msgb "\n=== Detecting HDD/SSD temperature sensors ==="
     local hddList=($(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
     if [ ${#hddList[@]} -gt 0 ]; then
@@ -216,8 +216,10 @@ function configure {
         warn "No HDD/SSD temperature sensors found."
         ENABLE_HDD_TEMP=false
     fi
+	#endregion hdd setup
 
     #### NVMe ####
+	#region nvme setup
     msgb "\n=== Detecting NVMe temperature sensors ==="
     local nvmeList=($(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
     if [ ${#nvmeList[@]} -gt 0 ]; then
@@ -228,8 +230,10 @@ function configure {
         warn "No NVMe temperature sensors found."
         ENABLE_NVME_TEMP=false
     fi
+	#endregion nvme setup
 
 	#### Fans ####
+	#region fan setup
 	msgb "\n=== Detecting fan speed sensors ==="
 
 	local fanList=""
@@ -264,8 +268,10 @@ function configure {
 		warn "No fan speed sensors found."
 		ENABLE_FAN_SPEED=false
 	fi
+	#endregion fan setup
 
     #### Temperature Units ####
+	#region temp unit setup
     if [ "$SENSORS_DETECTED" = true ]; then
         local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
         case "$unit" in
@@ -283,8 +289,10 @@ function configure {
                 ;;
         esac
     fi
+	#endregion temp unit setup
 
     #### UPS ####
+	#region ups setup
     local choiceUPS=$(ask "Enable UPS information? (y/N)")
     case "$choiceUPS" in
         [yY])
@@ -318,8 +326,10 @@ function configure {
             ENABLE_UPS=false
             ;;
     esac
+	#endregion ups setup
 
     #### System Info ####
+	#region system info setup
     msgb "\n=== Detecting System Information ==="
     for i in 1 2; do
         echo "type ${i})"
@@ -347,6 +357,7 @@ function configure {
             SYSTEM_INFO_TYPE=1
             ;;
     esac
+	#endregion system info setup
 
     #### Final Check ####
     if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
