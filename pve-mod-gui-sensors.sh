@@ -406,7 +406,6 @@ collect_sensors_output() {
     fi
 	#region sensors heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
-		\
 		# Collect sensor data from lm-sensors\
 		$res->{sensorsOutput} = `'"$sensorsCmd"'`;\
 		\
@@ -425,6 +424,10 @@ collect_sensors_output() {
 		# This prevents JSON key overwrites when multiple SODIMM sensors exist\
 		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM3":{"temp3_input":34.0}\
 		$res->{sensorsOutput} =~ s/\\"SODIMM\\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM$1\\":\\{\\"temp$1_input\\"/g;\
+		\
+		# Fix duplicate fans keys by appending fan number with a space\
+		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
+		$res->{sensorsOutput} =~ s/\\"([^"]+)\\":\\{\\"fan(\\d+)_input\\"/\\"$1 $2\\":\{\\"fan$2_input\\"/g;\
 	' "$NODES_PM_FILE"
 	#endregion sensors heredoc
     info "Sensors' retriever added to \"$output_file\"."
