@@ -121,7 +121,8 @@ function configure {
     SENSORS_DETECTED=false
     local sensorsOutput
 
-	# Collect lm-sensors output
+	#### Collect lm-sensors output ####
+	#region sensors collection
 	if [ "$DEBUG_REMOTE" = true ]; then
 		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
 		warn "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
@@ -136,6 +137,7 @@ function configure {
     if [ $? -ne 0 ]; then
         err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting..."
     fi
+	#endregion sensors collection
 
 	#### CPU ####
 	#region cpu setup
@@ -360,9 +362,11 @@ function configure {
 	#endregion system info setup
 
     #### Final Check ####
+	#region final check
     if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
         err "No sensors detected, UPS or system info enabled. Exiting."
     fi
+	#endregion final check
 }
 
 
