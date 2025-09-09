@@ -25,7 +25,7 @@ BACKUP_DIR=""
 
 # DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
 
-DEBUG_REMOTE=false
+DEBUG_REMOTE=true
 DEBUG_JSON_FILE="/tmp/sensordata.json"
 DEBUG_UPS_FILE="/tmp/upsc.txt"
 
@@ -502,11 +502,10 @@ collect_sensors_output() {
 		# Fix duplicate fans keys by appending fan number with a space\
 		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
 		$res->{sensorsOutput} =~ s/\\"([^"]+)\\":\\{\\"fan(\\d+)_input\\"/\\"$1 $2\\":\{\\"fan$2_input\\"/g;\
-
+		\
 		# Format JSON output properly (workaround for lm-sensors >3.6.0 issues)\
 		$res->{sensorsOutput} =~ /^(.*)$/s;\
 		$res->{sensorsOutput} = `echo \\Q$1\\E | python3 -m json.tool 2>/dev/null || echo \\Q$1\E`;\
-
 	' "$NODES_PM_FILE"
 	#endregion sensors heredoc
     info "Sensors' retriever added to \"$output_file\"."
@@ -1266,23 +1265,6 @@ generate_ram_widget() {
 			textField: 'sensorsOutput',
 			renderer: function(value) {
 				const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
-				// Make SODIMM unique keys
-				value = value.split('\n'); // Split by newlines
-				for (let i = 0; i < value.length; i++) {
-					// Check if the current line contains 'SODIMM'
-					if (value[i].includes('SODIMM') && i + 1 < value.length) {
-						// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)
-						let nextLine = value[i + 1];
-						let match = nextLine.match(/"temp(\d+)_input": (\d+\.\d+)/);
-
-						if (match) {
-							let number = match[1]; // Extracted number
-							// Replace the current line with SODIMM by the extracted number
-							value[i] = value[i].replace('SODIMM', `SODIMM${number}`);
-						}
-					}
-				}
-				value = value.join('\n'); // Reverse line split
 
 				let objValue;
 				try {
@@ -1319,8 +1301,7 @@ generate_ram_widget() {
 					// Process each ram key and value
 					ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {
 					try {
-						ram = ramKey.replace('SODIMM', 'SODIMM ');
-						ramTemps.push(`${ram}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
+						ramTemps.push(`${ramKey}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
 					} catch(e) {
 						console.error(`Error retrieving Ram Temp for ${ramTemps} in ${parentKey}:`, e); // Debug: Log specific error
 					}
