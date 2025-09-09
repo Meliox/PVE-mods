@@ -25,7 +25,7 @@ BACKUP_DIR=""
 
 # DEV NOTE: lm-sensors version >3.6.0 breakes properly formatted JSON output using 'sensors -j'. This implements a workaround using uses a python3 for formatting
 
-DEBUG_REMOTE=false
+DEBUG_REMOTE=true
 DEBUG_JSON_FILE="/tmp/sensordata.json"
 DEBUG_UPS_FILE="/tmp/upsc.txt"
 
@@ -101,8 +101,8 @@ function install_packages {
 				;;
 			[nN])
 				# If the user chooses not to install lm-sensors, exit the script with a zero status code
-				msg "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
-				exit 0
+				msgb "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
+				err "lm-sensors is required. Exiting..."
 				;;
 			*)
 				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
@@ -110,74 +110,104 @@ function install_packages {
 				;;
 		esac
 	fi
+
+	# Check if lm-sensors is installed correctly and exit if not
+	if (! command -v sensors &>/dev/null); then
+		err "lm-sensors installation failed or 'sensors' command is not available. Please install lm-sensors manually and re-run the script."
+	fi
 }
 
 function configure {
     SENSORS_DETECTED=false
     local sensorsOutput
 
-    # Load sensor data
-    if [ "$DEBUG_REMOTE" = true ]; then
-        warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+	#### Collect lm-sensors output ####
+	#region sensors collection
+	if [ "$DEBUG_REMOTE" = true ]; then
+		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
 		warn "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
-        sensorsOutput=$(cat "$DEBUG_JSON_FILE")
-    else
-        sensorsOutput=$(sensors -j 2>/dev/null | python3 -m json.tool)
-    fi
+		sensorsOutput=$(cat "$DEBUG_JSON_FILE")
+	else
+		sensorsOutput=$(sensors -j 2>/dev/null)
+	fi
+
+	# Apply lm-sensors sanitization
+	sensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
 
     if [ $? -ne 0 ]; then
         err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting..."
     fi
+	#endregion sensors collection
 
-    #### CPU ####
-    msgb "\n=== Detecting CPU temperature sensors ==="
-    ENABLE_CPU=false
-    local cpuList=()
-    for item in "${KNOWN_CPU_SENSORS[@]}"; do
-        if echo "$sensorsOutput" | grep -q "$item"; then
-            cpuList+=("$item")
-            ENABLE_CPU=true
-        fi
-    done
+	#### CPU ####
+	#region cpu setup
+	msgb "\n=== Detecting CPU temperature sensors ==="
+	ENABLE_CPU=false
+	local cpuList=""
+	local cpuCount=0
 
-    if [ "$ENABLE_CPU" = true ]; then
-        info "Detected CPU sensors (${#cpuList[@]}): $(IFS=,; echo "${cpuList[*]}")"
-        SENSORS_DETECTED=true
-        while true; do
-            local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
-            case "$choice" in
-                [cC]|"")
-                    CPU_TEMP_TARGET="Core"
-                    info "Temperatures will be displayed for all cores."
-                    break
-                    ;;
-                [aA])
-                    CPU_TEMP_TARGET="Package"
-                    info "An average temperature will be displayed per CPU."
-                    break
-                    ;;
-                *)
-                    warn "Invalid input, please choose C or a."
-                    ;;
-            esac
-        done
-    else
-        warn "No CPU temperature sensors found."
-    fi
+	# Find all CPU sensors that match known patterns
+	for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
+		found_sensors=$(echo "$sensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
+		if [ -n "$found_sensors" ]; then
+			while read -r sensor; do
+				if [ -n "$sensor" ]; then
+					cpuCount=$((cpuCount + 1))
+					if [ -z "$cpuList" ]; then
+						cpuList="$sensor"
+					else
+						cpuList="$cpuList,$sensor"
+					fi
+					ENABLE_CPU=true
+				fi
+			done <<< "$found_sensors"
+		fi
+	done
 
-    #### RAM ####
-    msgb "\n=== Detecting RAM temperature sensors ==="
-    local ramList=($(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g'))
-    if [ ${#ramList[@]} -gt 0 ]; then
-        info "Detected RAM sensors (${#ramList[@]}): $(IFS=,; echo "${ramList[*]}")"
-        ENABLE_RAM_TEMP=true
-        SENSORS_DETECTED=true
-    else
-        warn "No RAM temperature sensors found."
-        ENABLE_RAM_TEMP=false
-    fi
+	if [ "$ENABLE_CPU" = true ]; then
+		info "Detected CPU sensors ($cpuCount): $cpuList"
+		SENSORS_DETECTED=true
+		while true; do
+			local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
+			case "$choice" in
+				[cC]|"")
+					CPU_TEMP_TARGET="Core"
+					info "Temperatures will be displayed for all cores."
+					break
+					;;
+				[aA])
+					CPU_TEMP_TARGET="Package"
+					info "An average temperature will be displayed per CPU."
+					break
+					;;
+				*)
+					warn "Invalid input, please choose C or a."
+					;;
+			esac
+		done
+	else
+		warn "No CPU temperature sensors found."
+	fi
+	#endregion cpu setup
+
+	#### RAM ####
+	#region ram setup
+	msgb "\n=== Detecting RAM temperature sensors ==="
+	local ramList=$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
+	local ramCount=$(echo "$ramList" | tr ',' '\n' | wc -l)
+
+	if [ "$ramCount" -gt 0 ]; then
+		info "Detected RAM sensors ($ramCount): $ramList"
+		ENABLE_RAM_TEMP=true
+		SENSORS_DETECTED=true
+	else
+		warn "No RAM temperature sensors found."
+		ENABLE_RAM_TEMP=false
+	fi
+	#endregion ram setup
 
     #### HDD/SSD ####
+	#region hdd setup
     msgb "\n=== Detecting HDD/SSD temperature sensors ==="
     local hddList=($(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
     if [ ${#hddList[@]} -gt 0 ]; then
@@ -188,8 +218,10 @@ function configure {
         warn "No HDD/SSD temperature sensors found."
         ENABLE_HDD_TEMP=false
     fi
+	#endregion hdd setup
 
     #### NVMe ####
+	#region nvme setup
     msgb "\n=== Detecting NVMe temperature sensors ==="
     local nvmeList=($(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
     if [ ${#nvmeList[@]} -gt 0 ]; then
@@ -200,37 +232,48 @@ function configure {
         warn "No NVMe temperature sensors found."
         ENABLE_NVME_TEMP=false
     fi
+	#endregion nvme setup
 
-    #### Fans ####
-    msgb "\n=== Detecting fan speed sensors ==="
-	local fanList=$(echo "$sensorsOutput" | grep -B 1 '"fan[0-9]*_input"' | grep -Po '"[^"]*":\s*\{$' | sed 's/"//g' | sed 's/: {//' | paste -sd ',' -)
-	local fanCount=$(echo "$sensorsOutput" | grep -c '"fan[0-9]*_input"')
-    if [ ${#fanList[@]} -gt 0 ]; then
-        info "Detected fan speed sensors ($fanCount): $fanList"
-        ENABLE_FAN_SPEED=true
-        SENSORS_DETECTED=true
+	#### Fans ####
+	#region fan setup
+	msgb "\n=== Detecting fan speed sensors ==="
 
-        local choice=$(ask "Display fans reporting zero speed? (Y/n)")
-        case "$choice" in
-            [yY]|"")
-                DISPLAY_ZERO_SPEED_FANS=true
-                info "Zero-speed fans will be displayed."
-                ;;
-            [nN])
-                DISPLAY_ZERO_SPEED_FANS=false
-                info "Only active fans will be displayed."
-                ;;
-            *)
-                warn "Invalid input. Defaulting to show zero-speed fans."
-                DISPLAY_ZERO_SPEED_FANS=true
-                ;;
-        esac
-    else
-        warn "No fan speed sensors found."
-        ENABLE_FAN_SPEED=false
-    fi
+	local fanList=""
+	local fanCount=0
+
+	# Find all fan names that have fan*_input entries
+	fanList=$(echo "$sensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
+	fanCount=$(echo "$fanList" | tr ',' '\n' | wc -l)
+
+	if [ "$fanCount" -gt 0 ]; then
+		info "Detected fan speed sensors ($fanCount): $fanList"
+		ENABLE_FAN_SPEED=true
+		SENSORS_DETECTED=true
+
+		local choice
+		choice=$(ask "Display fans reporting zero speed? (Y/n)")
+		case "$choice" in
+			[yY]|"")
+				DISPLAY_ZERO_SPEED_FANS=true
+				info "Zero-speed fans will be displayed."
+				;;
+			[nN])
+				DISPLAY_ZERO_SPEED_FANS=false
+				info "Only active fans will be displayed."
+				;;
+			*)
+				warn "Invalid input. Defaulting to show zero-speed fans."
+				DISPLAY_ZERO_SPEED_FANS=true
+				;;
+		esac
+	else
+		warn "No fan speed sensors found."
+		ENABLE_FAN_SPEED=false
+	fi
+	#endregion fan setup
 
     #### Temperature Units ####
+	#region temp unit setup
     if [ "$SENSORS_DETECTED" = true ]; then
         local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
         case "$unit" in
@@ -248,8 +291,10 @@ function configure {
                 ;;
         esac
     fi
+	#endregion temp unit setup
 
     #### UPS ####
+	#region ups setup
     local choiceUPS=$(ask "Enable UPS information? (y/N)")
     case "$choiceUPS" in
         [yY])
@@ -283,8 +328,10 @@ function configure {
             ENABLE_UPS=false
             ;;
     esac
+	#endregion ups setup
 
     #### System Info ####
+	#region system info setup
     msgb "\n=== Detecting System Information ==="
     for i in 1 2; do
         echo "type ${i})"
@@ -312,11 +359,14 @@ function configure {
             SYSTEM_INFO_TYPE=1
             ;;
     esac
+	#endregion system info setup
 
     #### Final Check ####
+	#region final check
     if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
         err "No sensors detected, UPS or system info enabled. Exiting."
     fi
+	#endregion final check
 }
 
 
@@ -377,6 +427,29 @@ function install_mod {
     ask "Clear the browser cache to ensure all changes are visualized. (any key to continue)"
 }
 
+# Sanitize sensors output to handle common lm-sensors parsing issues
+sanitize_sensors_output() {
+    local input="$1"
+
+    echo "$input" | perl -pe '
+        # Replace ERROR lines with placeholder values
+        s/ERROR:.+\s(\w+):\s(.+)/"$1": 0.000,/g;
+        s/ERROR:.+\s(\w+)!/"$1": 0.000,/g;
+
+        # Remove trailing commas before closing braces
+        s/,\s*(\})/$1/g;
+
+        # Replace NaN values with null
+        s/\bNaN\b/null/g;
+
+        # Fix duplicate SODIMM keys
+        s/"SODIMM":\{"temp(\d+)_input"/"SODIMM $1":\{"temp$1_input"/g;
+
+        # Fix duplicate fan keys
+        s/"([^"]+)":\{"fan(\d+)_input"/"$1 $2":\{"fan$2_input"/g;
+    ' | python3 -m json.tool 2>/dev/null || echo "$input"
+}
+
 #region node info insertion
 # Main insertion routine
 insert_node_info() {
@@ -402,8 +475,10 @@ collect_sensors_output() {
         sensorsCmd="cat \"$DEBUG_JSON_FILE\""
     else
         # Note: sensors -f (Fahrenheit) breaks fan speeds
-        sensorsCmd="sensors -j 2>/dev/null | python3 -m json.tool"
+        sensorsCmd="sensors -j 2>/dev/null"
     fi
+
+	# Remember to reflect this in sanitize_sensors_output() 
 	#region sensors heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		# Collect sensor data from lm-sensors\
@@ -420,10 +495,17 @@ collect_sensors_output() {
 		# Replace NaN values with null for valid JSON\
 		$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\
 		\
-		# Fix duplicate SODIMM keys by appending temperature sensor number\
-		# This prevents JSON key overwrites when multiple SODIMM sensors exist\
-		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM3":{"temp3_input":34.0}\
-		$res->{sensorsOutput} =~ s/\\"SODIMM\\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM$1\\":\\{\\"temp$1_input\\"/g;\
+        # Fix duplicate SODIMM keys by appending temperature sensor number\
+        # Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
+        $res->{sensorsOutput} =~ s/\\"SODIMM\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM $1\\":\{\\"temp$1_input\\"/g;\
+		\
+		# Fix duplicate fans keys by appending fan number with a space\
+		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
+		$res->{sensorsOutput} =~ s/\\"([^"]+)\\":\\{\\"fan(\\d+)_input\\"/\\"$1 $2\\":\{\\"fan$2_input\\"/g;\
+		\
+		# Format JSON output properly (workaround for lm-sensors >3.6.0 issues)\
+		$res->{sensorsOutput} =~ /^(.*)$/s;\
+		$res->{sensorsOutput} = `echo \\Q$1\\E | python3 -m json.tool 2>/dev/null || echo \\Q$1\E`;\
 	' "$NODES_PM_FILE"
 	#endregion sensors heredoc
     info "Sensors' retriever added to \"$output_file\"."
@@ -1185,23 +1267,6 @@ generate_ram_widget() {
 			textField: 'sensorsOutput',
 			renderer: function(value) {
 				const cpuTempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
-				// Make SODIMM unique keys
-				value = value.split('\n'); // Split by newlines
-				for (let i = 0; i < value.length; i++) {
-					// Check if the current line contains 'SODIMM'
-					if (value[i].includes('SODIMM') && i + 1 < value.length) {
-						// Extract the number '3' following 'temp' from the next line (e.g., "temp3_input": 25.000)
-						let nextLine = value[i + 1];
-						let match = nextLine.match(/"temp(\d+)_input": (\d+\.\d+)/);
-
-						if (match) {
-							let number = match[1]; // Extracted number
-							// Replace the current line with SODIMM by the extracted number
-							value[i] = value[i].replace('SODIMM', `SODIMM${number}`);
-						}
-					}
-				}
-				value = value.join('\n'); // Reverse line split
 
 				let objValue;
 				try {
@@ -1238,8 +1303,7 @@ generate_ram_widget() {
 					// Process each ram key and value
 					ramKeys.forEach(({ key: ramKey, value: ramTemp }) => {
 					try {
-						ram = ramKey.replace('SODIMM', 'SODIMM ');
-						ramTemps.push(`${ram}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
+						ramTemps.push(`${ramKey}:&nbsp${ramTemp}${cpuTempHelper.getUnit()}`);
 					} catch(e) {
 						console.error(`Error retrieving Ram Temp for ${ramTemps} in ${parentKey}:`, e); // Debug: Log specific error
 					}
