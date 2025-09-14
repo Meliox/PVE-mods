@@ -508,7 +508,7 @@ collect_sensors_output() {
 		\
         # Fix duplicate SODIMM keys by appending fan number with a space - handle both pretty and one-line JSON\
 		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
-        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {<\n  "temp$1_input"/g;\
+        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {\\n  "temp$1_input"/g;\
 		\
 		# Fix duplicate fans keys by appending fan number with a space - handle both pretty and one-line JSON\
 		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
