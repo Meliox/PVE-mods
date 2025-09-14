@@ -280,6 +280,7 @@ function configure {
 
     #### Temperature Units ####
 	#region temp unit setup
+	msgb "\n=== Display temperature ==="
     if [ "$SENSORS_DETECTED" = true ]; then
         local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
         case "$unit" in
