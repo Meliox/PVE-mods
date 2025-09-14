@@ -506,11 +506,11 @@ collect_sensors_output() {
 		# Replace NaN values with null for valid JSON\
 		$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\
 		\
-        # Fix duplicate SODIMM keys by appending temperature sensor number\
-        # Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
-        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {\\n  "temp$1_input"/g;\
+        # Fix duplicate SODIMM keys by appending fan number with a space - handle both pretty and one-line JSON\
+		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
+        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {<\n  "temp$1_input"/g;\
 		\
-		# Fix duplicate fans keys by appending fan number with a space\
+		# Fix duplicate fans keys by appending fan number with a space - handle both pretty and one-line JSON\
 		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
 		$res->{sensorsOutput} =~ s/"([^"]+)"\\s*:\\s*\{\\s*"fan(\\d+)_input"/"$1 $2": {\\n  "fan$2_input"/g;\
 		\
