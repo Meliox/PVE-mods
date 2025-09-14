@@ -200,7 +200,7 @@ function configure {
 	#region ram setup
 	msgb "\n=== Detecting RAM temperature sensors ==="
 	local ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
-	local ramCount=$(echo "$ramList" | tr ',' '\n' | wc -l)
+	local ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput")
 
 	if [ "$ramCount" -gt 0 ]; then
 		info "Detected RAM sensors ($ramCount): $ramList"
@@ -249,7 +249,7 @@ function configure {
 
 	# Find all fan names that have fan*_input entries
 	fanList=$(echo "$sanitisedSensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
-	fanCount=$(echo "$fanList" | tr ',' '\n' | wc -l)
+	fanCount=$(grep -c 'fan[0-9]\+_input' <<<"$sanitisedSensorsOutput")
 
 	if [ "$fanCount" -gt 0 ]; then
 		info "Detected fan speed sensors ($fanCount): $fanList"
