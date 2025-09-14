@@ -431,7 +431,12 @@ function install_mod {
 sanitize_sensors_output() {
     local input="$1"
 
-    echo "$input" | perl -pe '
+    # Pipe the text into Perl:
+    #   -0777  → "slurp mode": read the entire stream as one string so
+    #            regexes can match across line breaks.
+    #   -pe    → loop over input, applying the script (-e) and printing.
+	# Apply python3 json.tool for proper formatting and validation
+    echo "$input" | perl -0777 -pe '
         # Replace ERROR lines with placeholder values
         s/ERROR:.+\s(\w+):\s(.+)/"$1": 0.000,/g;
         s/ERROR:.+\s(\w+)!/"$1": 0.000,/g;
@@ -442,11 +447,11 @@ sanitize_sensors_output() {
         # Replace NaN values with null
         s/\bNaN\b/null/g;
 
-        # Fix duplicate SODIMM keys
-        s/"SODIMM":\{"temp(\d+)_input"/"SODIMM $1":\{"temp$1_input"/g;
+        # Fix duplicate SODIMM keys - handle both pretty and one-line JSON  
+        s/"SODIMM"\s*:\s*\{\s*"temp(\d+)_input"/"SODIMM $1": {\n  "temp$1_input"/g;
 
-        # Fix duplicate fan keys
-        s/"([^"]+)":\{"fan(\d+)_input"/"$1 $2":\{"fan$2_input"/g;
+        # Fix duplicate fan keys - handle both pretty and one-line JSON
+        s/"([^"]*Fan[^"]*)"\s*:\s*\{\s*"fan(\d+)_input"/"$1 $2": {\n  "fan$2_input"/g;
     ' | python3 -m json.tool 2>/dev/null || echo "$input"
 }
 
@@ -497,11 +502,11 @@ collect_sensors_output() {
 		\
         # Fix duplicate SODIMM keys by appending temperature sensor number\
         # Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
-        $res->{sensorsOutput} =~ s/\\"SODIMM\":\\{\\"temp(\\d+)_input\\"/\\"SODIMM $1\\":\{\\"temp$1_input\\"/g;\
+        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {\\n  "temp$1_input"/g;\
 		\
 		# Fix duplicate fans keys by appending fan number with a space\
 		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
-		$res->{sensorsOutput} =~ s/\\"([^"]+)\\":\\{\\"fan(\\d+)_input\\"/\\"$1 $2\\":\{\\"fan$2_input\\"/g;\
+		$res->{sensorsOutput} =~ s/"([^"]+)"\\s*:\\s*\{\\s*"fan(\\d+)_input"/"$1 $2": {\\n  "fan$2_input"/g;\
 		\
 		# Format JSON output properly (workaround for lm-sensors >3.6.0 issues)\
 		$res->{sensorsOutput} =~ /^(.*)$/s;\
