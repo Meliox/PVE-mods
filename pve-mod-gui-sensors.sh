@@ -120,6 +120,12 @@ function install_packages {
 function configure {
     SENSORS_DETECTED=false
     local sensorsOutput
+	local sanitisedSensorsOutput
+	local upsOutput
+	local modelName
+	local upsConnection
+
+	install_packages
 
 	#### Collect lm-sensors output ####
 	#region sensors collection
@@ -132,12 +138,10 @@ function configure {
 	fi
 
 	# Apply lm-sensors sanitization
-	sensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
-
-	echo $sensorsOutput
+	sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
 
     if [ $? -ne 0 ]; then
-        err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting..."
+        err "Sensor output error.\n\nCommand output:\n${sanitisedSensorsOutput}\n\nExiting..."
     fi
 	#endregion sensors collection
 
@@ -150,7 +154,7 @@ function configure {
 
 	# Find all CPU sensors that match known patterns
 	for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
-		found_sensors=$(echo "$sensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
+		found_sensors=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
 		if [ -n "$found_sensors" ]; then
 			while read -r sensor; do
 				if [ -n "$sensor" ]; then
@@ -195,7 +199,7 @@ function configure {
 	#### RAM ####
 	#region ram setup
 	msgb "\n=== Detecting RAM temperature sensors ==="
-	local ramList=$(echo "$sensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
+	local ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
 	local ramCount=$(echo "$ramList" | tr ',' '\n' | wc -l)
 
 	if [ "$ramCount" -gt 0 ]; then
@@ -211,7 +215,7 @@ function configure {
     #### HDD/SSD ####
 	#region hdd setup
     msgb "\n=== Detecting HDD/SSD temperature sensors ==="
-    local hddList=($(echo "$sensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
+    local hddList=($(echo "$sanitisedSensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
     if [ ${#hddList[@]} -gt 0 ]; then
         info "Detected HDD/SSD sensors (${#hddList[@]}): $(IFS=,; echo "${hddList[*]}")"
         ENABLE_HDD_TEMP=true
@@ -225,7 +229,7 @@ function configure {
     #### NVMe ####
 	#region nvme setup
     msgb "\n=== Detecting NVMe temperature sensors ==="
-    local nvmeList=($(echo "$sensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
+    local nvmeList=($(echo "$sanitisedSensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
     if [ ${#nvmeList[@]} -gt 0 ]; then
         info "Detected NVMe sensors (${#nvmeList[@]}): $(IFS=,; echo "${nvmeList[*]}")"
         ENABLE_NVME_TEMP=true
@@ -244,7 +248,7 @@ function configure {
 	local fanCount=0
 
 	# Find all fan names that have fan*_input entries
-	fanList=$(echo "$sensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
+	fanList=$(echo "$sanitisedSensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
 	fanCount=$(echo "$fanList" | tr ',' '\n' | wc -l)
 
 	if [ "$fanCount" -gt 0 ]; then
