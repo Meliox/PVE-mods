@@ -134,6 +134,8 @@ function configure {
 	# Apply lm-sensors sanitization
 	sensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
 
+	echo $sensorsOutput
+
     if [ $? -ne 0 ]; then
         err "Sensor output error.\n\nCommand output:\n${sensorsOutput}\n\nExiting..."
     fi
@@ -1625,7 +1627,13 @@ function save_sensors_data {
 		local choiceContinue=$(ask "Do you wish to continue? (Y/n)")
 		case "$choiceContinue" in
 			[yY]|"")
-				sensors -j 2>/dev/null | python3 -m json.tool >"$filepath"
+				echo "lm-sensors raw output:" >"$filepath"
+				sensorsOutput=$(sensors -j 2>/dev/null)
+				echo "$sensorsOutput" >>"$filepath"
+				echo -e "\n\nSanitised lm-sensors output:" >>"$filepath"
+				# Apply lm-sensors sanitization
+				sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
+				echo "$sanitisedSensorsOutput" >>"$filepath"
 				info "Sensors data saved in $filepath."
 				;;
 			*)
