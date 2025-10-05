@@ -454,7 +454,7 @@ sanitize_sensors_output() {
         # Replace NaN values with null
         s/\bNaN\b/null/g;
 
-        # Fix duplicate SODIMM keys - handle both pretty and one-line JSON  
+        # Fix duplicate SODIMM keys - handle both pretty and one-line JSON
         s/"SODIMM"\s*:\s*\{\s*"temp(\d+)_input"/"SODIMM $1": {\n  "temp$1_input"/g;
 
         # Fix duplicate fan keys - handle both pretty and one-line JSON
@@ -490,7 +490,7 @@ collect_sensors_output() {
         sensorsCmd="sensors -j 2>/dev/null"
     fi
 
-	# Remember to reflect this in sanitize_sensors_output() 
+	# Remember to reflect this in sanitize_sensors_output()
 	#region sensors heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		# Collect sensor data from lm-sensors\
@@ -589,7 +589,7 @@ generate_and_insert_widget() {
 	local enable_flag="$1"
 	local generator_func="$2"
 	local widget_name="$3"
-	
+
 	if [ "$enable_flag" = true ]; then
 		local temp_js_file="/tmp/${widget_name}_widget.js"
 		"$generator_func" "$temp_js_file"
@@ -602,7 +602,7 @@ generate_and_insert_widget() {
 # Function to generate drive header
 generate_drive_header() {
 	if [ "$ENABLE_NVME_TEMP" = true ] || [ "$ENABLE_HDD_TEMP" = true ]; then
-        local temp_js_file="/tmp/drive_header.js"	
+        local temp_js_file="/tmp/drive_header.js"
 		#region drive header heredoc
 		cat > "$temp_js_file" <<'EOF'
 		{
@@ -611,12 +611,12 @@ generate_drive_header() {
 			html: gettext('Drive(s)'),
 		},
 EOF
-#endregion drive header heredoc  
+#endregion drive header heredoc
         if [[ $? -ne 0 ]]; then
             echo "Error: Failed to generate drive header code" >&2
             exit 1
         fi
-        
+
         insert_widget_after_thermal "$temp_js_file"
         rm "$temp_js_file"
     fi
@@ -637,7 +637,7 @@ expand_statusview_space() {
         echo "Error: Failed to expand StatusView space" >&2
         exit 1
     fi
-    
+
     info "Expanded space in \"$PVE_MANAGER_LIB_JS_FILE\"."
 }
 
@@ -662,21 +662,21 @@ setup_node_summary_container() {
 	]
 },
 EOF
-#endregion summary container heredoc    
+#endregion summary container heredoc
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to generate summary container code" >&2
         exit 1
     fi
-    
+
     # Insert the new container after finding the nodeStatus and items pattern
     sed -i "/^\s*nodeStatus: nodeStatus,/ {
         :a
         /items: \[/ !{N;ba;}
         r $temp_js_file
     }" "$PVE_MANAGER_LIB_JS_FILE"
-    
+
     rm "$temp_js_file"
-    
+
     # Deactivate the original box instance
     sed -i "/^\s*nodeStatus: nodeStatus,/ {
         :a
@@ -686,7 +686,7 @@ EOF
         /nodeStatus,/ !{N;bb;}
         s/nodeStatus/\/\/nodeStatus/
     }" "$PVE_MANAGER_LIB_JS_FILE"
-    
+
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to deactivate original nodeStatus instance" >&2
         exit 1
@@ -697,7 +697,7 @@ EOF
 add_visual_separator() {
     # Check for the presence of items in the reverse order of display
     local lastItemId=""
-    
+
     if [ "$ENABLE_UPS" = true ]; then
         lastItemId="upsc"
     elif [ "$ENABLE_HDD_TEMP" = true ]; then
@@ -712,7 +712,7 @@ add_visual_separator() {
 
     if [ -n "$lastItemId" ]; then
         local temp_js_file="/tmp/visual_separator.js"
-        
+
 		#region visual spacing heredoc
         cat > "$temp_js_file" <<'EOF'
 		{
@@ -721,19 +721,19 @@ add_visual_separator() {
 			padding: '0 0 20 0',
 		},
 EOF
-#endregion visual spacing heredoc        
+#endregion visual spacing heredoc
         if [[ $? -ne 0 ]]; then
             echo "Error: Failed to generate visual separator code" >&2
             exit 1
         fi
-        
+
         # Insert after the specific lastItemId (different pattern than thermal)
         sed -i "/^Ext.define('PVE.node.StatusView',/ {
             :a;
             /^.*{.*'$lastItemId'.*},/!{N;ba;}
             r $temp_js_file
         }" "$PVE_MANAGER_LIB_JS_FILE"
-        
+
         rm "$temp_js_file"
     fi
 }
@@ -875,7 +875,7 @@ generate_cpu_widget() {
 		export CPU_ITEMS_PER_ROW
 		export CPU_TEMP_TARGET
 		export HELPERCTORPARAMS
-		
+
 		cat <<'EOF' | envsubst '$CPU_ITEMS_PER_ROW $CPU_TEMP_TARGET $HELPERCTORPARAMS' > "$1"
 		{
 			itemId: 'thermalCpu',
@@ -903,7 +903,7 @@ generate_cpu_widget() {
 				const INTELPackageCaption = '$CPU_TEMP_TARGET' == 'Core' ? 'Core' : 'Package';
 				let AMDPackagePrefix = 'Tccd';
 				let AMDPackageCaption = 'CCD';
-				
+
 				if (cpuKeysA.length > 0) {
 					let bTccd = false;
 					let bTctl = false;
@@ -933,18 +933,18 @@ generate_cpu_widget() {
 						AMDPackageCaption = 'Temp';
 					}
 				}
-				
+
 				const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA;
 				const cpuItemPrefix = bINTEL ? INTELPackagePrefix : AMDPackagePrefix;
 				const cpuTempCaption = bINTEL ? INTELPackageCaption : AMDPackageCaption;
 				const formatTemp = bINTEL ? '0' : '0.0';
 				const cpuCount = cpuKeys.length;
 				let temps = [];
-				
+
 				cpuKeys.forEach((cpuKey, cpuIndex) => {
 					let cpuTemps = [];
 					const items = objValue[cpuKey];
-					const itemKeys = Object.keys(items).filter(item => { 
+					const itemKeys = Object.keys(items).filter(item => {
 						if ('$CPU_TEMP_TARGET' == 'Core') {
 							// In Core mode: only show individual cores/CCDs, exclude overall CPU temp
 							return String(item).includes(cpuItemPrefix) || String(item).startsWith('Tccd');
@@ -953,7 +953,7 @@ generate_cpu_widget() {
 							return String(item).includes(cpuItemPrefix) || String(item) === 'CPU Core Temp';
 						}
 					});
-					
+
 					itemKeys.forEach((coreKey) => {
 						try {
 							let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
@@ -966,7 +966,7 @@ generate_cpu_widget() {
 									tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
 								}
 							});
-							
+
 							if (!isNaN(tempVal)) {
 								let tempStyle = '';
 								if (!isNaN(tempMax) && tempVal >= tempMax) {
@@ -975,9 +975,9 @@ generate_cpu_widget() {
 								if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 									tempStyle = 'color: red; font-weight: bold;';
 								}
-								
+
 								let tempStr = '';
-								
+
 								// Enhanced parsing for AMD temperatures
 								if (coreKey.startsWith('Tccd')) {
 									let tempIndex = coreKey.match(/Tccd(\d+)/);
@@ -1009,27 +1009,27 @@ generate_cpu_widget() {
 										tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
 									}
 								}
-								
+
 								cpuTemps.push(tempStr);
 							}
 						} catch (e) { /*_*/ }
 					});
-					
+
 					if(cpuTemps.length > 0) {
 						temps.push(cpuTemps);
 					}
 				});
-				
+
 				let result = '';
 				temps.forEach((cpuTemps, cpuIndex) => {
-					const strCoreTemps = cpuTemps.map((strTemp, index, arr) => { 
-						return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); 
+					const strCoreTemps = cpuTemps.map((strTemp, index, arr) => {
+						return strTemp + (index + 1 < arr.length ? (itemsPerRow > 0 && (index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : '');
 					})
 					if(strCoreTemps.length > 0) {
 						result += (cpuCount > 1 ? `CPU ${cpuIndex+1}: ` : '') + strCoreTemps.join('') + (cpuIndex < cpuCount ? '<br>' : '');
 					}
 				});
-				
+
 				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
 			}
 		},
@@ -1263,7 +1263,7 @@ generate_ram_widget() {
 	#region ram widget heredoc
 	# use subshell to allow variable expansion
 	(
-		export HELPERCTORPARAMS	
+		export HELPERCTORPARAMS
 		cat <<'EOF' | envsubst '$HELPERCTORPARAMS' > "$1"
 		{
 			xtype: 'box',
@@ -1686,27 +1686,27 @@ function create_file_backup() {
     local source_file="$1"
     local timestamp="$2"
     local filename
-    
+
     filename=$(basename "$source_file")
     local backup_file="$BACKUP_DIR/${filename}.$timestamp"
-    
+
     [[ -f "$source_file" ]] || err "Source file does not exist: $source_file"
     [[ -r "$source_file" ]] || err "Cannot read source file: $source_file"
-       
+
     cp "$source_file" "$backup_file" || err "Failed to create backup: $backup_file"
-    
+
     # Verify backup integrity
     if ! cmp -s "$source_file" "$backup_file"; then
         err "Backup verification failed for: $backup_file"
     fi
-    
+
     info "Created backup: $backup_file"
 }
 
 function perform_backup {
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
-    
+
 	msgb "\n=== Creating backups of modified files ==="
 
     create_backup_directory
