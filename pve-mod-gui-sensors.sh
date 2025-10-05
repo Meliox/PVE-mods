@@ -123,7 +123,6 @@ function configure {
 	local sanitisedSensorsOutput
 	local upsOutput
 	local modelName
-	local upsConnection
 
 	install_packages
 
@@ -379,6 +378,7 @@ function configure {
 
 # Function to install the modification
 function install_mod {
+	local upsConnection
     msgb "\n=== Preparing mod installation ==="
     check_root_privileges
     check_mod_installation
