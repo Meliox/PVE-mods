@@ -1,0 +1,43 @@
+name: Update Script Versions
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.sh'
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get commit hash
+        id: vars
+        run: echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Find changed scripts
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '.*\.sh$' || true)
+          echo "changed_scripts=$CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Update versions
+        run: |
+          for f in ${{ steps.changed.outputs.changed_scripts }}; do
+            sed -i "s/^VERSION=\".*\"/VERSION=\"${{ steps.vars.outputs.hash }}\"/" "$f"
+          done
+
+      - name: Commit updated scripts
+        if: ${{ steps.changed.outputs.changed_scripts != '' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ${{ steps.changed.outputs.changed_scripts }}
+          git commit -m "chore: bump versions of changed scripts [skip ci]"
+          git push
