@@ -1403,9 +1403,6 @@ generate_ups_widget() {
 					}
 				}
 
-				// (Removed wrapText helper) We'll build a style string when needed and
-				// use an empty style when default (no inline color) is desired.
-
 				// Helper function to format runtime
 				function formatRuntime(seconds) {
 					if (!seconds || isNaN(seconds)) return 'N/A';
