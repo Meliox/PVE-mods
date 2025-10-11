@@ -1372,34 +1372,39 @@ generate_ups_widget() {
 
 				// If objValue is null or empty, return N/A
 				if (!objValue || Object.keys(objValue).length === 0) {
-					return '<div style="text-align: right;"><span style="color: white;">N/A</span></div>';
+					return '<div style="text-align: right;"><span>N/A</span></div>';
 				}
 
 				// Helper function to get status color
+				// Returns a CSS color string for non-default states, or null for default (no inline color)
 				function getStatusColor(status) {
 					if (!status) return '#999';
 					const statusUpper = status.toUpperCase();
-					if (statusUpper.includes('OL')) return 'white'; // White for online
+					if (statusUpper.includes('OL')) return null; // default (no explicit color)
 					if (statusUpper.includes('OB')) return '#d9534f'; // Red for on battery
 					if (statusUpper.includes('LB')) return '#d9534f'; // Red for low battery
 					return '#f0ad4e'; // Orange for other states
 				}
 
 				// Helper function to get load/charge color
+				// Returns null for default/good values so no inline style is emitted
 				function getPercentageColor(value, isLoad = false) {
 					if (!value || isNaN(value)) return '#999';
 					const num = parseFloat(value);
 					if (isLoad) {
 						if (num >= 80) return '#d9534f'; // Red for high load
 						if (num >= 60) return '#f0ad4e'; // Orange for medium load
-						return 'white'; // White for low load
+						return null; // default (no explicit color)
 					} else {
 						// For battery charge
 						if (num <= 20) return '#d9534f'; // Red for low charge
 						if (num <= 50) return '#f0ad4e'; // Orange for medium charge
-						return 'white'; // White for good charge
+						return null; // default (no explicit color)
 					}
 				}
+
+				// (Removed wrapText helper) We'll build a style string when needed and
+				// use an empty style when default (no inline color) is desired.
 
 				// Helper function to format runtime
 				function formatRuntime(seconds) {
@@ -1425,12 +1430,12 @@ generate_ups_widget() {
 				// Build the status display
 				let displayItems = [];
 
-				// First line: Model info
+				// First line: Model info (no explicit color for default)
 				let modelLine = '';
 				if (upsModel) {
-					modelLine = `<span style="color: white;">${upsModel}</span>`;
+					modelLine = `<span>${upsModel}</span>`;
 				} else {
-					modelLine = `<span style="color: white;">N/A</span>`;
+					modelLine = `<span>N/A</span>`;
 				}
 				displayItems.push(modelLine);
 
@@ -1445,7 +1450,7 @@ generate_ups_widget() {
 
 					if (statusUpper.includes('OL')) {
 						statusText = 'Online';
-						statusColor = 'white'; // White for good status
+						statusColor = null; // default (no explicit color)
 					} else if (statusUpper.includes('OB')) {
 						statusText = 'On Battery';
 						statusColor = '#d9534f'; // Red for on battery
@@ -1457,27 +1462,30 @@ generate_ups_widget() {
 						statusColor = '#f0ad4e'; // Orange for unknown status
 					}
 
-					statusLine += `Status: <span style="color: ${statusColor};">${statusText}</span>`;
+					let statusStyle = statusColor ? ('color: ' + statusColor + ';') : '';
+					statusLine += 'Status: <span style="' + statusStyle + '">' + statusText + '</span>';
 				} else {
-					statusLine += `Status: <span style="color: white;">N/A</span>`;
+					statusLine += 'Status: <span>N/A</span>';
 				}
 
 				// Battery charge
 				if (statusLine) statusLine += ' | ';
 				if (batteryCharge) {
 					const chargeColor = getPercentageColor(batteryCharge, false);
-					statusLine += `Battery: <span style="color: ${chargeColor};">${batteryCharge}%</span>`;
+					let chargeStyle = chargeColor ? ('color: ' + chargeColor + ';') : '';
+					statusLine += 'Battery: <span style="' + chargeStyle + '">' + batteryCharge + '%</span>';
 				} else {
-					statusLine += `Battery: <span style="color: white;">N/A</span>`;
+					statusLine += 'Battery: <span>N/A</span>';
 				}
 
 				// Load percentage
 				if (statusLine) statusLine += ' | ';
 				if (upsLoad) {
 					const loadColor = getPercentageColor(upsLoad, true);
-					statusLine += `Load: <span style="color: ${loadColor};">${upsLoad}%</span>`;
+					let loadStyle = loadColor ? ('color: ' + loadColor + ';') : '';
+					statusLine += 'Load: <span style="' + loadStyle + '">' + upsLoad + '%</span>';
 				} else {
-					statusLine += `Load: <span style="color: white;">N/A</span>`;
+					statusLine += 'Load: <span>N/A</span>';
 				}
 
 				// Runtime
@@ -1485,21 +1493,21 @@ generate_ups_widget() {
 				if (batteryRuntime) {
 					const runtime = parseInt(batteryRuntime);
 					const runtimeLowThreshold = batteryRuntimeLow ? parseInt(batteryRuntimeLow) : 600;
-					let runtimeColor = 'white';
+					let runtimeColor = null;
 					if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f'; // Red if less than half of low threshold
 					else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e'; // Orange if at low threshold
-
-					statusLine += `Runtime: <span style="color: ${runtimeColor};">${formatRuntime(runtime)}</span>`;
+					let runtimeStyle = runtimeColor ? ('color: ' + runtimeColor + ';') : '';
+					statusLine += 'Runtime: <span style="' + runtimeStyle + '">' + formatRuntime(runtime) + '</span>';
 				} else {
-					statusLine += `Runtime: <span style="color: white;">N/A</span>`;
+					statusLine += 'Runtime: <span>N/A</span>';
 				}
 
 				// Input voltage
 				if (statusLine) statusLine += ' | ';
 				if (inputVoltage) {
-					statusLine += `Input: <span style="color: white;">${parseFloat(inputVoltage).toFixed(0)}V</span>`;
+					statusLine += 'Input: <span>' + parseFloat(inputVoltage).toFixed(0) + 'V</span>';
 				} else {
-					statusLine += `Input: <span style="color: white;">N/A</span>`;
+					statusLine += 'Input: <span>N/A</span>';
 				}
 
 				// Calculate actual watt usage
@@ -1515,9 +1523,9 @@ generate_ups_widget() {
 
 				// Real power (calculated watt usage)
 				if (actualWattage !== null) {
-					statusLine += `Output: <span style="color: white;">${actualWattage}W</span>`;
+					statusLine += 'Output: <span>' + actualWattage + 'W</span>';
 				} else {
-					statusLine += `Output: <span style="color: white;">N/A</span>`;
+					statusLine += 'Output: <span>N/A</span>';
 				}
 
 				displayItems.push(statusLine);
@@ -1525,16 +1533,17 @@ generate_ups_widget() {
 				// Combined battery and test line
 				let batteryTestLine = '';
 				if (batteryMfrDate) {
-					batteryTestLine += `<span style="color: white;">Battery MFD: ${batteryMfrDate}</span>`;
+					batteryTestLine += '<span>Battery MFD: ' + batteryMfrDate + '</span>';
 				} else {
-					batteryTestLine += `<span style="color: white;">Battery MFD: N/A</span>`;
+					batteryTestLine += '<span>Battery MFD: N/A</span>';
 				}
 
 				if (testResult && !testResult.toLowerCase().includes('no test')) {
-					const testColor = testResult.toLowerCase().includes('passed') ? 'white' : '#d9534f';
-					batteryTestLine += ` | <span style="color: ${testColor};">Test: ${testResult}</span>`;
+					const testColor = testResult.toLowerCase().includes('passed') ? null : '#d9534f';
+					let testStyle = testColor ? ('color: ' + testColor + ';') : '';
+					batteryTestLine += ' | <span style="' + testStyle + '">Test: ' + testResult + '</span>';
 				} else {
-					batteryTestLine += ` | <span style="color: white;">Test: N/A</span>`;
+					batteryTestLine += ' | <span>Test: N/A</span>';
 				}
 
 				displayItems.push(batteryTestLine);
