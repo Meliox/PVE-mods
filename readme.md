@@ -49,6 +49,52 @@ bash pve-mod-gui-sensors.sh install
 ```
 Additionally, adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
 
+## NVIDIA GPU readings view
+![Proxmox NVIDIA GPU mod](pve-mod-nvidia.png)
+
+This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display NVIDIA GPU information in the node status view.
+
+The following readings are displayed (per GPU):
+- GPU name and index
+- Temperature (Celsius/Fahrenheit)
+- GPU utilization
+- Memory utilization, used/total
+- Power draw / power limit
+- Fan speed (if supported)
+
+### How it works
+The modification involves the following steps:
+1. Backup original files in a backup directory (default: `~/PVE-MODS`, configurable via `BACKUP_DIR` in the script)
+   - `/usr/share/pve-manager/js/pvemanagerlib.js`
+   - `/usr/share/perl5/PVE/API2/Nodes.pm`
+2. Patch `Nodes.pm` to add an API field (`nvidiaGpuOutput`) populated by `nvidia-smi`.
+3. Modify `pvemanagerlib.js` to insert a new StatusView widget (“NVIDIA GPU Status”) before the CPU widget.
+4. Restart the `pveproxy` service to apply changes.
+
+The script provides two options:
+| **Option**   | **Description** |
+|-------------|------------------|
+| `install`   | Apply the modification. |
+| `uninstall` | Restore original files from backups (see note below). |
+
+Notes:
+- Requires NVIDIA drivers installed on the Proxmox host (`nvidia-smi` must be available).
+- If you have other PVE UI mods installed (e.g. the sensors UI mod), uninstalling via backup restore may revert other changes depending on backup order. The script will warn if it detects other mods.
+- Proxmox upgrades may overwrite modified files; reinstallation of this mod could be required.
+
+### Install
+Instructions be performed as 'root', as normal users do not have access to the files.
+
+```
+# Ensure NVIDIA drivers are installed and nvidia-smi works.
+# (Example check)
+nvidia-smi
+
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/pve-mod-gui-nvidia.sh
+bash pve-mod-gui-nvidia.sh install
+# Then clear the browser cache to ensure all changes are visualized.
+```
+
 ## Nag screen deactivation
 (Tested compatibility: 7.x - 8.3.5)
 This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) which deactivates the subscription nag screen.
