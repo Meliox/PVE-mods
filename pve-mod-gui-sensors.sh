@@ -40,6 +40,8 @@ JSON_EXPORT_FILENAME="sensorsdata.json"
 PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
 NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 
+UNATTENDED_MODE=false
+
 #region message tools
 # Section header (bold)
 function msgb() {
@@ -81,19 +83,44 @@ function usage {
 	exit 1
 }
 
+function show_clear_browser_cache_msg() {
+	local clearCacheMsg="Clear the browser cache to ensure that all changes are visible."
+	if [[ $UNATTENDED_MODE == true ]]; then
+		echo -e "\n\e[1;42;97m${clearCacheMsg}\e[0m\n"
+	else 
+    	ask "$clearCacheMsg (press any key to continue)"
+	fi
+}
+
 # System checks
-function check_root_privileges() {
+function check_root_privileges {
 	[[ $EUID -eq 0 ]] || err "This script must be run as root. Please run it with 'sudo $0'."
 	info "Root privileges verified."
+}
+
+function load_settings {
+	if [ -r "$SCRIPT_CWD/pve-mod-gui-sensors.settings" ]; then
+		msgb "\n=== Configuration file detected ==="
+		. "$SCRIPT_CWD/pve-mod-gui-sensors.settings"
+		if [ $? -eq 0 ]; then
+			info "Settings for unattended installation loaded."
+			UNATTENDED_MODE=true
+		fi
+	fi
 }
 
 # Define a function to install packages
 function install_packages {
 	# Check if the 'sensors' command is available on the system
 	if (! command -v sensors &>/dev/null); then
-		# If the 'sensors' command is not available, prompt the user to install lm-sensors
-		local choiceInstallLmSensors=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
-		case "$choiceInstallLmSensors" in
+		local choice=
+		if [ -n "$CONFIG_INSTALL_LM_SENSORS" ]; then
+			choice = $CONFIG_INSTALL_LM_SENSORS
+		else
+			# If the 'sensors' command is not available, prompt the user to install lm-sensors
+			choice=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
+		fi
+		case "$choice" in
 			[yY])
 				# If the user chooses to install lm-sensors, update the package list and install the package
 				apt-get update
@@ -172,8 +199,14 @@ function configure {
 	if [ "$ENABLE_CPU" = true ]; then
 		info "Detected CPU sensors ($cpuCount): $cpuList"
 		SENSORS_DETECTED=true
+
+		local choice=
 		while true; do
-			local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
+			if [ -n "$CONFIG_CPU_TEMP_MODE" ]; then
+				choice=$CONFIG_CPU_TEMP_MODE
+			else
+				choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
+			fi
 			case "$choice" in
 				[cC]|"")
 					CPU_TEMP_TARGET="Core"
@@ -186,7 +219,11 @@ function configure {
 					break
 					;;
 				*)
-					warn "Invalid input, please choose C or a."
+					if [[ $UNATTENDED_MODE == true ]]; then
+						err "Invalid configuration value. Exiting."
+					else
+						warn "Invalid input, please choose C or a."
+					fi
 					;;
 			esac
 		done
@@ -255,8 +292,12 @@ function configure {
 		ENABLE_FAN_SPEED=true
 		SENSORS_DETECTED=true
 
-		local choice
-		choice=$(ask "Display fans reporting zero speed? (Y/n)")
+		local choice=
+		if [ -n "$CONFIG_FAN_ZERO_SPEED_DISPLAY" ]; then
+			choice=$CONFIG_FAN_ZERO_SPEED_DISPLAY
+		else
+			choice=$(ask "Display fans reporting zero speed? (Y/n)")
+		fi
 		case "$choice" in
 			[yY]|"")
 				DISPLAY_ZERO_SPEED_FANS=true
@@ -267,8 +308,12 @@ function configure {
 				info "Only active fans will be displayed."
 				;;
 			*)
-				warn "Invalid input. Defaulting to show zero-speed fans."
-				DISPLAY_ZERO_SPEED_FANS=true
+				if [[ $UNATTENDED_MODE == true ]]; then
+					err "Invalid configuration value. Exiting."
+				else
+					warn "Invalid input. Defaulting to show zero-speed fans."
+					DISPLAY_ZERO_SPEED_FANS=true
+				fi
 				;;
 		esac
 	else
@@ -281,7 +326,12 @@ function configure {
 	#region temp unit setup
 	msgb "\n=== Display temperature ==="
     if [ "$SENSORS_DETECTED" = true ]; then
-        local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+		local unit=
+		if [ -n "$CONFIG_TEMP_UNIT" ]; then
+			unit=$CONFIG_TEMP_UNIT
+		else
+        	unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+		fi
         case "$unit" in
             [cC]|"")
                 TEMP_UNIT="C"
@@ -292,8 +342,12 @@ function configure {
                 info "Using Fahrenheit."
                 ;;
             *)
-                warn "Invalid selection. Defaulting to Celsius."
-                TEMP_UNIT="C"
+				if [[ $UNATTENDED_MODE == true ]]; then
+					err "Invalid configuration value. Exiting."
+				else
+					warn "Invalid selection. Defaulting to Celsius."
+					TEMP_UNIT="C"
+				fi
                 ;;
         esac
     fi
@@ -301,15 +355,26 @@ function configure {
 
     #### UPS ####
 	#region ups setup
-    local choiceUPS=$(ask "Enable UPS information? (y/N)")
-    case "$choiceUPS" in
+	msgb "\n=== UPS setup ==="
+	local choice=
+	if [ -n "$CONFIG_UPS_SHOW_INFO" ]; then
+		choice=$CONFIG_UPS_SHOW_INFO
+	else
+    	choice=$(ask "Enable UPS information? (y/N)")
+	fi
+    case "$choice" in
         [yY])
+			local upsConnection=
             if [ "$DEBUG_REMOTE" = true ]; then
                 upsOutput=$(cat "$DEBUG_UPS_FILE")
                 info "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
                 upsConnection="DEBUG_UPS"
             else
-                upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])")
+				if [ -n "$CONFIG_UPS_CONNECTION" ]; then
+					upsConnection=$CONFIG_UPS_CONNECTION
+				else
+                	upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])")
+				fi
                 if ! command -v upsc &>/dev/null; then
                     err "The 'upsc' command is not available. Install 'nut-client'."
                 fi
@@ -330,8 +395,12 @@ function configure {
             info "UPS information will not be displayed."
             ;;
         *)
-            warn "Invalid selection. UPS info will not be displayed."
-            ENABLE_UPS=false
+			if [[ $UNATTENDED_MODE == true ]]; then
+				err "Invalid configuration value. Exiting."
+			else
+				warn "Invalid selection. UPS info will not be displayed."
+				ENABLE_UPS=false
+			fi
             ;;
     esac
 	#endregion ups setup
@@ -343,7 +412,12 @@ function configure {
         echo "type ${i})"
         dmidecode -t "$i" | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
     done
-    local choiceSysInfo=$(ask "Enable system information? (1/2/n)")
+	local choiceSysInfo=
+	if [ -n "$CONFIG_SYSINFO_DISPLAY_MODE" ]; then
+		choiceSysInfo=$CONFIG_SYSINFO_DISPLAY_MODE
+	else
+    	choiceSysInfo=$(ask "Enable system information? (1/2/n)")
+	fi
     case "$choiceSysInfo" in
         [1]|"")
             ENABLE_SYSTEM_INFO=true
@@ -360,9 +434,13 @@ function configure {
             info "System information will NOT be displayed."
             ;;
         *)
-            warn "Invalid selection. Defaulting to system information."
-            ENABLE_SYSTEM_INFO=true
-            SYSTEM_INFO_TYPE=1
+			if [[ $UNATTENDED_MODE == true ]]; then
+				err "Invalid configuration value. Exiting."
+			else
+				warn "Invalid selection. Defaulting to system information."
+				ENABLE_SYSTEM_INFO=true
+				SYSTEM_INFO_TYPE=1
+			fi
             ;;
     esac
 	#endregion system info setup
@@ -431,7 +509,7 @@ function install_mod {
 
     restart_proxy
     info "Installation completed."
-    ask "Clear the browser cache to ensure all changes are visualized. (any key to continue)"
+	show_clear_browser_cache_msg
 }
 
 # Sanitize sensors output to handle common lm-sensors parsing issues
@@ -1601,7 +1679,7 @@ function uninstall_mod {
 		restart_proxy
 	fi
 
-	ask "Clear the browser cache to ensure all changes are visualized. (any key to continue)"
+	show_clear_browser_cache_msg
 }
 
 # Function to check if the modification is installed
@@ -1727,12 +1805,14 @@ while [[ $# -gt 0 ]]; do
 		install)
 			executed=$(($executed + 1))
 			msgb "\nInstalling the Proxmox VE sensors display mod..."
+			load_settings
 			install_packages
 			install_mod
 			;;
 		uninstall)
 			executed=$(($executed + 1))
 			msgb "\nUninstalling the Proxmox VE sensors display mod..."
+			load_settings
 			uninstall_mod
 			;;
 		save-sensors-data)
