@@ -71,8 +71,13 @@ function err() {
 # Prompts (cyan or bold)
 function ask() {
     local prompt="$1"
+	local configVarName="$2"
     local response
-    read -p $'\n\e[1;36m'"${prompt}:"$'\e[0m ' response
+	if [[ -n configVarName && -n "${!configVarName}" ]]; then
+		response="${!configVarName}"
+	else
+    	read -p $'\n\e[1;36m'"${prompt}:"$'\e[0m ' response
+	fi
     echo "$response"
 }
 #endregion message tools
@@ -113,13 +118,9 @@ function load_settings {
 function install_packages {
 	# Check if the 'sensors' command is available on the system
 	if (! command -v sensors &>/dev/null); then
-		local choice=
-		if [ -n "$CONFIG_INSTALL_LM_SENSORS" ]; then
-			choice = $CONFIG_INSTALL_LM_SENSORS
-		else
-			# If the 'sensors' command is not available, prompt the user to install lm-sensors
-			choice=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
-		fi
+
+		# If the 'sensors' command is not available, prompt the user to install lm-sensors
+		local choice=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)" CONFIG_INSTALL_LM_SENSORS)
 		case "$choice" in
 			[yY])
 				# If the user chooses to install lm-sensors, update the package list and install the package
@@ -200,13 +201,8 @@ function configure {
 		info "Detected CPU sensors ($cpuCount): $cpuList"
 		SENSORS_DETECTED=true
 
-		local choice=
 		while true; do
-			if [ -n "$CONFIG_CPU_TEMP_MODE" ]; then
-				choice=$CONFIG_CPU_TEMP_MODE
-			else
-				choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
-			fi
+			local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)" CONFIG_CPU_TEMP_MODE)
 			case "$choice" in
 				[cC]|"")
 					CPU_TEMP_TARGET="Core"
@@ -292,12 +288,7 @@ function configure {
 		ENABLE_FAN_SPEED=true
 		SENSORS_DETECTED=true
 
-		local choice=
-		if [ -n "$CONFIG_FAN_ZERO_SPEED_DISPLAY" ]; then
-			choice=$CONFIG_FAN_ZERO_SPEED_DISPLAY
-		else
-			choice=$(ask "Display fans reporting zero speed? (Y/n)")
-		fi
+		local choice=$(ask "Display fans reporting zero speed? (Y/n)" CONFIG_FAN_ZERO_SPEED_DISPLAY)
 		case "$choice" in
 			[yY]|"")
 				DISPLAY_ZERO_SPEED_FANS=true
@@ -326,12 +317,7 @@ function configure {
 	#region temp unit setup
 	msgb "\n=== Display temperature ==="
     if [ "$SENSORS_DETECTED" = true ]; then
-		local unit=
-		if [ -n "$CONFIG_TEMP_UNIT" ]; then
-			unit=$CONFIG_TEMP_UNIT
-		else
-        	unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
-		fi
+		local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)" CONFIG_TEMP_UNIT)
         case "$unit" in
             [cC]|"")
                 TEMP_UNIT="C"
@@ -356,12 +342,7 @@ function configure {
     #### UPS ####
 	#region ups setup
 	msgb "\n=== UPS setup ==="
-	local choice=
-	if [ -n "$CONFIG_UPS_SHOW_INFO" ]; then
-		choice=$CONFIG_UPS_SHOW_INFO
-	else
-    	choice=$(ask "Enable UPS information? (y/N)")
-	fi
+    local choice=$(ask "Enable UPS information? (y/N)" CONFIG_UPS_SHOW_INFO)
     case "$choice" in
         [yY])
 			local upsConnection=
@@ -370,11 +351,7 @@ function configure {
                 info "Remote debugging: UPS readings from $DEBUG_UPS_FILE"
                 upsConnection="DEBUG_UPS"
             else
-				if [ -n "$CONFIG_UPS_CONNECTION" ]; then
-					upsConnection=$CONFIG_UPS_CONNECTION
-				else
-                	upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])")
-				fi
+				upsConnection=$(ask "Enter UPS connection (e.g., upsname[@hostname[:port]])" CONFIG_UPS_CONNECTION)
                 if ! command -v upsc &>/dev/null; then
                     err "The 'upsc' command is not available. Install 'nut-client'."
                 fi
@@ -412,12 +389,7 @@ function configure {
         echo "type ${i})"
         dmidecode -t "$i" | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
     done
-	local choiceSysInfo=
-	if [ -n "$CONFIG_SYSINFO_DISPLAY_MODE" ]; then
-		choiceSysInfo=$CONFIG_SYSINFO_DISPLAY_MODE
-	else
-    	choiceSysInfo=$(ask "Enable system information? (1/2/n)")
-	fi
+    loacal choiceSysInfo=$(ask "Enable system information? (1/2/n)" CONFIG_SYSINFO_DISPLAY_MODE)
     case "$choiceSysInfo" in
         [1]|"")
             ENABLE_SYSTEM_INFO=true
