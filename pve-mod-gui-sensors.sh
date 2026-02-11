@@ -389,7 +389,7 @@ function configure {
         echo "type ${i})"
         dmidecode -t "$i" | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}'
     done
-    loacal choiceSysInfo=$(ask "Enable system information? (1/2/n)" CONFIG_SYSINFO_DISPLAY_MODE)
+    local choiceSysInfo=$(ask "Enable system information? (1/2/n)" CONFIG_SYSINFO_DISPLAY_MODE)
     case "$choiceSysInfo" in
         [1]|"")
             ENABLE_SYSTEM_INFO=true
