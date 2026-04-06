@@ -35,6 +35,7 @@ PVE_MOD_JS_TARGET_FILE="/usr/share/pve-manager/js/PveMod_PveNodeStatusView.js"
 NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
 PVE_SENSOR_INFO_MOD_FILE="/usr/share/perl5/PVE/API2/PveMod_SensorInfo.pm"
 PVE_SENSOR_INFO_SOURCE_FILE="$SCRIPT_CWD/PveMod_SensorInfo.pm"
+GPU_RRD_DIR="/var/lib/rrdcached/db/pve-mod-gpu"
 
 #region message tools
 # Section header (bold)
@@ -281,6 +282,28 @@ function configure {
 
 	#endregion Graphics setup
 
+	#### GPU Historical Data ####
+	#region gpu history setup
+	ENABLE_GPU_HISTORY=false
+	if [[ "$ENABLE_GPU_INFO" == true ]]; then
+		msgb "\n=== GPU Historical Data ==="
+		local choiceGpuHistory
+		choiceGpuHistory=$(ask "Store historical GPU data for graphs? (y/N)")
+		case "$choiceGpuHistory" in
+			[yY])
+				ENABLE_GPU_HISTORY=true
+				info "Historical GPU data will be stored."
+				;;
+			[nN]|"")
+				info "Historical GPU data will not be stored."
+				;;
+			*)
+				warn "Invalid selection. Historical GPU data will not be stored."
+				;;
+		esac
+	fi
+	#endregion gpu history setup
+
 	#### RAM ####
 	#region ram setup
 	local ramList ramCount
@@ -477,6 +500,11 @@ function install_mod {
 	insert_sensor_monitor_into_pve
 	insert_system_info_into_pve
 
+	## Historical GPU data ##
+	if [[ "$ENABLE_GPU_HISTORY" == true ]]; then
+		install_gpu_history
+	fi
+
     #### Install UI modification module ####
     msgb "\n=== Installing UI modification module ==="
     install_node_status_view_module
@@ -624,6 +652,14 @@ install_node_status_view_module() {
         warn "Original StatusView definition not found in expected format in pvemanagerlib.js"
     fi
 
+    # Comment out the original PVE.node.Summary definition in pvemanagerlib.js
+    if grep -q "^Ext.define('PVE.node.Summary'," "$PVE_MANAGER_LIB_JS_FILE" 2>/dev/null; then
+        sed -i "/^Ext\.define('PVE\.node\.Summary',/,/^});/s|^|// |" "$PVE_MANAGER_LIB_JS_FILE"
+        info "Commented out original Summary definition in pvemanagerlib.js"
+    else
+        warn "Original Summary definition not found in expected format in pvemanagerlib.js"
+    fi
+
     # Add a dynamic script loader to load our custom module
     # Insert before the commented-out Ext.define to load it
     if ! grep -q "PveMod_PveNodeStatusView.js" "$PVE_MANAGER_LIB_JS_FILE" 2>/dev/null; then
@@ -642,6 +678,83 @@ Ext.Loader.loadScript({\\
     fi
 }
 #endregion UI Module Installation
+
+
+#region historical GPU data
+# Install GPU historical data storage: RRD directory + API endpoint in Nodes.pm
+install_gpu_history() {
+	msgb "\n=== Installing GPU historical data support ==="
+
+	# Create and configure the RRD directory
+	mkdir -p "$GPU_RRD_DIR" || err "Failed to create GPU RRD directory: $GPU_RRD_DIR"
+	chown www-data:www-data "$GPU_RRD_DIR" || err "Failed to set ownership on: $GPU_RRD_DIR"
+	info "GPU RRD directory ready: $GPU_RRD_DIR"
+
+	# Register gpurrddata in the node method list
+	sed -i "s/{ name => 'rrddata' },/{ name => 'rrddata' },\n            { name => 'gpurrddata' },/" "$NODES_PM_FILE" \
+		|| err "Failed to register gpurrddata method in $NODES_PM_FILE"
+
+	# Insert the gpurrddata API method definition after the rrddata method
+	sed -i "/\"pve-node-9\.0\/\$param->{node}\", \$param->{timeframe}, \$param->{cf},/{
+n
+n
+a\\
+\\
+__PACKAGE__->register_method({\\
+    name => 'gpurrddata',\\
+    path => 'gpurrddata',\\
+    method => 'GET',\\
+    protected => 1,\\
+    proxyto => 'node',\\
+    permissions => {\\
+        check => ['perm', '/nodes/{node}', ['Sys.Audit']],\\
+    },\\
+    description => \"Read GPU RRD statistics\",\\
+    parameters => {\\
+        additionalProperties => 0,\\
+        properties => {\\
+            node => get_standard_option('pve-node'),\\
+            card => {\\
+                description => \"The GPU card identifier (e.g. card0, nvidia0).\",\\
+                type => 'string',\\
+                pattern => '[a-zA-Z0-9]+',\\
+            },\\
+            timeframe => {\\
+                description => \"Specify the time frame you are interested in.\",\\
+                type => 'string',\\
+                enum => ['hour', 'day', 'week', 'month', 'year', 'decade'],\\
+            },\\
+            cf => {\\
+                description => \"The RRD consolidation function\",\\
+                type => 'string',\\
+                enum => ['AVERAGE', 'MAX'],\\
+                optional => 1,\\
+            },\\
+        },\\
+    },\\
+    returns => {\\
+        type => \"array\",\\
+        items => {\\
+            type => \"object\",\\
+            properties => {},\\
+        },\\
+    },\\
+    code => sub {\\
+        my (\$param) = \@_;\\
+        my \$nodename = PVE::INotify::nodename();\\
+        my \$card = \$param->{card};\\
+        die \"invalid card name\\n\" unless \$card =~ /^[a-zA-Z0-9]+\$/;\\
+        return PVE::RRD::create_rrd_data(\\
+            \"pve-mod-gpu/\$nodename/\$card\", \$param->{timeframe}, \$param->{cf},\\
+        );\\
+    },\\
+});
+}" "$NODES_PM_FILE" \
+		|| err "Failed to insert gpurrddata method in $NODES_PM_FILE"
+
+	info "GPU historical data API endpoint added to $NODES_PM_FILE"
+}
+#endregion historical GPU data
 
 # Function to uninstall the modification
 function uninstall_mod {
@@ -704,6 +817,13 @@ function uninstall_mod {
 		info "Removed PveMod_SensorInfo.pm successfully."
 	else
 		warn "No PveMod_SensorInfo.pm backup files found and module not installed."
+	fi
+
+	# Remove GPU RRD directory (contains historical GPU data — destroyed permanently on uninstall)
+	if [[ -d "$GPU_RRD_DIR" ]]; then
+		msgb "Removing GPU RRD directory: $GPU_RRD_DIR"
+		rm -rf "$GPU_RRD_DIR"
+		info "Removed GPU RRD directory."
 	fi
 
 	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ] || [ -f "$PVE_MOD_JS_TARGET_FILE" ] || [ -n "$latest_sensor_info_pm" ] || [ -f "$PVE_SENSOR_INFO_MOD_FILE" ]; then
