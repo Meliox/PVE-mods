@@ -656,12 +656,6 @@ sub _update_nvidia_gpu_rrd {
     _debug(__LINE__, "RRD update nvidia$index: $err") if $err;
 }
 
-# Parse information for graphical presentation.
-sub _parse_graphic_info {
-    my ($line) = @_;
-    return undef;
-}
-
 # ============================================================================
 # AMD GPU Support (Placeholder)
 # ============================================================================
