@@ -987,7 +987,20 @@ Ext.define('PVE.node.StatusView', {
             title: gettext('Sensor Mod Version'),
             textField: 'pveModVersion',
             value: '',
-        },        
+        },
+        {
+			itemId: 'sysinfo',
+			colspan: 2,
+			printBar: false,
+			title: gettext('Information'),
+			textField: 'systemInfo',
+            renderer: function(value) {
+                if (value === null || value === undefined) {
+                    return '';
+                }
+                return value;
+            }
+		},         
     ],
 
     updateTitle: function () {
