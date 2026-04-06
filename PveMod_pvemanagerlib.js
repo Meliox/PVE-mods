@@ -258,7 +258,7 @@ Ext.define('PVE.node.StatusView', {
             xtype: 'box',
             colspan: 2,
             padding: '15 0 5 0',
-            html: '<div style="font-size: 14px; font-weight: bold; margin: 10px 0 5px 0; padding: 5px 0; border-bottom: 1px solid #eee; color: #666;">Secondary Details</div>',
+            html: '<div style="font-size: 14px; font-weight: bold; margin: 10px 0 5px 0; padding: 5px 0; border-bottom: 1px solid #eee; color: #666;">Secondary Metrics</div>',
         },
         {
             itemId: 'load',
