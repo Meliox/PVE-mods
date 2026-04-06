@@ -283,9 +283,10 @@ function configure {
 
 	#### RAM ####
 	#region ram setup
+	local ramList ramCount
 	msgb "\n=== Detecting RAM temperature sensors ==="
-	local ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
-	local ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput")
+	ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
+	ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput")
 
 	if [ "$ramCount" -gt 0 ]; then
 		info "Detected RAM sensors ($ramCount): $ramList"
@@ -517,6 +518,7 @@ sanitize_sensors_output() {
 #region Sensor Monitor Module Installation
 # Install and configure the Sensor Monitor Perl module
 install_sensor_monitor_module() {
+	local intel_enabled nvidia_enabled ups_enabled sensors_mode
     # Check if source file exists
     if [[ ! -f "$PVE_SENSOR_INFO_SOURCE_FILE" ]]; then
         err "Source file not found: $PVE_SENSOR_INFO_SOURCE_FILE"
@@ -527,10 +529,10 @@ install_sensor_monitor_module() {
     info "Copied Sensor Monitor module to $PVE_SENSOR_INFO_MOD_FILE"
 
     # Convert boolean flags to Perl format (1 or 0)
-    local intel_enabled=$([[ "$ENABLE_INTEL_GPU_INFO" = true ]] && echo 1 || echo 0)
-	local nvidia_enabled=$([[ "$ENABLE_NVIDIA_GPU_INFO" = true ]] && echo 1 || echo 0)
-    local ups_enabled=$([[ "$ENABLE_UPS" = true ]] && echo 1 || echo 0)
-    local sensors_mode=$([[ "$DEBUG_REMOTE" = true ]] && echo 1 || echo 0)
+    intel_enabled=$([[ "$ENABLE_INTEL_GPU_INFO" = true ]] && echo 1 || echo 0)
+    nvidia_enabled=$([[ "$ENABLE_NVIDIA_GPU_INFO" = true ]] && echo 1 || echo 0)
+    ups_enabled=$([[ "$ENABLE_UPS" = true ]] && echo 1 || echo 0)
+    sensors_mode=$([[ "$DEBUG_REMOTE" = true ]] && echo 1 || echo 0)
     
     # Determine UPS device name
     local ups_device="${upsConnection:-ups@localhost}"
@@ -621,7 +623,7 @@ install_node_status_view_module() {
     fi
 
     # Add a dynamic script loader to load our custom module
-    # Insert before the commented-out Ext.define so it loads early
+    # Insert before the commented-out Ext.define to load it
     if ! grep -q "PveMod_PveNodeStatusView.js" "$PVE_MANAGER_LIB_JS_FILE" 2>/dev/null; then
         # Use ExtJS Loader to dynamically load our custom module
         sed -i "/^\/\/ Ext\.define('PVE\.node\.StatusView',/i\\
@@ -638,7 +640,6 @@ Ext.Loader.loadScript({\\
     fi
 }
 #endregion UI Module Installation
-
 
 # Function to uninstall the modification
 function uninstall_mod {
