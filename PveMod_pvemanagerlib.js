@@ -1,3 +1,89 @@
+Ext.define('PVE.mod.TempHelper', {
+	//singleton: true,
+
+	requires: ['Ext.util.Format'],
+
+	statics: {
+		CELSIUS: 0,
+		FAHRENHEIT: 1
+	},
+
+	srcUnit: null,
+	dstUnit: null,
+
+	isValidUnit: function (unit) {
+		return (
+			Ext.isNumber(unit) && (unit === this.self.CELSIUS || unit === this.self.FAHRENHEIT)
+		);
+	},
+
+	constructor: function (config) {
+		this.srcUnit = config && this.isValidUnit(config.srcUnit) ? config.srcUnit : this.self.CELSIUS;
+		this.dstUnit = config && this.isValidUnit(config.dstUnit) ? config.dstUnit : this.self.CELSIUS;
+	},
+
+	toFahrenheit: function (tempCelsius) {
+		return Ext.isNumber(tempCelsius)
+			? tempCelsius * 9 / 5 + 32
+			: NaN;
+	},
+
+	toCelsius: function (tempFahrenheit) {
+		return Ext.isNumber(tempFahrenheit)
+			? (tempFahrenheit - 32) * 5 / 9
+			: NaN;
+	},
+
+	getTemp: function (value) {
+		if (this.srcUnit !== this.dstUnit) {
+			switch (this.srcUnit) {
+				case this.self.CELSIUS:
+					switch (this.dstUnit) {
+						case this.self.FAHRENHEIT:
+							return this.toFahrenheit(value);
+
+						default:
+							Ext.raise({
+								msg:
+									'Unsupported destination temperature unit: ' + this.dstUnit,
+							});
+					}
+				case this.self.FAHRENHEIT:
+					switch (this.dstUnit) {
+						case this.self.CELSIUS:
+							return this.toCelsius(value);
+
+						default:
+							Ext.raise({
+								msg:
+									'Unsupported destination temperature unit: ' + this.dstUnit,
+							});
+					}
+				default:
+					Ext.raise({
+						msg: 'Unsupported source temperature unit: ' + this.srcUnit,
+					});
+			}
+		} else {
+			return value;
+		}
+	},
+
+	getUnit: function(plainText) {
+		switch (this.dstUnit) {
+			case this.self.CELSIUS:
+				return plainText !== true ? '&deg;C' : '\'C';
+
+			case this.self.FAHRENHEIT:
+				return plainText !== true ? '&deg;F' : '\'F';
+
+			default:
+				Ext.raise({
+					msg: 'Unsupported destination temperature unit: ' + this.srcUnit,
+				});
+		}
+	},
+});
 Ext.define('PVE.node.StatusView', {
     extend: 'Proxmox.panel.StatusView',
     alias: 'widget.pveNodeStatus',
