@@ -520,23 +520,6 @@ sanitize_sensors_output() {
 #region node info insertion
 # Main insertion routine
 insert_node_info() {
-    local output_file="$NODES_PM_FILE"
-
-    collect_sensors_output "$output_file"
-
-    if [[ $ENABLE_UPS == true ]]; then
-        collect_ups_output "$output_file"
-    fi
-
-    if [[ $ENABLE_SYSTEM_INFO == true ]]; then
-        collect_system_info "$output_file"
-    fi
-}
-
-# Collect sensor data
-collect_sensors_output() {
-    local output_file="$1"
-
 	#region PveSensorInfoMod heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		# Collect sensor data from PveSensorInfoMod\
@@ -545,38 +528,7 @@ collect_sensors_output() {
 		$res->{sensorsJSONOutput} = PVE::API2::GPUMonitor::get_sensors_stats();\
 	' "$NODES_PM_FILE"
 	#endregion PveSensorInfoMod heredoc
-    info "Sensor data retriever added to \"$output_file\"."
-}
-
-# Collect UPS data
-collect_ups_output() {
-    local output_file="$1"
-    local ups_cmd
-
-    if [[ $DEBUG_REMOTE == true ]]; then
-        ups_cmd="cat \"$DEBUG_UPS_FILE\""
-    else
-        ups_cmd="upsc \"$upsConnection\" 2>/dev/null"
-    fi
-
-    # region ups heredoc
-    sed -i "/my \$dinfo = df('\/', 1);/i\\
-		# Collect UPS status information\\
-		sub get_upsc {\\
-			my \$cmd = '$ups_cmd';\\
-			my \$output = \`\\\$cmd\`;\\
-			return \$output;\\
-		}\\
-		\$res->{upsc} = get_upsc();\\
-" "$NODES_PM_FILE"
-    # endregion ups heredoc
-
-    info "UPS retriever added to \"$output_file\"."
-}
-
-collect_graphics_intel_output() {
-
-
+    info "Sensor data retriever added to \"$NODES_PM_FILE\"."
 }
 
 # Collect system information
