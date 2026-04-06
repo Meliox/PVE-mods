@@ -19,7 +19,7 @@ my %config = (
     gpu => {
         intel_enabled => 1,
         amd_enabled => 0,
-        nvidia_enabled => 1,
+        nvidia_enabled => 0,
     },
     debug => {
         nvidia_mode => 1,
@@ -172,22 +172,6 @@ sub _acquire_exclusive_lock {
     
     _debug(__LINE__, "Acquired $purpose after removing stale lock");
     return $fh;
-}
-
-sub _is_lock_stale {
-    my ($lock_path) = @_;
-    
-    return 0 unless open(my $fh, '<', $lock_path);
-    
-    my $lock_pid = <$fh>;
-    chomp $lock_pid if defined $lock_pid;
-    close($fh);
-    
-    # Invalid or missing PID
-    return 1 unless defined $lock_pid && $lock_pid =~ /^\d+$/;
-    
-    # Valid PID but process is dead
-    return !_is_process_alive($lock_pid);
 }
 
 sub _ensure_pve_mod_directory_exists {
@@ -1383,7 +1367,7 @@ sub _parse_upsc_output {
 # API calls
 # ============================================================================
 
-sub get_graphic_stats {
+sub get_graphic_info {
     #  todo name the process without overruling other processes
     _debug(__LINE__, "get_graphic_stats called");
     
@@ -1483,7 +1467,7 @@ sub get_graphic_stats {
     return $last_snapshot;
 }
 
-sub get_sensors_stats {
+sub get_sensors_info {
     _debug(__LINE__, "get_sensors_stats called");
 
     # Start PVE Mod
@@ -1516,7 +1500,7 @@ sub get_sensors_stats {
     return $sensors_data;
 }
 
-sub get_ups_stats {
+sub get_ups_info {
     _debug(__LINE__, "get_ups_stats called");
 
     # Start PVE Mod

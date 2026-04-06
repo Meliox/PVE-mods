@@ -158,7 +158,7 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-desktop',
             title: gettext('GPU Usage'),
             printBar: false,
-            textField: 'gpuStats',
+            textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
                 if (!gpuStats || !gpuStats.Graphics) {
                     return '';
@@ -279,7 +279,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
-            textField: 'pveMod_sensorInfo_json',
+            textField: 'PveMod_JsonSensorInfo',
             renderer: function(value){
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
@@ -453,7 +453,7 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-desktop',
             title: gettext('GPU Details'),
             printBar: false,
-            textField: 'gpuStats',
+            textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
                 if (!gpuStats || !gpuStats.Graphics) {
                     return '';
@@ -564,7 +564,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'pveMod_sensorInfo_json',
+			textField: 'PveMod_JsonSensorInfo',
 			renderer: function(value) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
@@ -649,7 +649,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'pveMod_sensorInfo_json',
+            textField: 'PveMod_JsonSensorInfo',
             renderer: function(value) {
                 // ---
                 let objValue;
@@ -711,13 +711,15 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('GPU Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'gpuStats',
+            textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
                 if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
-                    return 'N/A';
+                    return '';
                 }
 
                 let rows = [];
+                
+                // todo: handle intel, amd
 
                 Object.keys(gpuStats.Graphics.NVIDIA).sort().forEach(key => {
                     const gpuData = gpuStats.Graphics.NVIDIA[key];
@@ -737,7 +739,7 @@ Ext.define('PVE.node.StatusView', {
                         '</tr>',
                     );
                 });
-
+                
                 if (rows.length === 0) {
                     return 'N/A';
                 }
@@ -751,7 +753,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('UPS Status'),
 			iconCls: 'fa fa-fw fa-battery-three-quarters',
-			textField: 'upsStats',
+			textField: 'PveMod_upsInfo',
 			renderer: function(value) {
                 let objValue = {};
                 try {
@@ -985,7 +987,7 @@ Ext.define('PVE.node.StatusView', {
             colspan: 2,
             printBar: false,
             title: gettext('Sensor Mod Version'),
-            textField: 'pveMod_sensorInfo_version',
+            textField: 'PveMod_Version',
             value: '',
         },
         {
@@ -993,7 +995,7 @@ Ext.define('PVE.node.StatusView', {
 			colspan: 2,
 			printBar: false,
 			title: gettext('Information'),
-			textField: 'pveMod_sensorInfo_systemInfo',
+			textField: 'PveMod_systemInfo',
             renderer: function(value) {
                 if (value === null || value === undefined) {
                     return '';

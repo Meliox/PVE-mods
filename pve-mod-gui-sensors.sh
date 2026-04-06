@@ -569,8 +569,9 @@ insert_sensor_monitor_into_pve() {
 		# Collect sensor data from PveMod_SensorInfo\
 		# Bad practice to add use here, but cleaner implementation would require several extensive modifications.\
 		use PVE::API2::PVEMod_SensorInfo;\
-		$res->{pveMod_sensorInfo_json} = PVE::API2::PVEMod_SensorInfo::get_sensors_stats();\
-		$res->{pveMod_sensorInfo_version} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\
+		$res->{PveMod_JsonSensorInfo} = PVE::API2::PVEMod_SensorInfo::get_sensors_info();\
+		$res->{PveMod_graphicsInfo} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\
+		$res->{PveMod_upsInfo} = PVE::API2::PVEMod_SensorInfo::get_ups_info();\
 	' "$NODES_PM_FILE"
 	#endregion PveSensorInfoMod heredoc
     info "Sensor data retriever added to \"$NODES_PM_FILE\"."
