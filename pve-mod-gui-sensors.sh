@@ -242,7 +242,42 @@ function configure {
 	#endregion intel GPU setup
 
 	#region NVIDIA GPU setup
-	# not implemented yet
+	# Check for NVIDIA GPU - ensure nvidia-smi is installed
+	if command -v nvidia-smi &>/dev/null; then
+		# detect all NVIDIA cards using nvidia-smi -L
+		local nvidiaCards
+		
+		# Get the output from nvidia-smi -L (lists GPUs)
+		nvidiaCards=$(nvidia-smi -L 2>/dev/null || true)
+		
+		if [[ -n "$nvidiaCards" ]]; then
+			local cardCount=$(echo "$nvidiaCards" | wc -l)
+			echo "NVIDIA GPU(s) detected ($cardCount):"
+			echo "$nvidiaCards" | while IFS= read -r line; do
+				# Expected format: GPU 0: NVIDIA GeForce RTX 3080 (UUID: GPU-xxxxx)
+				if [[ $line =~ ^GPU\ ([0-9]+):\ (.+)\ \(UUID:\ (.+)\)$ ]]; then
+					local gpuIndex="${BASH_REMATCH[1]}"
+					local gpuModel="${BASH_REMATCH[2]}"
+					local gpuUUID="${BASH_REMATCH[3]}"
+					
+					echo "  - GPU $gpuIndex"
+					echo "    Model: $gpuModel"
+					echo "    UUID: $gpuUUID"
+				else
+					# Fallback: just show the line as-is
+					echo "  $line"
+				fi
+			done
+			ENABLE_NVIDIA_GPU_INFO=true
+			ENABLE_GPU_INFO=true
+		else
+			warn "No NVIDIA GPUs detected by nvidia-smi."
+			ENABLE_NVIDIA_GPU_INFO=false
+		fi
+	else
+		warn "nvidia-smi command not found. Skipping NVIDIA GPU information detection."
+		ENABLE_NVIDIA_GPU_INFO=false
+	fi
 	#endregion NVIDIA GPU setup
 
 	#region AMD GPU setup
