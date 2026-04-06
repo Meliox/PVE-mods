@@ -39,6 +39,7 @@ JSON_EXPORT_FILENAME="sensorsdata.json"
 # File paths
 PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
 NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
+PVE_SENSOR_INFO_MOD_FILE="/usr/share/perl5/PVE/API2/PveSensorInfoMod.pm"
 
 #region message tools
 # Section header (bold)
@@ -440,8 +441,9 @@ function install_mod {
     perform_backup
 
     #### Insert information retrieval code ####
-    msgb "\n=== Inserting information retrieval code ==="
-    insert_node_info
+    msgb "\n=== Installing sensor info module ==="
+	install_sensor_monitor_module
+	insert_sensor_monitor_into_pve
 
     #### Temperature helper parameters ####
     msgb "\n=== Creating temperature conversion helper ==="
@@ -517,9 +519,54 @@ sanitize_sensors_output() {
     ' | python3 -m json.tool 2>/dev/null || echo "$input"
 }
 
+#region Sensor Monitor Module Installation
+# Install and configure the Sensor Monitor Perl module
+install_sensor_monitor_module() {
+    # Check if source file exists
+    if [[ ! -f "$GPU_MONITOR_SOURCE_FILE" ]]; then
+        err "Source file not found: $GPU_MONITOR_SOURCE_FILE"
+    fi
+
+    # Copy the module file
+	# todo - how to install module??!?!
+    #cp "$GPU_MONITOR_SOURCE_FILE" "$PVE_SENSOR_INFO_MOD_FILE" || err "Failed to copy $GPU_MONITOR_SOURCE_FILE to $PVE_SENSOR_INFO_MOD_FILE"
+    info "Copied GPU Monitor module to $PVE_SENSOR_INFO_MOD_FILE"
+
+    # Convert boolean flags to Perl format (1 or 0)
+    local intel_enabled=$([[ "$ENABLE_INTEL_GPU_INFO" = true ]] && echo 1 || echo 0)
+	local nvidia_enabled=$([[ "$ENABLE_NVIDIA_GPU_INFO" = true ]] && echo 1 || echo 0)
+    local ups_enabled=$([[ "$ENABLE_UPS" = true ]] && echo 1 || echo 0)
+    local sensors_mode=$([[ "$DEBUG_REMOTE" = true ]] && echo 1 || echo 0)
+    
+    # Determine UPS device name
+    local ups_device="${upsConnection:-ups@localhost}"
+    
+    # Update configuration in the installed module
+    sed -i "
+        # Update GPU configuration
+        /intel_enabled =>/ s/=> [01],/=> $intel_enabled,/
+		/nvidia_enabled =>/ s/=> [01],/=> $nvidia_enabled,/
+        
+        # Update UPS configuration
+        /enabled =>/ {
+            /ups => {/,/},/ {
+                /enabled =>/ s/=> [01],/=> $ups_enabled,/
+            }
+        }
+        /device_name =>/ s|=> '[^']*',|=> '$ups_device',|
+    " "$PVE_SENSOR_INFO_MOD_FILE"
+
+    if [[ $? -eq 0 ]]; then
+        info "Sensor Monitor module configured successfully."
+    else
+        warn "Failed to configure Sensor Monitor module settings."
+    fi
+}
+#endregion Sensor Monitor Module Installation
+
 #region node info insertion
 # Main insertion routine
-insert_node_info() {
+insert_sensor_monitor_into_pve() {
 	#region PveSensorInfoMod heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		# Collect sensor data from PveSensorInfoMod\
@@ -529,6 +576,11 @@ insert_node_info() {
 	' "$NODES_PM_FILE"
 	#endregion PveSensorInfoMod heredoc
     info "Sensor data retriever added to \"$NODES_PM_FILE\"."
+
+	# Add system information if enabled
+	if [[ $ENABLE_SYSTEM_INFO == true ]]; then
+		collect_system_info "$NODES_PM_FILE"
+	fi
 }
 
 # Collect system information
@@ -1656,7 +1708,24 @@ function uninstall_mod {
 		warn "No pvemanagerlib.js backup files found."
 	fi
 
-	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ]; then
+	# Find the latest GPUMonitor.pm file using the find command
+	local latest_gpumonitor_pm=$(find "$BACKUP_DIR" -name "GPUMonitor.pm.*" -type f -printf '%T+ %p\n' 2>/dev/null | sort -r | head -n 1 | awk '{print $2}')
+
+	if [ -n "$latest_gpumonitor_pm" ]; then
+		# Restore the latest GPUMonitor.pm file
+		msgb "Restoring latest GPUMonitor.pm from backup: $latest_gpumonitor_pm to \"$PVE_SENSOR_INFO_MOD_FILE\"."
+		cp "$latest_gpumonitor_pm" "$PVE_SENSOR_INFO_MOD_FILE"
+		info "Restored GPUMonitor.pm successfully."
+	elif [ -f "$PVE_SENSOR_INFO_MOD_FILE" ]; then
+		# No backup found but file exists, remove it
+		msgb "No GPUMonitor.pm backup found. Removing installed module: $PVE_SENSOR_INFO_MOD_FILE"
+		rm "$PVE_SENSOR_INFO_MOD_FILE"
+		info "Removed GPUMonitor.pm successfully."
+	else
+		warn "No GPUMonitor.pm backup files found and module not installed."
+	fi
+
+	if [ -n "$latest_nodes_pm" ] || [ -n "$latest_pvemanagerlibjs" ] || [ -n "$latest_gpumonitor_pm" ] || [ -f "$PVE_SENSOR_INFO_MOD_FILE" ]; then
 		# At least one of the variables is not empty, restart the proxy
 		restart_proxy
 	fi
@@ -1666,7 +1735,9 @@ function uninstall_mod {
 
 # Function to check if the modification is installed
 check_mod_installation() {
-    if [[ -n $(grep -F '$res->{sensorsOutput}' "$NODES_PM_FILE") ]] && \
+    if [[ -n $(grep -F 'use PVE::API2::GPUMonitor' "$NODES_PM_FILE") ]] || \
+       [[ -n $(grep -F '$res->{sensorsJSONOutput}' "$NODES_PM_FILE") ]] || \
+       [[ -n $(grep -F '$res->{sensorsOutput}' "$NODES_PM_FILE") ]] || \
        [[ -n $(grep -F '$res->{systemInfo}' "$NODES_PM_FILE") ]] && \
        [[ -n $(grep -E "itemId: 'thermal[[:alnum:]]*'" "$PVE_MANAGER_LIB_JS_FILE") ]]; then
         err "Mod is already installed. Uninstall existing before installing."
@@ -1778,6 +1849,11 @@ function perform_backup {
     create_backup_directory
     create_file_backup "$NODES_PM_FILE" "$timestamp"
     create_file_backup "$PVE_MANAGER_LIB_JS_FILE" "$timestamp"
+    
+    # Backup GPU Monitor module if it exists
+    if [[ -f "$PVE_SENSOR_INFO_MOD_FILE" ]]; then
+        create_file_backup "$PVE_SENSOR_INFO_MOD_FILE" "$timestamp"
+    fi
 }
 
 # Process the arguments using a while loop and a case statement
