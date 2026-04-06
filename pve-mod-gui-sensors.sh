@@ -632,7 +632,7 @@ install_node_status_view_module() {
 // Load custom PVE.node.StatusView from external module\\
 Ext.Loader.loadScript({\\
     url: '/pve2/js/PveMod_PveNodeStatusView.js',\\
-    onLoad: function() { console.log('Loaded PveMod_PveNodeStatusView.js'); },\\
+    onLoad: function() { },\\
     onError: function() { console.error('Failed to load PveMod_PveNodeStatusView.js'); }\\
 });\\
 " "$PVE_MANAGER_LIB_JS_FILE"
