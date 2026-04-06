@@ -25,7 +25,7 @@ Ext.define('PVE.node.StatusView', {
     },
 
     items: [
-        // ========== PRIMARY KPIs (Tier 1) ==========
+        // ========== Primary Metrics ==========
         {
             xtype: 'box',
             colspan: 2,
@@ -167,7 +167,7 @@ Ext.define('PVE.node.StatusView', {
             padding: 0,
         },
         
-        // ========== SECONDARY DETAILS (Tier 2) ==========
+        // ========== Secondary Metrics ==========
         {
             xtype: 'box',
             colspan: 2,
@@ -929,30 +929,5 @@ Ext.define('PVE.node.StatusView', {
         });
 
         me.callParent();
-    },
-});
-Ext.define('PVE.node.SubscriptionKeyEdit', {
-    extend: 'Proxmox.window.Edit',
-
-    title: gettext('Upload Subscription Key'),
-    width: 350,
-
-    items: {
-        xtype: 'textfield',
-        name: 'key',
-        value: '',
-        fieldLabel: gettext('Subscription Key'),
-        labelWidth: 120,
-        getSubmitValue: function () {
-            return this.processRawValue(this.getRawValue())?.trim();
-        },
-    },
-
-    initComponent: function () {
-        var me = this;
-
-        me.callParent();
-
-        me.load();
     },
 });
