@@ -117,6 +117,7 @@ function install_packages {
 	fi
 }
 
+# Main configuration function to detect sensors and set up parameters
 function configure {
     SENSORS_DETECTED=false
     local sensorsOutput
@@ -127,7 +128,7 @@ function configure {
 
 	install_packages
 
-	#### Collect lm-sensors output ####
+	#### Collect sensor data ####
 	#region sensors collection
 	if [ "$DEBUG_REMOTE" = true ]; then
 		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
@@ -532,49 +533,19 @@ insert_node_info() {
     fi
 }
 
-# Collect lm-sensors data
+# Collect sensor data
 collect_sensors_output() {
     local output_file="$1"
-    local sensorsCmd
 
-    if [[ $DEBUG_REMOTE == true ]]; then
-        sensorsCmd="cat \"$DEBUG_JSON_FILE\""
-    else
-        # Note: sensors -f (Fahrenheit) breaks fan speeds
-        sensorsCmd="sensors -j 2>/dev/null"
-    fi
-
-	# Remember to reflect this in sanitize_sensors_output() 
-	#region sensors heredoc
+	#region PveSensorInfoMod heredoc
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
-		# Collect sensor data from lm-sensors\
-		$res->{sensorsOutput} = `'"$sensorsCmd"'`;\
-		\
-		# Sanitize JSON output to handle common lm-sensors parsing issues\
-		# Replace ERROR lines with placeholder values\
-		$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+):\\s(.+)/\\"$1\\": 0.000,/g;\
-		$res->{sensorsOutput} =~ s/ERROR:.+\\s(\\w+)!/\\"$1\\": 0.000,/g;\
-		\
-		# Remove trailing commas before closing braces\
-		$res->{sensorsOutput} =~ s/,\\s*(\})/$1/g;\
-		\
-		# Replace NaN values with null for valid JSON\
-		$res->{sensorsOutput} =~ s/\\bNaN\\b/null/g;\
-		\
-        # Fix duplicate SODIMM keys by appending temperature sensor number with a space - handle both pretty and one-line JSON\
-		# Example: "SODIMM":{"temp3_input":34.0} becomes "SODIMM 3":{"temp3_input":34.0}\
-        $res->{sensorsOutput} =~ s/"SODIMM"\\s*:\\s*\\{\\s*"temp(\\d+)_input"/"SODIMM $1": {\\n  "temp$1_input"/g;\
-		\
-		# Fix duplicate fans keys by appending fan number with a space - handle both pretty and one-line JSON\
-		# Example: "Processor Fan":{"fan2_input":1000,...} → "Processor Fan 2":{"fan2_input":1000,...}\
-		$res->{sensorsOutput} =~ s/"([^"]+)"\\s*:\\s*\{\\s*"fan(\\d+)_input"/"$1 $2": {\\n  "fan$2_input"/g;\
-		\
-		# Format JSON output properly (workaround for lm-sensors >3.6.0 issues)\
-		$res->{sensorsOutput} =~ /^(.*)$/s;\
-		$res->{sensorsOutput} = `echo \\Q$1\\E | python3 -m json.tool 2>/dev/null || echo \\Q$1\E`;\
+		# Collect sensor data from PveSensorInfoMod\
+		# Bad practice to add use here, but cleaner implementation would require several extensive modifications.\
+		use PVE::API2::GPUMonitor;\
+		$res->{sensorsJSONOutput} = PVE::API2::GPUMonitor::get_sensors_stats();\
 	' "$NODES_PM_FILE"
-	#endregion sensors heredoc
-    info "Sensors' retriever added to \"$output_file\"."
+	#endregion PveSensorInfoMod heredoc
+    info "Sensor data retriever added to \"$output_file\"."
 }
 
 # Collect UPS data
