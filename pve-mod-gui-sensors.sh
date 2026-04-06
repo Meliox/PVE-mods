@@ -39,7 +39,7 @@ JSON_EXPORT_FILENAME="sensorsdata.json"
 # File paths
 PVE_MANAGER_LIB_JS_FILE="/usr/share/pve-manager/js/pvemanagerlib.js"
 NODES_PM_FILE="/usr/share/perl5/PVE/API2/Nodes.pm"
-PVE_SENSOR_INFO_MOD_FILE="/usr/share/perl5/PVE/API2/PveSensorInfoMod.pm"
+PVE_SENSOR_INFO_MOD_FILE="/usr/share/perl5/PVE/API2/PveMod_SensorInfo.pm"
 
 #region message tools
 # Section header (bold)
@@ -479,6 +479,8 @@ function install_mod {
     msgb "\n=== Installing sensor info module ==="
 	install_sensor_monitor_module
 	insert_sensor_monitor_into_pve
+
+	exit
 
     #### Temperature helper parameters ####
     msgb "\n=== Creating temperature conversion helper ==="

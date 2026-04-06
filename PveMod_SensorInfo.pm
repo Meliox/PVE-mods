@@ -9,7 +9,7 @@ use Fcntl qw(:flock O_CREAT O_EXCL O_WRONLY);
 use File::Path qw(remove_tree);
 
 # debug configuration - set to 0 to disable all _debug output
-my $debug_ENABLED = 1;
+my $DEBUG_ENABLED = 1;
 my $VERSION = '1.0.0';
 
 # ============================================================================
@@ -72,7 +72,7 @@ my %collectors = ();  # key: device/card name, value: PID
 # debug function showing line number and call chain
 # Usage: _debug(__LINE__, "message")
 sub _debug {
-    return unless $debug_ENABLED;
+    return unless $DEBUG_ENABLED;
     
     my ($line, $message) = @_;
     
