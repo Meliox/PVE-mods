@@ -503,6 +503,11 @@ function install_mod {
 	## Historical GPU data ##
 	if [[ "$ENABLE_GPU_HISTORY" == true ]]; then
 		install_gpu_history
+
+		# todo 
+
+		# add nodes.pm index list — add gpumeta after gpurrddata:
+
 	fi
 
     #### Install UI modification module ####

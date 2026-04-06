@@ -55,6 +55,8 @@ my $sensors_state_file = "$pve_mod_working_dir/sensors.json";
 my $ups_state_file = "$pve_mod_working_dir/ups.json";
 my $pve_mod_worker_lock = "$pve_mod_working_dir/pve_mod_worker.lock";
 my $startup_lock = "$pve_mod_working_dir/startup.lock";
+my $RRD_SOCKET = '/var/run/rrdcached.sock';
+my $RRD_BASE   = '/var/lib/rrdcached/db/pve-mod-gpu';
 
 # Runtime state variables
 my $process_type = 'main';  # 'main', 'worker', or 'collector'
@@ -523,9 +525,6 @@ sub _collector_for_intel_device {
 # ============================================================================
 # RRD Support for GPU metrics
 # ============================================================================
-
-my $RRD_SOCKET = '/var/run/rrdcached.sock';
-my $RRD_BASE   = '/var/lib/rrdcached/db/pve-mod-gpu';
 
 sub _get_nodename {
     return PVE::INotify::nodename();
