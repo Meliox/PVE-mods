@@ -4,14 +4,6 @@
 #
 
 ################### Configuration #############
-
-# Display configuration for HDD, NVME, CPU
-# Set to 0 to disable line breaks
-# Note: use these settings only if the displayed layout is broken
-CPU_ITEMS_PER_ROW=0
-NVME_ITEMS_PER_ROW=0
-HDD_ITEMS_PER_ROW=0
-
 # Known CPU sensor names. They can be full or partial but should ensure unambiguous identification.
 # Should new ones be added, also update logic in configure() function.
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
