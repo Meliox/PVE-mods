@@ -1,4 +1,4 @@
-package PVE::API2::GPUMonitor;
+package PVE::API2::PVEMod_SensorInfo;
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use File::Path qw(remove_tree);
 
 # debug configuration - set to 0 to disable all _debug output
 my $DEBUG_ENABLED = 1;
-my $VERSION = '1.0.0';
+my $VERSION = '1.0';
 
 # ============================================================================
 # Configuration

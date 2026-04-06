@@ -9,7 +9,7 @@
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
 
 # Overwrite default backup location
-BACKUP_DIR=""
+BACKUP_DIR="/root/PVE-MOD2/Backup"
 
 ##################### DO NOT EDIT BELOW #######################
 # Only to be used to debug on other systems. Save the "sensor -j" output into a json file.
@@ -475,6 +475,7 @@ function install_mod {
     msgb "\n=== Installing sensor info module ==="
 	install_sensor_monitor_module
 	insert_sensor_monitor_into_pve
+	insert_system_info_into_pve
 
     #### Install UI modification module ####
     msgb "\n=== Installing UI modification module ==="
@@ -567,22 +568,22 @@ insert_sensor_monitor_into_pve() {
 	sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
 		# Collect sensor data from PveMod_SensorInfo\
 		# Bad practice to add use here, but cleaner implementation would require several extensive modifications.\
-		use PVE::API2::PveMod_SensorInfo;\
-		$res->{sensorsJSONOutput} = PVE::API2::PveMod_SensorInfo::get_sensors_stats();\
+		use PVE::API2::PVEMod_SensorInfo;\
+		$res->{pveMod_sensorInfo_json} = PVE::API2::PVEMod_SensorInfo::get_sensors_stats();\
+		$res->{pveMod_sensorInfo_version} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\
 	' "$NODES_PM_FILE"
 	#endregion PveSensorInfoMod heredoc
     info "Sensor data retriever added to \"$NODES_PM_FILE\"."
-
-	# Add system information if enabled
-	if [[ $ENABLE_SYSTEM_INFO == true ]]; then
-		collect_system_info "$NODES_PM_FILE"
-	fi
 }
 
 # Collect system information
-collect_system_info() {
+insert_system_info_into_pve() {
     local output_file="$1"
     local systemInfoCmd
+
+	if [[ $ENABLE_SYSTEM_INFO == false ]]; then
+		return
+	fi
 
     systemInfoCmd=$(dmidecode -t "${SYSTEM_INFO_TYPE}" \
         | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' \
@@ -593,7 +594,7 @@ collect_system_info() {
 	#region system info heredoc
 	sed -i "/my \$dinfo = df('\/', 1);/i\\
 		# Add system information to response\\
-		\$res->{systemInfo} = \"$(echo "$systemInfoCmd")\";\\
+		\$res->{pveMod_sensorInfo_systemInfo} = \"$(echo "$systemInfoCmd")\";\\
 " "$NODES_PM_FILE"
 	#endregion system info heredoc
     info "System information retriever added to \"$output_file\"."
@@ -647,7 +648,7 @@ function uninstall_mod {
 
 	check_root_privileges
 
-	if [[ -z $(grep -e "\$res->{sensorsOutput}" "$NODES_PM_FILE") ]] && [[ -z $(grep -e "\$res->{systemInfo}" "$NODES_PM_FILE") ]]; then
+	if [[ -z $(grep -e "\$res->{PveMod_SensorInfo_JSON}" "$NODES_PM_FILE") ]] && [[ -z $(grep -e "\$res->{systemInfo}" "$NODES_PM_FILE") ]]; then
 		err "Mod is not installed."
 	fi
 
@@ -715,9 +716,8 @@ function uninstall_mod {
 # Function to check if the modification is installed
 check_mod_installation() {
     if [[ -n $(grep -F 'use PVE::API2::PveMod_SensorInfo' "$NODES_PM_FILE") ]] || \
-       [[ -n $(grep -F 'use PVE::API2::GPUMonitor' "$NODES_PM_FILE") ]] || \
+       [[ -n $(grep -F 'use PVE::API2::PVEMod_SensorInfo' "$NODES_PM_FILE") ]] || \
        [[ -n $(grep -F '$res->{sensorsJSONOutput}' "$NODES_PM_FILE") ]] || \
-       [[ -n $(grep -F '$res->{sensorsOutput}' "$NODES_PM_FILE") ]] || \
        [[ -n $(grep -F '$res->{systemInfo}' "$NODES_PM_FILE") ]] || \
        [[ -f "$PVE_MOD_JS_TARGET_FILE" ]]; then
         err "Mod is already installed. Uninstall existing before installing."

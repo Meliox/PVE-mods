@@ -279,7 +279,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
-            textField: 'sensorsOutput',
+            textField: 'pveMod_sensorInfo_json',
             renderer: function(value){
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
@@ -564,7 +564,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'sensorsOutput',
+			textField: 'pveMod_sensorInfo_json',
 			renderer: function(value) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
@@ -649,7 +649,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'sensorsOutput',
+            textField: 'pveMod_sensorInfo_json',
             renderer: function(value) {
                 // ---
                 let objValue;
@@ -985,7 +985,7 @@ Ext.define('PVE.node.StatusView', {
             colspan: 2,
             printBar: false,
             title: gettext('Sensor Mod Version'),
-            textField: 'pveModVersion',
+            textField: 'pveMod_sensorInfo_version',
             value: '',
         },
         {
@@ -993,7 +993,7 @@ Ext.define('PVE.node.StatusView', {
 			colspan: 2,
 			printBar: false,
 			title: gettext('Information'),
-			textField: 'systemInfo',
+			textField: 'pveMod_sensorInfo_systemInfo',
             renderer: function(value) {
                 if (value === null || value === undefined) {
                     return '';
