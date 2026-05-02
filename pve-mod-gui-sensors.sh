@@ -239,6 +239,25 @@ function configure {
     fi
 	#endregion nvme setup
 
+    #### NVIDIA GPU ####
+    #region gpu setup
+    msgb "\n=== Detecting NVIDIA GPUs ==="
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        local gpuList=($(nvidia-smi --query-gpu=index,name --format=csv,noheader 2>/dev/null | sed 's/, /,/' | sed 's/ /_/g'))
+        if [ ${#gpuList[@]} -gt 0 ]; then
+            info "Detected NVIDIA GPUs (${#gpuList[@]}): $(IFS=,; echo "${gpuList[*]}")"
+            ENABLE_GPU_TEMP=true
+            SENSORS_DETECTED=true
+        else
+            warn "nvidia-smi found but no GPUs detected."
+            ENABLE_GPU_TEMP=false
+        fi
+    else
+        warn "nvidia-smi not present, skipping NVIDIA GPU detection."
+        ENABLE_GPU_TEMP=false
+    fi
+    #endregion gpu setup
+
 	#### Fans ####
 	#region fan setup
 	msgb "\n=== Detecting fan speed sensors ==="
@@ -416,6 +435,7 @@ function install_mod {
     fi
 
     generate_and_insert_widget "$ENABLE_FAN_SPEED" "generate_fan_widget" "fan"
+    generate_and_insert_widget "$ENABLE_GPU_TEMP" "generate_gpu_widget" "gpu"
     generate_and_insert_widget "$ENABLE_RAM_TEMP" "generate_ram_widget" "ram"
     generate_and_insert_widget "$ENABLE_CPU" "generate_cpu_widget" "cpu"
 
@@ -520,6 +540,30 @@ collect_sensors_output() {
 		$res->{sensorsOutput} = `echo \\Q$1\\E | python3 -m json.tool 2>/dev/null || echo \\Q$1\E`;\
 	' "$NODES_PM_FILE"
 	#endregion sensors heredoc
+
+	# NVIDIA GPU temps — separate sed block so it can be enabled independently.
+	if [ "$ENABLE_GPU_TEMP" = true ]; then
+		#region gpu heredoc
+		sed -i '/my \$dinfo = df('\''\/'\'', 1);/i\
+		# Add NVIDIA GPU temperatures (injected by pve-mod-gui-sensors.sh)\
+		my $gpu_out = `nvidia-smi --query-gpu=index,name,temperature.gpu --format=csv,noheader 2>/dev/null`;\
+		if ($gpu_out) {\
+			my $gpu_json = "";\
+			for my $line (split /\\n/, $gpu_out) {\
+				$line =~ s/^\\s+|\\s+$//g;\
+				next unless $line;\
+				my ($idx, $name, $temp) = split /,\\s*/, $line;\
+				$name =~ s/NVIDIA GeForce //;\
+				$gpu_json .= "\\"GPU$idx $name\\": {\\"Adapter\\": \\"NVIDIA\\", \\"GPU Core\\": {\\"temp1_input\\": $temp.0}},\\n";\
+			}\
+			if ($gpu_json) {\
+				$res->{sensorsOutput} =~ s/^\\s*\\{/\\{$gpu_json/;\
+			}\
+		}\
+		' "$NODES_PM_FILE"
+		#endregion gpu heredoc
+		info "GPU temperature retriever added to \"$NODES_PM_FILE\"."
+	fi
     info "Sensors' retriever added to \"$output_file\"."
 }
 
@@ -700,6 +744,8 @@ add_visual_separator() {
 
     if [ "$ENABLE_UPS" = true ]; then
         lastItemId="upsc"
+    elif [ "$ENABLE_GPU_TEMP" = true ]; then
+        lastItemId="thermalGpu"
     elif [ "$ENABLE_HDD_TEMP" = true ]; then
         lastItemId="thermalHdd"
     elif [ "$ENABLE_NVME_TEMP" = true ]; then
@@ -1109,6 +1155,57 @@ EOF
         echo "Error: Failed to generate nvme widget code" >&2
         exit 1
     fi
+}
+
+# Function to generate NVIDIA GPU widget
+generate_gpu_widget() {
+	#region gpu widget heredoc
+	(
+		export HELPERCTORPARAMS
+		cat <<'EOF' | envsubst '$HELPERCTORPARAMS' > "$1"
+		{
+			itemId: 'thermalGpu',
+			colspan: 2,
+			printBar: false,
+			title: gettext('GPU Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				const tempHelper = Ext.create('PVE.mod.TempHelper', $HELPERCTORPARAMS);
+				let objValue;
+				try { objValue = JSON.parse(value) || {}; } catch(e) { objValue = {}; }
+				const gpuKeys = Object.keys(objValue).filter(item => String(item).startsWith('GPU')).sort();
+				if (gpuKeys.length === 0) return 'N/A';
+				let temps = [];
+				gpuKeys.forEach((gpuKey) => {
+					try {
+						const gpuData = objValue[gpuKey];
+						const coreKeys = Object.keys(gpuData).filter(k => k !== 'Adapter');
+						coreKeys.forEach((coreKey) => {
+							let tempVal = NaN;
+							Object.keys(gpuData[coreKey]).forEach((secondKey) => {
+								if (secondKey.endsWith('_input')) {
+									tempVal = tempHelper.getTemp(parseFloat(gpuData[coreKey][secondKey]));
+								}
+							});
+							if (!isNaN(tempVal)) {
+								const tempStyle = tempVal >= 85 ? 'color: #FFC300; font-weight: bold;' : tempVal >= 95 ? 'color: red; font-weight: bold;' : '';
+								temps.push(`${gpuKey}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0')}${tempHelper.getUnit()}</span>`);
+							}
+						});
+					} catch(e) { /*_*/ }
+				});
+				const result = temps.join('&nbsp;| ');
+				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result : 'N/A') + '</div>';
+			}
+		},
+EOF
+	)
+	#endregion gpu widget heredoc
+	if [[ $? -ne 0 ]]; then
+		echo "Error: Failed to generate gpu widget code" >&2
+		exit 1
+	fi
 }
 
 # Function to generate Fan widget
