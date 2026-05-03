@@ -1,3 +1,9 @@
+> **🍴 Fork notice** — this is a downstream fork of [Meliox/PVE-mods](https://github.com/Meliox/PVE-mods).
+> Default branch [`feature/nvidia-gpu-temps`](https://github.com/svilendotorg/PVE-mods/tree/feature/nvidia-gpu-temps) adds NVIDIA GPU temperature support to `pve-mod-gui-sensors.sh` (sensor-JSON injection + `thermalGpu` ExtJS widget on the node summary).
+> See [**IMPROVEMENTS.md**](IMPROVEMENTS.md) for the full list of downstream changes and rationale.
+
+---
+
 # Proxmox Virtual Environment mods and scripts
 A small collection of scripts and mods for Proxmox Virtual Environment (PVE)
 
