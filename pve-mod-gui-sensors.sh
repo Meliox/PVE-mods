@@ -1218,7 +1218,7 @@ generate_hdd_widget() {
 				} catch(e) {
 					objValue = {};
 				}
-				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
+				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let temps = [];
 				drvKeys.forEach((drvKey, index) => {
 					try {
