@@ -1,0 +1,33 @@
+# Action when lm_sensors not installed
+# y - install required packages
+# n - skip installation
+CONFIG_INSTALL_LM_SENSORS=""
+
+# CPU temperature(s)
+# c - show temperatures for every cores
+# a - show average temperature per CPU
+CONFIG_CPU_TEMP_MODE=""
+
+# Fan speed(s)
+# y - show active and inactive fans
+# n - show only active fans
+CONFIG_FAN_ZERO_SPEED_DISPLAY=""
+
+# Temperature unit
+# c - Celsius
+# f - Fahrenheit
+CONFIG_TEMP_UNIT=""
+
+# UPS information
+# y - show UPS information
+# n - ignore UPS information
+CONFIG_UPS_SHOW_INFO=""
+
+# UPS connection, e.g.: upsname[@hostname[:port]]
+CONFIG_UPS_CONNECTION=""
+
+# System information
+# n - ignore system information
+# 1 - show system information
+# 2 - show motherboard information
+CONFIG_SYSINFO_DISPLAY_MODE=""
