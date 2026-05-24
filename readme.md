@@ -5,7 +5,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 
 ## Node sensor readings view
 Compatibility:
-- 9.2. Newer versions may often work
+- 9.0-9.2. Newer versions may often work
 - Older version (7.x-8.x), use git version from Apr 6th 2025
 ![Promxox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
