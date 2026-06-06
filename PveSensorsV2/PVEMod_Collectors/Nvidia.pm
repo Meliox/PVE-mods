@@ -20,12 +20,6 @@ our @EXPORT_OK = qw(
 sub get_nvidia_gpu_devices {
     my @devices = ();
 
-    unless (check_executable('/usr/bin/nvidia-smi', 'NVIDIA',
-                              $config{debug}{nvidia_mode},
-                              $config{debug}{nvidia_devices_file})) {
-        return @devices;
-    }
-
     if ($config{debug}{nvidia_mode} && -f $config{debug}{nvidia_devices_file}) {
         debug(__LINE__, "Debug mode: reading NVIDIA GPU devices from $config{debug}{nvidia_devices_file}");
         if (open my $fh, '<', $config{debug}{nvidia_devices_file}) {

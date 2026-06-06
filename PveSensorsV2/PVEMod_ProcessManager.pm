@@ -281,59 +281,42 @@ sub _start_graphics_collectors {
     debug(__LINE__, "Starting graphics collectors");
 
     my (@all_devices, @all_types, @all_collector_subs);
+    my @nvidia_devices;
 
-    # Intel
-    if ($config{gpu}{intel_enabled}) {
-        debug(__LINE__, "Intel GPU support enabled");
-        return unless check_executable('/usr/bin/intel_gpu_top', 'Intel');
-
+    # Intel (each GPU has its own collector)
+    if ($config{gpu}{intel_enabled} && check_executable('/usr/bin/intel_gpu_top', 'Intel')) {
         my @intel_devices = get_intel_gpu_devices();
-        if (@intel_devices) {
-            debug(__LINE__, "Found " . scalar(@intel_devices) . " Intel GPU device(s)");
-            for my $device (@intel_devices) {
-                push @all_devices,       $device;
-                push @all_types,         'intel';
-                push @all_collector_subs, \&collector_for_intel_device;
-            }
-        } else {
-            debug(__LINE__, "No Intel GPU devices found");
+        for my $device (@intel_devices) {
+            push @all_devices,        $device;
+            push @all_types,          'intel';
+            push @all_collector_subs, \&collector_for_intel_device;
         }
     }
 
-    # AMD (future)
-    if ($config{gpu}{amd_enabled}) {
-        debug(__LINE__, "AMD GPU support enabled");
-        return unless check_executable('/usr/bin/rocm-smi', 'AMD');
-
+    # AMD (each GPU has its own collector)
+    if ($config{gpu}{amd_enabled} && check_executable('/usr/bin/rocm-smi', 'AMD')) {
         my @amd_devices = get_amd_gpu_devices();
-        debug(__LINE__, "Got " . scalar(@amd_devices) . " AMD devices");
         for my $device (@amd_devices) {
-            push @all_devices,       $device;
-            push @all_types,         'amd';
+            push @all_devices,        $device;
+            push @all_types,          'amd';
             push @all_collector_subs, \&collector_for_amd_device;
         }
     }
 
+    # NVIDIA (all GPUs collected together in one collector due to nvidia-smi design)
+    if ($config{gpu}{nvidia_enabled} && check_executable('/usr/bin/nvidia-smi', 'NVIDIA')) {
+        @nvidia_devices = get_nvidia_gpu_devices();
+    }
+
     debug(__LINE__,
-        "Finished detecting devices. Total Intel/AMD collectors to manage: "
-        . scalar(@all_devices));
+        "Detected: "
+        . scalar(grep { $_ eq 'intel' } @all_types) . " Intel, "
+        . scalar(grep { $_ eq 'amd' }   @all_types) . " AMD, "
+        . scalar(@nvidia_devices) . " NVIDIA");
 
     my $started_count = 0;
 
-    # NVIDIA — single collector for all GPUs
-    if ($config{gpu}{nvidia_enabled}) {
-        debug(__LINE__, "NVIDIA GPU support enabled");
-        my @nvidia_devices = get_nvidia_gpu_devices();
-        debug(__LINE__, "Got " . scalar(@nvidia_devices) . " NVIDIA devices");
-
-        if (@nvidia_devices) {
-            my $pid = _start_collector('nvidia-all', 'nvidia',
-                                       \&collector_for_nvidia_devices,
-                                       \@nvidia_devices);
-            $started_count++ if $pid;
-        }
-    }
-
+    # Start individual collectors for Intel and AMD devices
     for (my $i = 0; $i < @all_devices; $i++) {
         my $device        = $all_devices[$i];
         my $type          = $all_types[$i];
@@ -344,8 +327,16 @@ sub _start_graphics_collectors {
         $started_count++ if $pid;
     }
 
+    # NVIDIA — single collector for all GPUs
+    if (@nvidia_devices) {
+        my $pid = _start_collector('nvidia-all', 'nvidia',
+                                   \&collector_for_nvidia_devices,
+                                   \@nvidia_devices);
+        $started_count++ if $pid;
+    }
+
     debug(__LINE__,
-        "Started/verified $started_count graphics collector(s) (Intel/AMD)");
+        "Started/verified $started_count graphics collector(s)");
 }
 
 # ============================================================================
