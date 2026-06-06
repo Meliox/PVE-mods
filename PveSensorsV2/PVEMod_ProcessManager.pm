@@ -40,7 +40,7 @@ my %collectors = ();
 # Ensures the worker is running.  Starts it if necessary (double-checked locking).
 sub pve_mod_starter {
     debug(__LINE__, "Checking if pve_mod_worker is already running");
-    if (_is_pve_mod_worker_running()) {
+    if (_worker_lock_file_exists()) {
         debug(__LINE__, "pve_mod_worker process already running, system is already started");
         return "pve_mod_worker process already running, system is already started";
     }
@@ -54,7 +54,7 @@ sub pve_mod_starter {
     return unless $startup_fh;
 
     # Second check after acquiring lock
-    if (_is_pve_mod_worker_running()) {
+    if (_worker_lock_file_exists()) {
         debug(__LINE__, "Worker started by another process while we waited for lock");
         close($startup_fh);
         unlink($startup_lock);
@@ -111,7 +111,7 @@ sub notify_pve_mod_worker {
 # Worker process management
 # ============================================================================
 
-sub _is_pve_mod_worker_running {
+sub _worker_lock_file_exists {
     return -f $pve_mod_worker_lock;
 }
 
