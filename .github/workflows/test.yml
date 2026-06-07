@@ -1,0 +1,26 @@
+# .github/workflows/test.yml
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: sudo apt-get install -y devscripts debhelper
+      - name: Build package
+        run: make build
+      - name: Verify package
+        run: dpkg-deb --info *.deb && dpkg-deb --contents *.deb
+      - name: Test install
+        run: |
+          # Mock the system files the patches target
+          mkdir -p /usr/share/perl5/PVE/API2
+          cp tests/mock/Nodes.pm /usr/share/perl5/PVE/API2/Nodes.pm
+          dpkg -i *.deb
+          # Verify patches were applied
+          grep -q 'PVEMod_SensorInfo' /usr/share/perl5/PVE/API2/Nodes.pm \
+            || (echo "Patch not applied" && exit 1)
