@@ -45,7 +45,7 @@ Instructions be performed as 'root', as normal users do not have access to the f
 apt-get install lm-sensors
 # lm-sensors must be configured, run below to configure your sensors, apply temperature offsets. Refer to lm-sensors manual for more information.
 sensors-detect 
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/Scripts/pve-mod-gui-sensors.sh
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/src/Scripts/pve-mod-gui-sensors.sh
 bash pve-mod-gui-sensors.sh install
 # Then clear the browser cache to ensure all changes are visualized.
 ```
@@ -68,7 +68,7 @@ The script provides three options:
 ### Install
 Instructions be performed as 'root', as normal users do not have access to the files.
 ```
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/Scripts/pve-mod-nag-screen.sh
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/src/Scripts/pve-mod-nag-screen.sh
 bash pve-mod-nag-screen.sh install
 ```
 
@@ -81,7 +81,7 @@ Each container's log file is stored in $log_path and the main script log file is
 
 ### Install
 ```
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/Scripts/updateallcontainers.sh
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/src/Scripts/updateallcontainers.sh
 ```
 Or use git clone.
 Can be added to cron for e.g. monthly update: ```0 6 1 * * /root/scripts/updateallcontainers.sh```
