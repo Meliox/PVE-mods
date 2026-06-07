@@ -44,6 +44,6 @@ jobs:
       - name: Upload deb as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-build-deb
+          name: pvemod-test-build-${{ github.sha }}
           path: artifacts/*.deb
           retention-days: 3
