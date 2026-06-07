@@ -6,7 +6,6 @@ name: Build and Release
 on:
   push:
     branches:
-      - deb-installer        
       - main
     paths:
       - 'debian/changelog'
