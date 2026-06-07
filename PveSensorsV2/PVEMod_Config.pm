@@ -38,12 +38,21 @@ our %config = (
         nvidia_mode         => 1,
         nvidia_devices_file => '/tmp/nvidia-smi-devices.csv',
         nvidia_output_file  => '/tmp/nvidia-smi-output.csv',
-        sensors_mode        => 0,
-        sensors_output_file => '/tmp/sensors-output.json',
+        intel_mode          => 0,
+        intel_devices_file  => '/tmp/intel-gpu-devices.json',
+        amd_mode            => 0,
+        amd_devices_file    => '/tmp/amd-gpu-devices.json',
+        ups_mode            => 0,
+        ups_output_file     => '/tmp/ups-output.json',
+        lm_sensors_mode        => 0,
+        lm_sensors_output_file => '/tmp/sensors-output.json',
     },
     intervals => {
         data_pull         => 1,          # seconds between data pulls
         collector_timeout => 10,         # stop collectors after N seconds of inactivity
+    },
+    lm_sensors => {
+        enabled => 1,
     },
     ups => {
         enabled     => 1,

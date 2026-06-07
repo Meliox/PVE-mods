@@ -234,38 +234,27 @@ sub _pve_mod_keep_alive {
 # ============================================================================
 
 sub _start_sensors_collector {
-    debug(__LINE__, "Starting temperature sensor collector");
+    return unless $config{lm_sensors}{enabled};
+    return unless check_executable('/usr/bin/sensors', 'lm-sensors',
+                                   $config{debug}{lm_sensors_mode},
+                                   $config{debug}{lm_sensors_output_file});
 
-    unless (check_executable('/usr/bin/sensors', 'lm-sensors',
-                              $config{debug}{sensors_mode},
-                              $config{debug}{sensors_output_file})) {
-        debug(__LINE__, "sensors not available and not in debug mode, skipping");
-        return;
-    }
-
+    debug(__LINE__, "Starting lm-sensors collector");
     _start_collector('sensors', 'sensors',
                      \&collector_for_temperature_sensors,
                      { name => 'sensors' });
 }
 
 sub _start_ups_collector {
-    unless ($config{ups}{enabled}) {
-        debug(__LINE__, "UPS support not enabled, skipping collector startup");
+    unless ($config{ups}{enabled} && $config{ups}{device_name}) {
+        debug(__LINE__, "UPS collection disabled/invalid in config, skipping");
         return;
     }
+    return unless check_executable('/usr/bin/upsc', 'UPS',
+                                   $config{debug}{ups_mode},
+                                   $config{debug}{ups_output_file});
 
-    debug(__LINE__, "Starting UPS collector");
-
-    unless (check_executable('/usr/bin/upsc', 'UPS')) {
-        debug(__LINE__, "upsc not available, skipping UPS collector startup");
-        return;
-    }
-
-    unless ($config{ups}{device_name}) {
-        debug(__LINE__, "No UPS configured, skipping collector startup");
-        return;
-    }
-
+    debug(__LINE__, "Starting UPS collector: $config{ups}{device_name}");
     _start_collector('ups', 'ups', \&collector_for_ups,
                      { ups_name => $config{ups}{device_name} });
 }
@@ -284,7 +273,9 @@ sub _start_graphics_collectors {
     my @nvidia_devices;
 
     # Intel (each GPU has its own collector)
-    if ($config{gpu}{intel_enabled} && check_executable('/usr/bin/intel_gpu_top', 'Intel')) {
+    if ($config{gpu}{intel_enabled} && check_executable('/usr/bin/intel_gpu_top', 'Intel',
+                                                        $config{debug}{intel_mode},
+                                                        $config{debug}{intel_devices_file})) {
         my @intel_devices = get_intel_gpu_devices();
         for my $device (@intel_devices) {
             push @all_devices,        $device;
@@ -294,7 +285,9 @@ sub _start_graphics_collectors {
     }
 
     # AMD (each GPU has its own collector)
-    if ($config{gpu}{amd_enabled} && check_executable('/usr/bin/rocm-smi', 'AMD')) {
+    if ($config{gpu}{amd_enabled} && check_executable('/usr/bin/rocm-smi', 'AMD',
+                                                      $config{debug}{amd_mode},
+                                                      $config{debug}{amd_devices_file})) {
         my @amd_devices = get_amd_gpu_devices();
         for my $device (@amd_devices) {
             push @all_devices,        $device;
@@ -304,7 +297,9 @@ sub _start_graphics_collectors {
     }
 
     # NVIDIA (all GPUs collected together in one collector due to nvidia-smi design)
-    if ($config{gpu}{nvidia_enabled} && check_executable('/usr/bin/nvidia-smi', 'NVIDIA')) {
+    if ($config{gpu}{nvidia_enabled} && check_executable('/usr/bin/nvidia-smi', 'NVIDIA',
+                                                         $config{debug}{nvidia_mode},
+                                                         $config{debug}{nvidia_devices_file})) {
         @nvidia_devices = get_nvidia_gpu_devices();
     }
 

@@ -21,16 +21,6 @@ sub collector_for_temperature_sensors {
     my ($device) = @_;
     $process_type = 'collector';
     $0 = "collector-temperature-sensors";
-
-    debug(__LINE__, "Temperature sensor collector started");
-
-    unless (check_executable('/usr/bin/sensors', 'lm-sensors',
-                              $config{debug}{sensors_mode},
-                              $config{debug}{sensors_output_file})) {
-        debug(__LINE__, "sensors not available and not in debug mode, exiting");
-        exit(1);
-    }
-
     my %cache;
     my $shutdown = 0;
     setup_collector_signals('temperature-sensors', \$shutdown);
@@ -65,39 +55,39 @@ sub _get_temperature_sensors {
 
     my $sensors_output;
 
-    if ($config{debug}{sensors_mode} && -f $config{debug}{sensors_output_file}) {
-        debug(__LINE__, "Debug mode: reading sensors data from $config{debug}{sensors_output_file}");
-        if (open my $fh, '<', $config{debug}{sensors_output_file}) {
+    if ($config{debug}{lm_sensors_mode} && -f $config{debug}{lm_sensors_output_file}) {
+        debug(__LINE__, "Debug mode: reading lm-sensors data from $config{debug}{lm_sensors_output_file}");
+        if (open my $fh, '<', $config{debug}{lm_sensors_output_file}) {
             local $/;
             $sensors_output = <$fh>;
             close $fh;
-            debug(__LINE__, "Read sensors data from debug file, length: "
+            debug(__LINE__, "Read lm-sensors data from debug file, length: "
                              . length($sensors_output) . " bytes");
         } else {
-            debug(__LINE__, "Failed to open debug file $config{debug}{sensors_output_file}: $!");
+            debug(__LINE__, "Failed to open debug file $config{debug}{lm_sensors_output_file}: $!");
             $sensors_output = '{}';
         }
     } else {
         $sensors_output = `sensors -j 2>/dev/null | python3 -m json.tool`;
-        debug(__LINE__, "Raw sensors output collected from command");
+        debug(__LINE__, "Raw lm-sensors output collected from command");
     }
 
-    debug(__LINE__, "Raw sensors output collected");
+    debug(__LINE__, "Raw lm-sensors output collected");
 
     my $data = _sanitize_sensors($sensors_output);
-    debug(__LINE__, "Sanitized sensors output");
+    debug(__LINE__, "Sanitized lm-sensors output");
 
     $data = _get_drive_names($data, $cache_ref);
-    debug(__LINE__, "Translated drive names in sensors output");
+    debug(__LINE__, "Translated drive names in lm-sensors output");
 
     $data = _get_cpu_name($data, $cache_ref);
-    debug(__LINE__, "Translated CPU names in sensors output");
+    debug(__LINE__, "Translated CPU names in lm-sensors output");
 
     # Wrap in top-level key
     my $sensors_json;
     eval { $sensors_json = decode_json($data); };
     if ($@) {
-        debug(__LINE__, "Failed to parse final sensors JSON: $@");
+        debug(__LINE__, "Failed to parse final lm-sensors JSON: $@");
         return $data;
     }
 
@@ -126,7 +116,7 @@ sub _sanitize_sensors {
 }
 
 # ============================================================================
-# Enrich sensors data with drive device info
+# Enrich lm-sensors data with drive device info
 # ============================================================================
 
 sub _get_drive_names {
@@ -144,7 +134,7 @@ sub _get_drive_names {
         /^drivetemp-scsi-/ || /^drivetemp-nvme-/ || /^nvme-pci-/
     } keys %{$sensors_data};
 
-    debug(__LINE__, "Found " . scalar(@entries) . " drive entries in sensors output");
+    debug(__LINE__, "Found " . scalar(@entries) . " drive entries in lm-sensors output");
 
     my @drive_names;
 
@@ -282,7 +272,7 @@ sub _get_drive_names {
 }
 
 # ============================================================================
-# Enrich sensors data with CPU model info
+# Enrich lm-sensors data with CPU model info
 # ============================================================================
 
 sub _get_cpu_name {
