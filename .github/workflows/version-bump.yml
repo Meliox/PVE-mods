@@ -1,9 +1,10 @@
 name: Version Bump
 
 # Triggered when the chore/version-bump PR is merged to main.
-# Reads the bump:patch / bump:minor / bump:major label to determine
-# the version increment, updates debian/changelog, and commits it.
-# release.yml then picks up the changelog change and builds the release.
+# Reads the bump:patch / bump:minor / bump:major label from the merged PR.
+# Updates debian/changelog and commits to main.
+# Cleans up the CHANGES.md accumulator file in the same commit.
+# release.yml picks up the changelog change and builds the release.
 
 on:
   pull_request:
@@ -31,7 +32,7 @@ jobs:
       - name: Determine bump type from PR label
         id: bump_type
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
@@ -67,15 +68,11 @@ jobs:
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"         >> "$GITHUB_OUTPUT"
 
-      - name: Collect src/ commits since last tag
+      - name: Collect accumulated changes
         id: commits
         run: |
-          LAST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
-          if [[ -n "$LAST_TAG" ]]; then
-            LOG=$(git log "${LAST_TAG}..HEAD" --oneline -- src/ | head -50)
-          else
-            LOG=$(git log --oneline -- src/ | head -50)
-          fi
+          # Read from the CHANGES.md that was merged in
+          LOG=$(cat .github/version-bump/CHANGES.md 2>/dev/null || true)
           EOF=$(openssl rand -hex 16)
           echo "log<<$EOF" >> "$GITHUB_OUTPUT"
           echo "$LOG"      >> "$GITHUB_OUTPUT"
@@ -84,7 +81,7 @@ jobs:
       - name: Prepend new changelog entry
         env:
           NEW_VERSION: ${{ steps.version.outputs.new }}
-          COMMITS: ${{ steps.commits.outputs.log }}
+          COMMITS:     ${{ steps.commits.outputs.log }}
         run: |
           DATE=$(date -R)
           {
@@ -101,12 +98,13 @@ jobs:
           } > debian/changelog.new
           mv debian/changelog.new debian/changelog
 
-      - name: Commit and push changelog
+      - name: Commit changelog and clean up accumulator
         env:
           NEW_VERSION: ${{ steps.version.outputs.new }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add debian/changelog
+          git rm --ignore-unmatch .github/version-bump/CHANGES.md
           git commit -m "Release v${NEW_VERSION}"
           git push
