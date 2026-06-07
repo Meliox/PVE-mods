@@ -4,11 +4,7 @@ name: Build and Release
 # (detected by a push to main that changes debian/changelog).
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'debian/changelog'
+  workflow_dispatch:
 
 permissions:
   contents: write

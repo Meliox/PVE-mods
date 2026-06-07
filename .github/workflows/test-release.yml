@@ -4,8 +4,6 @@ name: Test Release Build
 
 on:
   push:
-    branches:
-      - deb-installer
   workflow_dispatch:
 
 jobs:
