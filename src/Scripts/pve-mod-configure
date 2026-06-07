@@ -7,7 +7,6 @@
 set -euo pipefail
 
 CONF_FILE="/etc/pve-mod/pve-mod.conf"
-APT_HOOK_FILE="/etc/apt/apt.conf.d/99-pve-mod"
 APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
@@ -317,8 +316,8 @@ device_name=${UPS_DEVICE_NAME}
 enabled=${ENABLE_SYSTEM_INFO}
 type=${SYSTEM_INFO_TYPE}
 
-[apt_hook]
-enabled=${APT_HOOK_ENABLED}
+[pve_trigger]
+enabled=${PVE_TRIGGER_ENABLED}
 
 [service]
 mode=embedded
@@ -326,35 +325,6 @@ EOF
     info "Configuration saved to $CONF_FILE"
 }
 #endregion write config
-
-#region apt hook
-configure_apt_hook() {
-    msgb "\n=== Automatic Re-patching (apt hook) ==="
-    echo "After a Proxmox upgrade, patched files (Nodes.pm, pvemanagerlib.js) may be"
-    echo "overwritten. An apt hook can re-apply patches automatically after every apt run."
-    echo "Enabling may pose the risk should something go wrong during the re-patching process (e.g. Proxmox changes)."
-    local choice
-    choice=$(ask "Enable automatic re-patching after apt/dpkg operations? (y/N)")
-    case "$choice" in
-        [yY])
-            APT_HOOK_ENABLED=1
-            cat > "$APT_HOOK_FILE" <<'HOOKEOF'
-DPkg::Post-Invoke { "/usr/lib/pve-mod/apt-hook.sh || true"; };
-HOOKEOF
-            info "Apt hook installed: $APT_HOOK_FILE"
-            ;;
-        *)
-            APT_HOOK_ENABLED=0
-            if [[ -f "$APT_HOOK_FILE" ]]; then
-                rm -f "$APT_HOOK_FILE"
-                info "Apt hook removed."
-            else
-                info "Apt hook not enabled."
-            fi
-            ;;
-    esac
-}
-#endregion apt hook
 
 main() {
     # ── Root check ────────────────────────────────────────────────────────────
@@ -391,7 +361,7 @@ main() {
     ENABLE_GPU_HISTORY=0
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
-    APT_HOOK_ENABLED=0
+    PVE_TRIGGER_ENABLED=0
 
     # ── Module selection ──────────────────────────────────────────────────────
     msgb "\n=== pve-mod Module Selection ==="
@@ -421,8 +391,16 @@ main() {
         info "Subscription nag screen removal will be applied."
     fi
 
-    # ── Apt hook ──────────────────────────────────────────────────────────────
-    configure_apt_hook
+    # ── Re-patch on PVE upgrade ───────────────────────────────────────────────
+    msgb "\n=== Auto Re-patching on PVE Upgrade ==="
+    echo "pve-mod registers a dpkg trigger on pve-manager. When pve-manager is"
+    echo "upgraded, the trigger fires and can automatically re-apply patches."
+    local triggerChoice
+    triggerChoice=$(ask "Re-apply patches automatically when pve-manager upgrades? (y/N)")
+    case "$triggerChoice" in
+        [yY]) PVE_TRIGGER_ENABLED=1; info "Auto re-patching enabled." ;;
+        *)    PVE_TRIGGER_ENABLED=0; info "Auto re-patching disabled. Run 'pve-mod-configure' after a PVE upgrade." ;;
+    esac
 
     # ── Write config and apply ────────────────────────────────────────────────
     write_config

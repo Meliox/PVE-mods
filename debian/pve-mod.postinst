@@ -5,26 +5,38 @@ NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 case "$1" in
     configure)
-        # Check for legacy bash-script install markers and warn the user.
+        # If a legacy bash-script installation is present, revert it cleanly first.
         if grep -qF '$res->{sensorsJSONOutput}' "$NODES_PM" 2>/dev/null || \
            grep -qF '$res->{systemInfo}' "$NODES_PM" 2>/dev/null; then
-            echo ""
-            echo "WARNING: A legacy pve-mod bash-script installation was detected in Nodes.pm."
-            echo "The old installation should be removed first to avoid conflicts:"
-            echo "  bash /path/to/pve-mod-gui-sensors.sh uninstall"
-            echo ""
-            echo "Skipping patch application. Run 'pve-mod-configure' after removing the old install."
-            echo ""
-        else
-            # Apply patches for any enabled modules (idempotent, safe on upgrades).
-            /usr/lib/pve-mod/apply-patches.sh 2>&1 || true
+            echo "pve-mod: Legacy bash-script installation detected — reverting before upgrade."
+            /usr/lib/pve-mod/revert-patches.sh || true
         fi
+
+        # Apply patches for any enabled modules. Fails loudly on error.
+        /usr/lib/pve-mod/apply-patches.sh
 
         if [ -z "$2" ]; then
             echo ""
             echo "pve-mod installed successfully."
             echo "Run 'pve-mod-configure' to enable and configure modules."
             echo ""
+        fi
+        ;;
+
+    triggered)
+        # Fired by dpkg when pve-manager is upgraded. Only re-apply patches
+        # if the user has opted in via 'pve-mod-configure'.
+        TRIGGER_ENABLED=$(awk -F= '/^\[pve_trigger\]/{s=1} s && /^enabled=/{print $2; exit}' \
+            /etc/pve-mod/pve-mod.conf 2>/dev/null || echo 0)
+        if [ "${TRIGGER_ENABLED}" = "1" ]; then
+            echo "pve-mod: pve-manager upgrade detected — re-applying patches."
+            if ! /usr/lib/pve-mod/apply-patches.sh; then
+                echo "pve-mod: WARNING: Failed to re-apply patches. Run 'pve-mod-configure' to fix." >&2
+            fi
+        else
+            echo "pve-mod: WARNING: pve-manager was upgraded but auto re-patching is disabled." >&2
+            echo "pve-mod: The Proxmox UI modifications may no longer be active." >&2
+            echo "pve-mod: Run 'pve-mod-configure' to re-apply patches." >&2
         fi
         ;;
 

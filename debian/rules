@@ -36,8 +36,6 @@ override_dh_install:
 		debian/pve-mod/usr/lib/pve-mod/apply-patches.sh
 	install -Dm755 src/PVENodeInfo/revert-patches.sh \
 		debian/pve-mod/usr/lib/pve-mod/revert-patches.sh
-	install -Dm755 src/pve-mod-apt-hook.sh \
-		debian/pve-mod/usr/lib/pve-mod/apt-hook.sh
 	# Configure tool
 	install -Dm755 src/Scripts/pve-mod-configure \
 		debian/pve-mod/usr/sbin/pve-mod-configure

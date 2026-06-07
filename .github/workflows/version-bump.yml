@@ -5,6 +5,10 @@ name: Version Bump
 # and opens (or updates) a "Release vX.Y.Z" PR to main.
 # The changelog commit touches only debian/changelog (not src/),
 # so it does not re-trigger this workflow.
+#
+# NOTE: GITHUB_TOKEN cannot push to forks, so this workflow only works for
+# branches on the upstream repo (Meliox/PVE-mods). External contributors
+# opening PRs from forks will not get an automatic version bump.
 
 on:
   push:
