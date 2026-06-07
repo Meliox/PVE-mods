@@ -187,7 +187,7 @@ sub check_executable {
 }
 
 sub startup_message {
-    warn "[pve-mod] Starting PVE Mod worker (v$VERSION)\n";
+    debug(__LINE__, "PVE Mod is being started. Version $VERSION");
 }
 
 # Setup common TERM/INT signal handlers for collector processes.
