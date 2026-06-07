@@ -47,13 +47,6 @@ _check_new_config_keys() {
 
 case "$1" in
     configure)
-        # If a legacy bash-script installation is present, revert it cleanly first.
-        if grep -qF '$res->{sensorsJSONOutput}' "$NODES_PM" 2>/dev/null || \
-           grep -qF '$res->{systemInfo}' "$NODES_PM" 2>/dev/null; then
-            echo "pve-mod: Legacy bash-script installation detected — reverting before upgrade."
-            /usr/lib/pve-mod/revert-patches.sh || true
-        fi
-
         # Apply patches for any enabled modules. Fails loudly on error.
         /usr/lib/pve-mod/apply-patches.sh
 
