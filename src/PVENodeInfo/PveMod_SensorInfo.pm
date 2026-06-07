@@ -193,8 +193,11 @@ sub get_ups_info {
 
 sub get_pve_mod_version {
     debug(__LINE__, "get_pve_mod_version called");
+    
     # Notify pve_mod_worker of activity
     notify_pve_mod_worker();
+    
+    debug(__LINE__, "Returning version: $VERSION");
 
     return $VERSION;
 }

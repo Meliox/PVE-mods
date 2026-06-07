@@ -18,7 +18,7 @@ our @EXPORT_OK = qw(
 # ============================================================================
 
 our $DEBUG_ENABLED = 1;
-our $VERSION       = '1.0';
+our $VERSION       = 'version-placeholder';
 
 # Runtime process-type tag — set to 'worker' or 'collector' after fork.
 # Each forked child gets its own copy of this variable.
