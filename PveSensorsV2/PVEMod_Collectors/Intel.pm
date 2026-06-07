@@ -20,8 +20,6 @@ our @EXPORT_OK = qw(
 sub get_intel_gpu_devices {
     my @devices = ();
 
-    return @devices unless check_executable('/usr/bin/intel_gpu_top', 'Intel GPU');
-
     debug(__LINE__, "Getting Intel GPU devices");
     if (open my $fh, '-|', 'intel_gpu_top -L') {
         while (<$fh>) {
