@@ -33,9 +33,14 @@ jobs:
           echo "=== Package contents ==="
           dpkg-deb --contents ../*.deb
 
+      - name: Collect deb artifacts
+        run: |
+          mkdir -p artifacts
+          cp ../*.deb artifacts/
+
       - name: Upload deb as artifact
         uses: actions/upload-artifact@v4
         with:
           name: test-build-deb
-          path: "../*.deb"
+          path: artifacts/*.deb
           retention-days: 3
