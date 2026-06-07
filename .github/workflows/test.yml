@@ -21,13 +21,13 @@ jobs:
 
       - name: Build package
         run: |
-          make build
-          ls -la *.deb || (echo "No .deb file produced by make build" && exit 1)
+          dpkg-buildpackage -us -uc -b
+          ls -la ../*.deb || (echo "No .deb file produced" && exit 1)
 
       - name: Verify package
         run: |
-          dpkg-deb --info *.deb
-          dpkg-deb --contents *.deb
+          dpkg-deb --info ../*.deb
+          dpkg-deb --contents ../*.deb
 
       - name: Test install
         run: |
@@ -42,7 +42,7 @@ jobs:
             cp tests/mock/Nodes.pm /usr/share/perl5/PVE/API2/Nodes.pm
           fi
 
-          sudo dpkg -i *.deb
+          sudo dpkg -i ../*.deb
 
           grep -q 'PVEMod_SensorInfo' /usr/share/perl5/PVE/API2/Nodes.pm \
             || (echo "ERROR: Sensor patch not applied" && exit 1)
