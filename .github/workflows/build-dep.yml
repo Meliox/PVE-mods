@@ -1,0 +1,45 @@
+name: Build DEB
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create package structure
+        run: |
+          mkdir -p package/DEBIAN
+          mkdir -p package/usr/local/bin
+
+          cp myscript.sh package/usr/local/bin/myapp
+          chmod +x package/usr/local/bin/myapp
+
+      - name: Create control file
+        run: |
+          cat > package/DEBIAN/control <<EOF
+          Package: myapp
+          Version: ${GITHUB_REF_NAME#v}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Your Name <you@example.com>
+          Description: Example package built in GitHub Actions
+          EOF
+
+      - name: Build .deb
+        run: |
+          dpkg-deb --build package
+          mv package.deb myapp_${GITHUB_REF_NAME#v}_amd64.deb
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: "*.deb"
