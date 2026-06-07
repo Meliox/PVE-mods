@@ -19,7 +19,7 @@ our @EXPORT_OK = qw(
     acquire_exclusive_lock
     ensure_pve_mod_directory_exists
     check_executable
-    pve_mod_hello
+    startup_message
     setup_collector_signals
     safe_write_json
     safe_read_json
