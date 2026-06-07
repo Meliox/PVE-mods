@@ -186,7 +186,7 @@ sub check_executable {
     return 1;
 }
 
-sub pve_mod_hello {
+sub startup_message {
     debug(__LINE__, "PVE Mod is being started. Version $VERSION");
 }
 
