@@ -90,34 +90,51 @@ function check_root_privileges() {
 	info "Root privileges verified."
 }
 
-# Define a function to install packages
-function install_packages {
-	# Check if the 'sensors' command is available on the system
-	if (! command -v sensors &>/dev/null); then
-		# If the 'sensors' command is not available, prompt the user to install lm-sensors
-		local choiceInstallLmSensors=$(ask "lm-sensors is not installed. Would you like to install it? (y/n)")
-		case "$choiceInstallLmSensors" in
-			[yY])
-				# If the user chooses to install lm-sensors, update the package list and install the package
-				apt-get update
-				apt-get install lm-sensors
-				;;
-			[nN])
-				# If the user chooses not to install lm-sensors, exit the script with a zero status code
-				msgb "Decided to not install lm-sensors. The mod cannot run without it. Exiting..."
-				err "lm-sensors is required. Exiting..."
-				;;
-			*)
-				# If the user enters an invalid input, print an error message and exit the script with a non-zero status code
-				err "Invalid input. Exiting..."
-				;;
-		esac
+# Check if a tool is installed; if not, offer to install it via apt.
+# Usage: _check_or_install_tool <cmd> <pkg> <description>
+# Returns 0 if the tool is available (or successfully installed), 1 otherwise.
+function _check_or_install_tool {
+	local cmd="$1"
+	local pkg="$2"
+	local description="$3"
+
+	if command -v "$cmd" &>/dev/null; then
+		info "$description is installed."
+		return 0
 	fi
 
-	# Check if lm-sensors is installed correctly and exit if not
-	if (! command -v sensors &>/dev/null); then
-		err "lm-sensors installation failed or 'sensors' command is not available. Please install lm-sensors manually and re-run the script."
+	local choice
+	choice=$(ask "$description is not installed. Would you like to install it? (y/N)")
+	case "$choice" in
+		[yY])
+			apt-get update
+			apt-get install -y "$pkg"
+			if command -v "$cmd" &>/dev/null; then
+				info "$description installed successfully."
+				return 0
+			else
+				warn "$description installation failed. The section will be skipped."
+				return 1
+			fi
+			;;
+		*)
+			info "Skipping $description installation."
+			return 1
+			;;
+	esac
+}
+
+# Check if nvidia-smi is available. NVIDIA GPU monitoring requires the NVIDIA drivers
+# to be installed manually; this function does not attempt installation via apt.
+# Returns 0 if nvidia-smi is available, 1 otherwise.
+function _check_nvidia_tool {
+	if command -v nvidia-smi &>/dev/null; then
+		info "nvidia-smi is installed."
+		return 0
 	fi
+	warn "nvidia-smi not found. NVIDIA GPU monitoring requires the NVIDIA drivers to be installed."
+	info "Refer to your system or Proxmox documentation for NVIDIA driver installation."
+	return 1
 }
 
 # Main configuration function to detect sensors and set up parameters
@@ -129,84 +146,192 @@ function configure {
 	local modelName
 	local upsConnection
 
-	install_packages
+	local lm_sensors_ok=false
+	_check_or_install_tool sensors lm-sensors "lm-sensors" && lm_sensors_ok=true
 
-	#### Collect sensor data ####
-	#region sensors collection
-	if [ "$DEBUG_REMOTE" = true ]; then
-		warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
-		warn "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
-		sensorsOutput=$(cat "$DEBUG_JSON_FILE")
-	else
-		sensorsOutput=$(sensors -j 2>/dev/null)
-	fi
-
-	# Apply lm-sensors sanitization
-	sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
-
-    if [ $? -ne 0 ]; then
-        err "Sensor output error.\n\nCommand output:\n${sanitisedSensorsOutput}\n\nExiting..."
-    fi
-	#endregion sensors collection
-
-	#### CPU ####
-	#region CPU setup
-	msgb "\n=== Detecting CPU temperature sensors ==="
-	ENABLE_CPU=false
-	local cpuList=""
-	local cpuCount=0
-
-	# Find all CPU sensors that match known patterns
-	for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
-		found_sensors=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
-		if [ -n "$found_sensors" ]; then
-			while read -r sensor; do
-				if [ -n "$sensor" ]; then
-					cpuCount=$((cpuCount + 1))
-					if [ -z "$cpuList" ]; then
-						cpuList="$sensor"
-					else
-						cpuList="$cpuList,$sensor"
-					fi
-					ENABLE_CPU=true
-				fi
-			done <<< "$found_sensors"
+	if [[ "$lm_sensors_ok" == true ]]; then
+		#### Collect sensor data ####
+		#region sensors collection
+		if [ "$DEBUG_REMOTE" = true ]; then
+			warn "Remote debugging is used. Sensor readings from dump file $DEBUG_JSON_FILE will be used."
+			warn "Remote debugging is used. UPS readings from dump file $DEBUG_UPS_FILE will be used."
+			sensorsOutput=$(cat "$DEBUG_JSON_FILE")
+		else
+			sensorsOutput=$(sensors -j 2>/dev/null)
 		fi
-	done
 
-	if [ "$ENABLE_CPU" = true ]; then
-		info "Detected CPU sensors ($cpuCount): $cpuList"
-		SENSORS_DETECTED=true
-		while true; do
-			local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
+		# Apply lm-sensors sanitization
+		sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
+
+		if [ $? -ne 0 ]; then
+			err "Sensor output error.\n\nCommand output:\n${sanitisedSensorsOutput}\n\nExiting..."
+		fi
+		#endregion sensors collection
+
+		#### CPU ####
+		#region CPU setup
+		msgb "\n=== Detecting CPU temperature sensors ==="
+		ENABLE_CPU=false
+		local cpuList=""
+		local cpuCount=0
+
+		# Find all CPU sensors that match known patterns
+		for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
+			found_sensors=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
+			if [ -n "$found_sensors" ]; then
+				while read -r sensor; do
+					if [ -n "$sensor" ]; then
+						cpuCount=$((cpuCount + 1))
+						if [ -z "$cpuList" ]; then
+							cpuList="$sensor"
+						else
+							cpuList="$cpuList,$sensor"
+						fi
+						ENABLE_CPU=true
+					fi
+				done <<< "$found_sensors"
+			fi
+		done
+
+		if [ "$ENABLE_CPU" = true ]; then
+			info "Detected CPU sensors ($cpuCount): $cpuList"
+			SENSORS_DETECTED=true
+			while true; do
+				local choice=$(ask "Display temperatures for all cores [C] or average per CPU [a] (some newer AMD variants support per die)? (C/a)")
+				case "$choice" in
+					[cC]|"")
+						CPU_TEMP_TARGET="Core"
+						info "Temperatures will be displayed for all cores."
+						break
+						;;
+					[aA])
+						CPU_TEMP_TARGET="Package"
+						info "An average temperature will be displayed per CPU."
+						break
+						;;
+					*)
+						warn "Invalid input, please choose C or a."
+						;;
+				esac
+			done
+		else
+			warn "No CPU temperature sensors found."
+		fi
+		#endregion cpu setup
+
+		#### RAM ####
+		#region ram setup
+		local ramList ramCount
+		msgb "\n=== Detecting RAM temperature sensors ==="
+		ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
+		ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput")
+
+		if [ "$ramCount" -gt 0 ]; then
+			info "Detected RAM sensors ($ramCount): $ramList"
+			ENABLE_RAM_TEMP=true
+			SENSORS_DETECTED=true
+		else
+			warn "No RAM temperature sensors found."
+			ENABLE_RAM_TEMP=false
+		fi
+		#endregion ram setup
+
+		#### HDD/SSD ####
+		#region hdd setup
+		msgb "\n=== Detecting HDD/SSD temperature sensors ==="
+		local hddList=($(echo "$sanitisedSensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
+		if [ ${#hddList[@]} -gt 0 ]; then
+			info "Detected HDD/SSD sensors (${#hddList[@]}): $(IFS=,; echo "${hddList[*]}")"
+			ENABLE_HDD_TEMP=true
+			SENSORS_DETECTED=true
+		else
+			warn "No HDD/SSD temperature sensors found."
+			ENABLE_HDD_TEMP=false
+		fi
+		#endregion hdd setup
+
+		#### NVMe ####
+		#region nvme setup
+		msgb "\n=== Detecting NVMe temperature sensors ==="
+		local nvmeList=($(echo "$sanitisedSensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
+		if [ ${#nvmeList[@]} -gt 0 ]; then
+			info "Detected NVMe sensors (${#nvmeList[@]}): $(IFS=,; echo "${nvmeList[*]}")"
+			ENABLE_NVME_TEMP=true
+			SENSORS_DETECTED=true
+		else
+			warn "No NVMe temperature sensors found."
+			ENABLE_NVME_TEMP=false
+		fi
+		#endregion nvme setup
+
+		#### Fans ####
+		#region fan setup
+		msgb "\n=== Detecting fan speed sensors ==="
+
+		local fanList=""
+		local fanCount=0
+
+		# Find all fan names that have fan*_input entries
+		fanList=$(echo "$sanitisedSensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
+		fanCount=$(grep -c 'fan[0-9]\+_input' <<<"$sanitisedSensorsOutput")
+
+		if [ "$fanCount" -gt 0 ]; then
+			info "Detected fan speed sensors ($fanCount): $fanList"
+			ENABLE_FAN_SPEED=true
+			SENSORS_DETECTED=true
+
+			local choice
+			choice=$(ask "Display fans reporting zero speed? (Y/n)")
 			case "$choice" in
-				[cC]|"")
-					CPU_TEMP_TARGET="Core"
-					info "Temperatures will be displayed for all cores."
-					break
+				[yY]|"")
+					DISPLAY_ZERO_SPEED_FANS=true
+					info "Zero-speed fans will be displayed."
 					;;
-				[aA])
-					CPU_TEMP_TARGET="Package"
-					info "An average temperature will be displayed per CPU."
-					break
+				[nN])
+					DISPLAY_ZERO_SPEED_FANS=false
+					info "Only active fans will be displayed."
 					;;
 				*)
-					warn "Invalid input, please choose C or a."
+					warn "Invalid input. Defaulting to show zero-speed fans."
+					DISPLAY_ZERO_SPEED_FANS=true
 					;;
 			esac
-		done
-	else
-		warn "No CPU temperature sensors found."
-	fi
-	#endregion cpu setup
-	
+		else
+			warn "No fan speed sensors found."
+			ENABLE_FAN_SPEED=false
+		fi
+		#endregion fan setup
+
+		#### Temperature Units ####
+		#region temp unit setup
+		msgb "\n=== Display temperature ==="
+		if [ "$SENSORS_DETECTED" = true ]; then
+			local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+			case "$unit" in
+				[cC]|"")
+					TEMP_UNIT="C"
+					info "Using Celsius."
+					;;
+				[fF])
+					TEMP_UNIT="F"
+					info "Using Fahrenheit."
+					;;
+				*)
+					warn "Invalid selection. Defaulting to Celsius."
+					TEMP_UNIT="C"
+					;;
+			esac
+		fi
+		#endregion temp unit setup
+
+	fi #end lm-sensors block 1
+
 	#### Graphics ####
 	#region Graphics setup
 	msgb "\n=== Detecting Graphics information ==="
 
 	#region intel GPU setup
-	# Check for Intel GPU - ensure intel_gpu_top is installed
-	if command -v intel_gpu_top &>/dev/null; then
+	if _check_or_install_tool intel_gpu_top igt-gpu-tools "Intel GPU tools (igt-gpu-tools)"; then
 		# detect all intel cards using intel_gpu_top -L. Show them line by line
 		local intelCards
 		
@@ -231,21 +356,19 @@ function configure {
 					echo "  $line"
 				fi
 			done
-			ENABLE_INTEL_GPU_INFO=true
+				ENABLE_INTEL_GPU_INFO=true
 			ENABLE_GPU_INFO=true
 		else
 			warn "No Intel GPUs detected by intel_gpu_top."
 			ENABLE_INTEL_GPU_INFO=false
 		fi
 	else
-		warn "intel_gpu_top command not found. Skipping Intel GPU information detection."
 		ENABLE_INTEL_GPU_INFO=false
 	fi
 	#endregion intel GPU setup
 
 	#region NVIDIA GPU setup
-	# Check for NVIDIA GPU - ensure nvidia-smi is installed
-	if command -v nvidia-smi &>/dev/null; then
+	if _check_nvidia_tool; then
 		# detect all NVIDIA cards using nvidia-smi -L
 		local nvidiaCards
 		
@@ -270,20 +393,24 @@ function configure {
 					echo "  $line"
 				fi
 			done
-			ENABLE_NVIDIA_GPU_INFO=true
+				ENABLE_NVIDIA_GPU_INFO=true
 			ENABLE_GPU_INFO=true
 		else
 			warn "No NVIDIA GPUs detected by nvidia-smi."
 			ENABLE_NVIDIA_GPU_INFO=false
 		fi
 	else
-		warn "nvidia-smi command not found. Skipping NVIDIA GPU information detection."
 		ENABLE_NVIDIA_GPU_INFO=false
 	fi
 	#endregion NVIDIA GPU setup
 
 	#region AMD GPU setup
-	# not implemented yet
+	if _check_or_install_tool radeontop radeontop "AMD GPU tools (radeontop)"; then
+		# AMD GPU detection is not yet implemented
+		ENABLE_AMD_GPU_INFO=false
+	else
+		ENABLE_AMD_GPU_INFO=false
+	fi
 	#endregion AMD GPU setup
 
 	#endregion Graphics setup
@@ -309,111 +436,6 @@ function configure {
 		esac
 	fi
 	#endregion gpu history setup
-
-	#### RAM ####
-	#region ram setup
-	local ramList ramCount
-	msgb "\n=== Detecting RAM temperature sensors ==="
-	ramList=$(echo "$sanitisedSensorsOutput" | grep -o '"SODIMM[^"]*"' | sed 's/"//g' | paste -sd, -)
-	ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput")
-
-	if [ "$ramCount" -gt 0 ]; then
-		info "Detected RAM sensors ($ramCount): $ramList"
-		ENABLE_RAM_TEMP=true
-		SENSORS_DETECTED=true
-	else
-		warn "No RAM temperature sensors found."
-		ENABLE_RAM_TEMP=false
-	fi
-	#endregion ram setup
-
-    #### HDD/SSD ####
-	#region hdd setup
-    msgb "\n=== Detecting HDD/SSD temperature sensors ==="
-    local hddList=($(echo "$sanitisedSensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g'))
-    if [ ${#hddList[@]} -gt 0 ]; then
-        info "Detected HDD/SSD sensors (${#hddList[@]}): $(IFS=,; echo "${hddList[*]}")"
-        ENABLE_HDD_TEMP=true
-        SENSORS_DETECTED=true
-    else
-        warn "No HDD/SSD temperature sensors found."
-        ENABLE_HDD_TEMP=false
-    fi
-	#endregion hdd setup
-
-    #### NVMe ####
-	#region nvme setup
-    msgb "\n=== Detecting NVMe temperature sensors ==="
-    local nvmeList=($(echo "$sanitisedSensorsOutput" | grep -o '"nvme[^"]*"' | sed 's/"//g'))
-    if [ ${#nvmeList[@]} -gt 0 ]; then
-        info "Detected NVMe sensors (${#nvmeList[@]}): $(IFS=,; echo "${nvmeList[*]}")"
-        ENABLE_NVME_TEMP=true
-        SENSORS_DETECTED=true
-    else
-        warn "No NVMe temperature sensors found."
-        ENABLE_NVME_TEMP=false
-    fi
-	#endregion nvme setup
-
-	#### Fans ####
-	#region fan setup
-	msgb "\n=== Detecting fan speed sensors ==="
-
-	local fanList=""
-	local fanCount=0
-
-	# Find all fan names that have fan*_input entries
-	fanList=$(echo "$sanitisedSensorsOutput" | grep -B2 '"fan[0-9]\+_input"' | grep '".*": {' | sed 's/.*"\([^"]*\)": {.*/\1/' | sort -u | paste -sd, -)
-	fanCount=$(grep -c 'fan[0-9]\+_input' <<<"$sanitisedSensorsOutput")
-
-	if [ "$fanCount" -gt 0 ]; then
-		info "Detected fan speed sensors ($fanCount): $fanList"
-		ENABLE_FAN_SPEED=true
-		SENSORS_DETECTED=true
-
-		local choice
-		choice=$(ask "Display fans reporting zero speed? (Y/n)")
-		case "$choice" in
-			[yY]|"")
-				DISPLAY_ZERO_SPEED_FANS=true
-				info "Zero-speed fans will be displayed."
-				;;
-			[nN])
-				DISPLAY_ZERO_SPEED_FANS=false
-				info "Only active fans will be displayed."
-				;;
-			*)
-				warn "Invalid input. Defaulting to show zero-speed fans."
-				DISPLAY_ZERO_SPEED_FANS=true
-				;;
-		esac
-	else
-		warn "No fan speed sensors found."
-		ENABLE_FAN_SPEED=false
-	fi
-	#endregion fan setup
-
-    #### Temperature Units ####
-	#region temp unit setup
-	msgb "\n=== Display temperature ==="
-    if [ "$SENSORS_DETECTED" = true ]; then
-        local unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
-        case "$unit" in
-            [cC]|"")
-                TEMP_UNIT="C"
-                info "Using Celsius."
-                ;;
-            [fF])
-                TEMP_UNIT="F"
-                info "Using Fahrenheit."
-                ;;
-            *)
-                warn "Invalid selection. Defaulting to Celsius."
-                TEMP_UNIT="C"
-                ;;
-        esac
-    fi
-	#endregion temp unit setup
 
     #### UPS ####
 	#region ups setup
@@ -485,8 +507,8 @@ function configure {
 
     #### Final Check ####
 	#region final check
-    if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
-        err "No sensors detected, UPS or system info enabled. Exiting."
+    if [ "$SENSORS_DETECTED" = false ] && [ "$ENABLE_GPU_INFO" != true ] && [ "$ENABLE_UPS" = false ] && [ "$ENABLE_SYSTEM_INFO" = false ]; then
+        err "No sensors detected, no GPU info, no UPS and no system info enabled. Exiting."
     fi
 	#endregion final check
 }
