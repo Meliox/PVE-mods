@@ -60,6 +60,10 @@ our %config = (
         enabled     => 1,
         device_name => 'ups@192.168.3.2',
     },
+    system_info => {
+        enabled => 1,
+        type    => 1,  # 1 = System (dmidecode -t 1), 2 = Baseboard/Motherboard (dmidecode -t 2)
+    },
     paths => {
         working_dir => '/run/pveproxy/pve-mod',
     },

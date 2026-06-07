@@ -526,7 +526,6 @@ function install_mod {
     msgb "\n=== Installing sensor info module ==="
 	install_sensor_monitor_module
 	insert_sensor_monitor_into_pve
-	insert_system_info_into_pve
 
 	## Historical GPU data ##
 	if [[ "$ENABLE_GPU_HISTORY" == true ]]; then
@@ -607,6 +606,7 @@ install_sensor_monitor_module() {
         "PVEMod_Collectors/LmSensors.pm:$PVEMOD_COLLECTOR_DIR/LmSensors.pm"
         "PVEMod_Collectors/Amd.pm:$PVEMOD_COLLECTOR_DIR/Amd.pm"
         "PVEMod_Collectors/Ups.pm:$PVEMOD_COLLECTOR_DIR/Ups.pm"
+        "PVEMod_Collectors/systemInformation.pm:$PVEMOD_COLLECTOR_DIR/SystemInformation.pm"
     )
     for entry in "${module_files[@]}"; do
         local src="$PVEMOD_SOURCES_DIR/${entry%%:*}"
@@ -622,6 +622,8 @@ install_sensor_monitor_module() {
     intel_enabled=$([[ "$ENABLE_INTEL_GPU_INFO" = true ]] && echo 1 || echo 0)
     nvidia_enabled=$([[ "$ENABLE_NVIDIA_GPU_INFO" = true ]] && echo 1 || echo 0)
     ups_enabled=$([[ "$ENABLE_UPS" = true ]] && echo 1 || echo 0)
+    system_info_enabled=$([[ "$ENABLE_SYSTEM_INFO" = true ]] && echo 1 || echo 0)
+    system_info_type="${SYSTEM_INFO_TYPE:-1}"
 
     # Determine UPS device name
     local ups_device="${upsConnection:-ups@localhost}"
@@ -632,6 +634,11 @@ install_sensor_monitor_module() {
         /nvidia_enabled =>/ s/=> [01],/=> $nvidia_enabled,/
         /enabled =>/ s/=> [01],/=> $ups_enabled,/
         /device_name =>/ s|=> '[^']*',|=> '$ups_device',|
+    " "$PVEMOD_CONFIG_FILE"
+    # Patch system_info config block
+    sed -i "
+        /system_info/,/}/{/enabled =>/ s/=> [01],/=> $system_info_enabled,/}
+        /type[[:space:]]*=>/ s/=> [12],/=> $system_info_type,/
     " "$PVEMOD_CONFIG_FILE"
 
     if [[ $? -eq 0 ]]; then
@@ -653,34 +660,12 @@ insert_sensor_monitor_into_pve() {
 		$res->{PveMod_JsonSensorInfo} = PVE::API2::PVEMod_SensorInfo::get_sensors_info();\
 		$res->{PveMod_graphicsInfo} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\
 		$res->{PveMod_upsInfo} = PVE::API2::PVEMod_SensorInfo::get_ups_info();\
+		$res->{pveMod_sensorInfo_systemInfo} = PVE::API2::PVEMod_SensorInfo::get_system_information();\
 	' "$NODES_PM_FILE"
 	#endregion PveSensorInfoMod heredoc
     info "Sensor data retriever added to \"$NODES_PM_FILE\"."
 }
 
-# Collect system information
-insert_system_info_into_pve() {
-    local output_file="$1"
-    local systemInfoCmd
-
-	if [[ $ENABLE_SYSTEM_INFO == false ]]; then
-		return
-	fi
-
-    systemInfoCmd=$(dmidecode -t "${SYSTEM_INFO_TYPE}" \
-        | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print $1": "$2}' \
-        | awk '{$1=$1};1' \
-        | sed 's/$/ |/' \
-        | paste -sd " " - \
-        | sed 's/ |$//')
-	#region system info heredoc
-	sed -i "/my \$dinfo = df('\/', 1);/i\\
-		# Add system information to response\\
-		\$res->{pveMod_sensorInfo_systemInfo} = \"$(echo "$systemInfoCmd")\";\\
-" "$NODES_PM_FILE"
-	#endregion system info heredoc
-    info "System information retriever added to \"$output_file\"."
-}
 #endregion node info insertion
 
 #region UI Module Installation

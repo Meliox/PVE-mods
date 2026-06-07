@@ -6,11 +6,13 @@ use warnings;
 use PVE::PVEMod::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file);
 use PVE::PVEMod::Utils          qw(debug safe_read_json);
 use PVE::PVEMod::ProcessManager qw(pve_mod_starter notify_pve_mod_worker);
+use PVE::PVEMod::Collector::SystemInformation qw(get_system_information_data);
 
 # Per-endpoint state caches (module-level, reset on worker restart)
-my $graphics_cache = { data => {},   mtime => 0 };
-my $sensors_cache  = { data => '{}', mtime => 0 };
-my $ups_cache      = { data => '{}', mtime => 0 };
+my $graphics_cache     = { data => {},        mtime => 0 };
+my $sensors_cache      = { data => '{}',       mtime => 0 };
+my $ups_cache          = { data => '{}',       mtime => 0 };
+my $system_info_cache  = undef;
 
 
 # ============================================================================
@@ -197,5 +199,17 @@ sub get_pve_mod_version {
     return $VERSION;
 }
 
+sub get_system_information {
+    debug(__LINE__, "get_system_information called");
+
+    if (defined $system_info_cache) {
+        debug(__LINE__, "Returning cached system information");
+        return $system_info_cache;
+    }
+
+    $system_info_cache = get_system_information_data();
+
+    return $system_info_cache;
+}
 
 1;
