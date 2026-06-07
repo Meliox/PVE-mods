@@ -97,25 +97,27 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           TITLE="Release v${NEW_VERSION}"
-          BODY="## Changes since last release
 
-${COMMITS:-No src/ changes detected.}
+          {
+            echo "## Changes since last release"
+            echo ""
+            echo "${COMMITS:-No src/ changes detected.}"
+            echo ""
+            echo "---"
+            echo "*Merge this PR to build and publish the \`pve-mod_${NEW_VERSION}_all.deb\` release.*"
+          } > /tmp/pr-body.md
 
----
-*Merge this PR to build and publish the \`pve-mod_${NEW_VERSION}_all.deb\` release.*"
-
-          # Check if a PR for this version already exists
           EXISTING=$(gh pr list \
             --search "\"$TITLE\" in:title" \
             --json number --jq '.[0].number' 2>/dev/null || true)
 
           if [[ -n "$EXISTING" ]]; then
-            gh pr edit "$EXISTING" --body "$BODY"
+            gh pr edit "$EXISTING" --body-file /tmp/pr-body.md
             echo "Updated existing PR #$EXISTING"
           else
             gh pr create \
               --title "$TITLE" \
-              --body  "$BODY" \
+              --body-file /tmp/pr-body.md \
               --base  main \
               --head  "$BRANCH"
           fi
