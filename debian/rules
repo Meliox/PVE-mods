@@ -39,6 +39,9 @@ override_dh_install:
 	# Configure tool
 	install -Dm755 src/Scripts/pve-mod-configure \
 		debian/pve-mod/usr/sbin/pve-mod-configure
-	# Default config
+	# Default config (conffile for user edits)
 	install -Dm644 src/pve-mod.conf \
 		debian/pve-mod/etc/pve-mod/pve-mod.conf
+	# Reference copy for upgrade key-diff (not a conffile — always updated)
+	install -Dm644 src/pve-mod.conf \
+		debian/pve-mod/usr/share/pve-mod/pve-mod.conf.default

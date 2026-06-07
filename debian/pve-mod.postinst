@@ -2,6 +2,48 @@
 set -e
 
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
+DEFAULT_CONF="/usr/share/pve-mod/pve-mod.conf.default"
+USER_CONF="/etc/pve-mod/pve-mod.conf"
+
+# Extracts "section.key" pairs from an INI file, one per line.
+_extract_conf_keys() {
+    local file="$1" section="" line key
+    while IFS= read -r line; do
+        case "$line" in
+            '#'*|'') continue ;;
+            '['*']') section="${line#[}"; section="${section%]}"; continue ;;
+            *'='*)   key="${line%%=*}"; echo "${section}.${key}" ;;
+        esac
+    done < "$file"
+}
+
+# Warns about keys present in the default config but missing from the user's config.
+_check_new_config_keys() {
+    [ -f "$DEFAULT_CONF" ] || return 0
+    [ -f "$USER_CONF" ]    || return 0
+
+    local new_keys="" section="" key default_val
+    while IFS= read -r line; do
+        case "$line" in
+            '#'*|'') continue ;;
+            '['*']') section="${line#[}"; section="${section%]}"; continue ;;
+            *'='*)
+                key="${line%%=*}"
+                if ! _extract_conf_keys "$USER_CONF" | grep -qF "${section}.${key}"; then
+                    new_keys="${new_keys}    [${section}] ${line}\n"
+                fi
+                ;;
+        esac
+    done < "$DEFAULT_CONF"
+
+    if [ -n "$new_keys" ]; then
+        echo ""
+        echo "pve-mod: New configuration options are available since your last install:"
+        printf "%b" "$new_keys"
+        echo "pve-mod: Run 'pve-mod-configure' to configure them, or add them manually to $USER_CONF"
+        echo ""
+    fi
+}
 
 case "$1" in
     configure)
@@ -20,6 +62,9 @@ case "$1" in
             echo "pve-mod installed successfully."
             echo "Run 'pve-mod-configure' to enable and configure modules."
             echo ""
+        else
+            # Upgrading from a previous version — warn about any new config keys.
+            _check_new_config_keys
         fi
         ;;
 

@@ -1,11 +1,26 @@
 #!/bin/bash
 set -e
 
+_revert_patches() {
+    if [ -x /usr/lib/pve-mod/revert-patches.sh ]; then
+        /usr/lib/pve-mod/revert-patches.sh 2>&1 || true
+    fi
+}
+
 case "$1" in
     remove|deconfigure)
-        # Revert PVE file patches before files are removed.
-        if [ -x /usr/lib/pve-mod/revert-patches.sh ]; then
-            /usr/lib/pve-mod/revert-patches.sh 2>&1 || true
+        # 1. Revert patches before files are removed.
+        _revert_patches
+
+        # 2. Ask whether to keep the config (only in interactive sessions).
+        if [ -t 0 ] && [ -f /etc/pve-mod/pve-mod.conf ]; then
+            printf '\npve-mod: Keep /etc/pve-mod/pve-mod.conf for re-use after reinstall? [Y/n] '
+            read -r _keep
+            case "$_keep" in
+                [nN]*) rm -f /etc/pve-mod/pve-mod.conf
+                       echo "pve-mod: Configuration removed." ;;
+                *)     echo "pve-mod: Configuration kept at /etc/pve-mod/pve-mod.conf" ;;
+            esac
         fi
         ;;
 
