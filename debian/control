@@ -1,0 +1,21 @@
+Source: pve-mod
+Section: misc
+Priority: optional
+Maintainer: Meliox <meliox@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/Meliox/PVE-mods
+
+Package: pve-mod
+Architecture: all
+Depends: ${misc:Depends}, perl, librrds-perl
+Recommends: lm-sensors, nut-client
+Suggests: igt-gpu-tools
+Description: Proxmox VE UI modifications and sensor monitoring
+ Extends the Proxmox VE web interface with sensor readings including
+ CPU, GPU, NVMe/HDD/SSD temperatures, fan speeds, and RAM temperatures
+ via lm-sensors. Optionally adds UPS monitoring via Network UPS Tools,
+ system/motherboard information via dmidecode, GPU historical data graphs,
+ and removes the subscription nag screen.
+ .
+ After installation, run: pve-mod-configure

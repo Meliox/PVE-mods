@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove|deconfigure)
+        # Revert PVE file patches before files are removed.
+        if [ -x /usr/lib/pve-mod/revert-patches.sh ]; then
+            /usr/lib/pve-mod/revert-patches.sh 2>&1 || true
+        fi
+        ;;
+
+    upgrade)
+        # On upgrade, leave patches in place; postinst will re-apply them.
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

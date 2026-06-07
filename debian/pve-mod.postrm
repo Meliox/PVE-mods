@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove)
+        # Remove apt hook if it was installed via pve-mod-configure.
+        rm -f /etc/apt/apt.conf.d/99-pve-mod
+        ;;
+
+    purge)
+        rm -f /etc/apt/apt.conf.d/99-pve-mod
+        rm -rf /etc/pve-mod
+        rm -rf /var/lib/pve-mod
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

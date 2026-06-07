@@ -1,0 +1,438 @@
+#!/usr/bin/env bash
+#
+# pve-mod-configure - Interactive configuration tool for pve-mod
+# Detects hardware, asks the user which features to enable, writes
+# /etc/pve-mod/pve-mod.conf, and applies patches to PVE system files.
+
+set -euo pipefail
+
+CONF_FILE="/etc/pve-mod/pve-mod.conf"
+APT_HOOK_FILE="/etc/apt/apt.conf.d/99-pve-mod"
+APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
+NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
+
+KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
+
+#region helpers
+msgb() { echo -e "\e[1m${1}\e[0m"; }
+info() { echo -e "\e[0;32m[info] ${1}\e[0m"; }
+warn() { echo -e "\e[0;33m[warning] ${1}\e[0m"; }
+err()  { echo -e "\e[0;31m[error] ${1}\e[0m"; exit 1; }
+ask()  {
+    local prompt="$1" response
+    read -r -p $'\n\e[1;36m'"${prompt}:"$'\e[0m ' response
+    echo "$response"
+}
+bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
+#endregion helpers
+
+sanitize_sensors_output() {
+    local input="$1"
+    echo "$input" | perl -0777 -pe '
+        s/ERROR:.+\s(\w+):\s(.+)/"$1": 0.000,/g;
+        s/ERROR:.+\s(\w+)!/"$1": 0.000,/g;
+        s/,\s*(\})/$1/g;
+        s/\bNaN\b/null/g;
+        s/"SODIMM"\s*:\s*\{\s*"temp(\d+)_input"/"SODIMM $1": {\n  "temp$1_input"/g;
+        s/"([^"]*Fan[^"]*)"\s*:\s*\{\s*"fan(\d+)_input"/"$1 $2": {\n  "fan$2_input"/g;
+    ' | python3 -m json.tool 2>/dev/null || echo "$input"
+}
+
+_check_or_install_tool() {
+    local cmd="$1" pkg="$2" description="$3"
+    if command -v "$cmd" &>/dev/null; then
+        info "$description is installed."
+        return 0
+    fi
+    local choice
+    choice=$(ask "$description is not installed. Install it now? (y/N)")
+    case "$choice" in
+        [yY])
+            apt-get update -qq
+            apt-get install -y "$pkg"
+            command -v "$cmd" &>/dev/null && { info "$description installed."; return 0; } || \
+                { warn "$description installation failed. Section will be skipped."; return 1; }
+            ;;
+        *)
+            info "Skipping $description."
+            return 1
+            ;;
+    esac
+}
+
+_check_nvidia_tool() {
+    if command -v nvidia-smi &>/dev/null; then
+        info "nvidia-smi is installed."
+        return 0
+    fi
+    warn "nvidia-smi not found. NVIDIA monitoring requires NVIDIA drivers (not installable via apt)."
+    return 1
+}
+
+#region node-info wizard
+configure_node_info() {
+    # Initialize all variables to off
+    LM_SENSORS_ENABLED=0
+    ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
+    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0
+    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
+    ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
+    ENABLE_GPU_HISTORY=0
+    ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
+    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
+
+    local lm_sensors_ok=false
+    local sensors_detected=false
+
+    _check_or_install_tool sensors lm-sensors "lm-sensors" && lm_sensors_ok=true && LM_SENSORS_ENABLED=1
+
+    if [[ "$lm_sensors_ok" == true ]]; then
+        local sensorsOutput sanitisedSensorsOutput
+        sensorsOutput=$(sensors -j 2>/dev/null)
+        sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
+
+        #region CPU
+        msgb "\n=== Detecting CPU temperature sensors ==="
+        local cpuList="" cpuCount=0
+        for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
+            local found_sensors
+            found_sensors=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
+            if [[ -n "$found_sensors" ]]; then
+                while read -r sensor; do
+                    [[ -z "$sensor" ]] && continue
+                    cpuCount=$((cpuCount + 1))
+                    cpuList="${cpuList:+$cpuList,}$sensor"
+                    ENABLE_CPU=1
+                done <<< "$found_sensors"
+            fi
+        done
+        if [[ "$ENABLE_CPU" -eq 1 ]]; then
+            info "Detected CPU sensors ($cpuCount): $cpuList"
+            sensors_detected=true
+            while true; do
+                local choice
+                choice=$(ask "Display temperatures for all cores [C] or average per CPU [a]? (C/a)")
+                case "$choice" in
+                    [cC]|"") CPU_TEMP_TARGET="Core"; info "Showing per-core temperatures."; break ;;
+                    [aA])    CPU_TEMP_TARGET="Package"; info "Showing average per-CPU temperature."; break ;;
+                    *)       warn "Invalid input, choose C or a." ;;
+                esac
+            done
+        else
+            warn "No CPU temperature sensors found."
+        fi
+        #endregion CPU
+
+        #region RAM
+        msgb "\n=== Detecting RAM temperature sensors ==="
+        local ramCount
+        ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput" || true)
+        if [[ "$ramCount" -gt 0 ]]; then
+            info "Detected $ramCount RAM sensor(s)."
+            ENABLE_RAM_TEMP=1; sensors_detected=true
+        else
+            warn "No RAM temperature sensors found."
+        fi
+        #endregion RAM
+
+        #region HDD/SSD
+        msgb "\n=== Detecting HDD/SSD temperature sensors ==="
+        local hddList
+        hddList=$(echo "$sanitisedSensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g' | wc -l || true)
+        if [[ "$hddList" -gt 0 ]]; then
+            info "Detected $hddList HDD/SSD sensor(s)."
+            ENABLE_HDD_TEMP=1; sensors_detected=true
+        else
+            warn "No HDD/SSD temperature sensors found. (Requires kernel module 'drivetemp'.)"
+        fi
+        #endregion HDD/SSD
+
+        #region NVMe
+        msgb "\n=== Detecting NVMe temperature sensors ==="
+        local nvmeCount
+        nvmeCount=$(echo "$sanitisedSensorsOutput" | grep -c '"nvme[^"]*"' || true)
+        if [[ "$nvmeCount" -gt 0 ]]; then
+            info "Detected $nvmeCount NVMe sensor(s)."
+            ENABLE_NVME_TEMP=1; sensors_detected=true
+        else
+            warn "No NVMe temperature sensors found."
+        fi
+        #endregion NVMe
+
+        #region Fans
+        msgb "\n=== Detecting fan speed sensors ==="
+        local fanCount
+        fanCount=$(grep -c 'fan[0-9]\+_input' <<<"$sanitisedSensorsOutput" || true)
+        if [[ "$fanCount" -gt 0 ]]; then
+            info "Detected $fanCount fan speed reading(s)."
+            ENABLE_FAN_SPEED=1; sensors_detected=true
+            local choice
+            choice=$(ask "Display fans reporting zero speed? (Y/n)")
+            case "$choice" in
+                [nN]) DISPLAY_ZERO_SPEED_FANS=0; info "Zero-speed fans will be hidden." ;;
+                *)    DISPLAY_ZERO_SPEED_FANS=1; info "Zero-speed fans will be shown." ;;
+            esac
+        else
+            warn "No fan speed sensors found."
+        fi
+        #endregion Fans
+
+        #region Temperature unit
+        if [[ "$sensors_detected" == true ]]; then
+            msgb "\n=== Temperature unit ==="
+            local unit
+            unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+            case "$unit" in
+                [fF]) TEMP_UNIT="F"; info "Using Fahrenheit." ;;
+                *)    TEMP_UNIT="C"; info "Using Celsius." ;;
+            esac
+        fi
+        #endregion Temperature unit
+    fi
+
+    #region Intel GPU
+    msgb "\n=== Detecting Intel GPU ==="
+    local intelCards=""
+    if _check_or_install_tool intel_gpu_top igt-gpu-tools "Intel GPU tools (igt-gpu-tools)"; then
+        intelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
+        if [[ -n "$intelCards" ]]; then
+            info "Intel GPU(s) detected:"
+            echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
+            ENABLE_INTEL_GPU_INFO=1
+        else
+            warn "No Intel GPUs detected by intel_gpu_top."
+        fi
+    fi
+    #endregion Intel GPU
+
+    #region NVIDIA GPU
+    msgb "\n=== Detecting NVIDIA GPU ==="
+    if _check_nvidia_tool; then
+        local nvidiaCards
+        nvidiaCards=$(nvidia-smi -L 2>/dev/null || true)
+        if [[ -n "$nvidiaCards" ]]; then
+            info "NVIDIA GPU(s) detected:"
+            echo "$nvidiaCards" | while IFS= read -r line; do echo "  $line"; done
+            ENABLE_NVIDIA_GPU_INFO=1
+        else
+            warn "No NVIDIA GPUs detected by nvidia-smi."
+        fi
+    fi
+    #endregion NVIDIA GPU
+
+    #region AMD GPU (placeholder)
+    ENABLE_AMD_GPU_INFO=0
+    #endregion AMD GPU
+
+    #region GPU history
+    if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
+        msgb "\n=== GPU Historical Data ==="
+        local choice
+        choice=$(ask "Store historical GPU data for graphs? (y/N)")
+        case "$choice" in
+            [yY]) ENABLE_GPU_HISTORY=1; info "Historical GPU data will be stored." ;;
+            *)    info "Historical GPU data disabled." ;;
+        esac
+    fi
+    #endregion GPU history
+
+    #region UPS
+    msgb "\n=== UPS Information ==="
+    local choiceUPS
+    choiceUPS=$(ask "Enable UPS information? (y/N)")
+    case "$choiceUPS" in
+        [yY])
+            local upsConn modelName upsOutput
+            upsConn=$(ask "Enter UPS connection string (e.g. upsname@hostname[:port])")
+            if ! command -v upsc &>/dev/null; then
+                err "'upsc' is not available. Install 'nut-client' first."
+            fi
+            upsOutput=$(upsc "$upsConn" 2>&1)
+            if echo "$upsOutput" | grep -q "device.model:"; then
+                modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d: -f2- | xargs)
+                ENABLE_UPS=1
+                UPS_DEVICE_NAME="$upsConn"
+                info "Connected to UPS: $modelName at $upsConn"
+            else
+                warn "Could not connect to UPS at '$upsConn'. UPS info will be disabled."
+                ENABLE_UPS=0
+            fi
+            ;;
+        *) info "UPS information disabled." ;;
+    esac
+    #endregion UPS
+
+    #region System info
+    msgb "\n=== System Information ==="
+    echo "  type 1) System information (manufacturer, product, serial)"
+    dmidecode -t 1 2>/dev/null | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print "    "$0}' || true
+    echo "  type 2) Baseboard/Motherboard information"
+    dmidecode -t 2 2>/dev/null | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print "    "$0}' || true
+
+    local choiceSys
+    choiceSys=$(ask "Enable system information? (1/2/n)")
+    case "$choiceSys" in
+        1|"") ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1; info "System information (type 1) will be shown." ;;
+        2)    ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=2; info "Baseboard information (type 2) will be shown." ;;
+        [nN]) info "System information disabled." ;;
+        *)    warn "Invalid selection. Defaulting to type 1."; ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1 ;;
+    esac
+    #endregion System info
+}
+#endregion node-info wizard
+
+#region write config
+write_config() {
+    mkdir -p "$(dirname "$CONF_FILE")"
+    cat > "$CONF_FILE" <<EOF
+# pve-mod configuration file
+# Managed by pve-mod-configure. Re-run to update.
+
+[modules]
+node_info=${MOD_NODE_INFO}
+nag_screen=${MOD_NAG_SCREEN}
+
+[gpu]
+intel_enabled=${ENABLE_INTEL_GPU_INFO}
+nvidia_enabled=${ENABLE_NVIDIA_GPU_INFO}
+amd_enabled=${ENABLE_AMD_GPU_INFO}
+gpu_history=${ENABLE_GPU_HISTORY}
+
+[lm_sensors]
+enabled=${LM_SENSORS_ENABLED}
+enable_cpu=${ENABLE_CPU}
+cpu_temp_target=${CPU_TEMP_TARGET}
+enable_ram_temp=${ENABLE_RAM_TEMP}
+enable_hdd_temp=${ENABLE_HDD_TEMP}
+enable_nvme_temp=${ENABLE_NVME_TEMP}
+enable_fan_speed=${ENABLE_FAN_SPEED}
+display_zero_speed_fans=${DISPLAY_ZERO_SPEED_FANS}
+temp_unit=${TEMP_UNIT}
+
+[ups]
+enabled=${ENABLE_UPS}
+device_name=${UPS_DEVICE_NAME}
+
+[system_info]
+enabled=${ENABLE_SYSTEM_INFO}
+type=${SYSTEM_INFO_TYPE}
+
+[apt_hook]
+enabled=${APT_HOOK_ENABLED}
+
+[service]
+mode=embedded
+EOF
+    info "Configuration saved to $CONF_FILE"
+}
+#endregion write config
+
+#region apt hook
+configure_apt_hook() {
+    msgb "\n=== Automatic Re-patching (apt hook) ==="
+    echo "After a Proxmox upgrade, patched files (Nodes.pm, pvemanagerlib.js) may be"
+    echo "overwritten. An apt hook can re-apply patches automatically after every apt run."
+    echo "Enabling may pose the risk should something go wrong during the re-patching process (e.g. Proxmox changes)."
+    local choice
+    choice=$(ask "Enable automatic re-patching after apt/dpkg operations? (y/N)")
+    case "$choice" in
+        [yY])
+            APT_HOOK_ENABLED=1
+            cat > "$APT_HOOK_FILE" <<'HOOKEOF'
+DPkg::Post-Invoke { "/usr/lib/pve-mod/apt-hook.sh || true"; };
+HOOKEOF
+            info "Apt hook installed: $APT_HOOK_FILE"
+            ;;
+        *)
+            APT_HOOK_ENABLED=0
+            if [[ -f "$APT_HOOK_FILE" ]]; then
+                rm -f "$APT_HOOK_FILE"
+                info "Apt hook removed."
+            else
+                info "Apt hook not enabled."
+            fi
+            ;;
+    esac
+}
+#endregion apt hook
+
+main() {
+    # ── Root check ────────────────────────────────────────────────────────────
+    [[ $EUID -eq 0 ]] || err "This script must be run as root."
+
+    # ── Prerequisite check ────────────────────────────────────────────────────
+    if [[ ! -x "$APPLY_PATCHES" ]]; then
+        err "pve-mod is not installed (cannot find $APPLY_PATCHES).\nInstall it first: dpkg -i pve-mod_*.deb"
+    fi
+
+    # ── Legacy installation check ─────────────────────────────────────────────
+    if grep -qF '$res->{sensorsJSONOutput}' "$NODES_PM" 2>/dev/null || \
+       grep -qF '$res->{systemInfo}' "$NODES_PM" 2>/dev/null; then
+        err "A legacy pve-mod bash-script installation was detected in Nodes.pm.\nRemove it first:\n  bash /path/to/pve-mod-gui-sensors.sh uninstall"
+    fi
+
+    # ── Existing config notice ────────────────────────────────────────────────
+    if [[ -f "$CONF_FILE" ]]; then
+        warn "Existing configuration found at $CONF_FILE"
+        local choice
+        choice=$(ask "Reconfigure? (Y/n)")
+        case "$choice" in
+            [nN]) info "Keeping existing configuration."; exit 0 ;;
+        esac
+    fi
+
+    # ── Initialize all config variables with safe defaults ────────────────────
+    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0
+    LM_SENSORS_ENABLED=0
+    ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
+    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0
+    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
+    ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
+    ENABLE_GPU_HISTORY=0
+    ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
+    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
+    APT_HOOK_ENABLED=0
+
+    # ── Module selection ──────────────────────────────────────────────────────
+    msgb "\n=== pve-mod Module Selection ==="
+    echo "Available modules:"
+    echo "  [1] Node Info   — sensor readings, GPU stats, UPS, system information"
+    echo "  [2] Nag Screen  — remove Proxmox subscription nag screen"
+    echo "  [3] Both"
+    echo "  [n] None / cancel"
+    local modChoice
+    modChoice=$(ask "Select modules to enable (1/2/3/n)")
+    case "$modChoice" in
+        1)    MOD_NODE_INFO=1 ;;
+        2)    MOD_NAG_SCREEN=1 ;;
+        3)    MOD_NODE_INFO=1; MOD_NAG_SCREEN=1 ;;
+        [nN]) info "No modules selected. Exiting."; exit 0 ;;
+        *)    warn "Invalid selection. Defaulting to Node Info only."; MOD_NODE_INFO=1 ;;
+    esac
+
+    # ── Per-module wizards ────────────────────────────────────────────────────
+    if [[ "$MOD_NODE_INFO" -eq 1 ]]; then
+        msgb "\n=== Node Info Configuration ==="
+        configure_node_info
+    fi
+
+    if [[ "$MOD_NAG_SCREEN" -eq 1 ]]; then
+        msgb "\n=== Nag Screen ==="
+        info "Subscription nag screen removal will be applied."
+    fi
+
+    # ── Apt hook ──────────────────────────────────────────────────────────────
+    configure_apt_hook
+
+    # ── Write config and apply ────────────────────────────────────────────────
+    write_config
+
+    msgb "\n=== Applying patches ==="
+    "$APPLY_PATCHES"
+
+    msgb "\n=== Done ==="
+    info "pve-mod is configured and active."
+    info "Clear your browser cache to see the changes."
+}
+
+main
