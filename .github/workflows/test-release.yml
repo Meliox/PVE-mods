@@ -1,0 +1,38 @@
+name: Test Release Build
+
+# Temporary workflow to validate the release build on the feature branch.
+
+on:
+  push:
+    branches:
+      - deb-installer
+  workflow_dispatch:
+
+jobs:
+  test-release-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build deps
+        run: sudo apt-get install -y devscripts debhelper build-essential
+
+      - name: Build package
+        run: make build
+
+      - name: Verify package contents
+        run: |
+          echo "=== Package info ==="
+          dpkg-deb --info *.deb
+          echo ""
+          echo "=== Package contents ==="
+          dpkg-deb --contents *.deb
+
+      - name: Upload deb as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-build-deb
+          path: "*.deb"
+          retention-days: 3
