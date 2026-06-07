@@ -1,6 +1,6 @@
 name: Open / Update Version Bump PR
 
-# Triggered by any push to main where src/ files changed.
+# Triggered by any push to main where src/, debian/ files changed.
 # This happens when a feature PR is merged to main.
 # Creates a dedicated chore/version-bump branch and opens a PR from it.
 # When creating a new PR it assigns the default "bump:patch" label.
@@ -14,7 +14,8 @@ on:
       - main
     paths:
       - 'src/**'
-
+      - 'debian/**'
+      
 permissions:
   contents: write
   pull-requests: write
