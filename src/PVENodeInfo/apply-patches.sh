@@ -79,9 +79,10 @@ insertion = (
     f"{indent}# Collect sensor data from PveMod_SensorInfo\n"
     f"{indent}use PVE::API2::PVEMod_SensorInfo;\n"
     f"{indent}$res->{{PveMod_JsonSensorInfo}} = PVE::API2::PVEMod_SensorInfo::get_sensors_info();\n"
-    f"{indent}$res->{{PveMod_graphicsInfo}} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\n"
+    f"{indent}$res->{{PveMod_Version}} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();\n"
+    f"{indent}$res->{{PveMod_graphicsInfo}} = PVE::API2::PVEMod_SensorInfo::get_graphics_info();\n"
     f"{indent}$res->{{PveMod_upsInfo}} = PVE::API2::PVEMod_SensorInfo::get_ups_info();\n"
-    f"{indent}$res->{{pveMod_sensorInfo_systemInfo}} = PVE::API2::PVEMod_SensorInfo::get_system_information();\n"
+    f"{indent}$res->{{PveMod_systemInfo}} = PVE::API2::PVEMod_SensorInfo::get_system_information();\n"
 )
 content = content[:m.start()] + insertion + content[m.start():]
 open(path, 'w').write(content)
