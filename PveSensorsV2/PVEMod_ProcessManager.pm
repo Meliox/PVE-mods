@@ -200,9 +200,9 @@ sub _pve_mod_keep_alive {
     };
 
     debug(__LINE__, "Worker starting all collectors");
-    _start_sensors_collector();
-    _start_graphics_collectors();
-    _start_ups_collector();
+    _initialise_sensors_collector();
+    _initialise_graphics_collectors();
+    _initialise_ups_collector();
     debug(__LINE__, "All collectors started by worker");
 
     debug(__LINE__,
@@ -233,7 +233,7 @@ sub _pve_mod_keep_alive {
 # Collector startup helpers (called from worker loop)
 # ============================================================================
 
-sub _start_sensors_collector {
+sub _initialise_sensors_collector {
     return unless $config{lm_sensors}{enabled};
     return unless check_executable('/usr/bin/sensors', 'lm-sensors',
                                    $config{debug}{lm_sensors_mode},
@@ -245,7 +245,7 @@ sub _start_sensors_collector {
                      { name => 'sensors' });
 }
 
-sub _start_ups_collector {
+sub _initialise_ups_collector {
     unless ($config{ups}{enabled} && $config{ups}{device_name}) {
         debug(__LINE__, "UPS collection disabled/invalid in config, skipping");
         return;
@@ -259,7 +259,7 @@ sub _start_ups_collector {
                      { ups_name => $config{ups}{device_name} });
 }
 
-sub _start_graphics_collectors {
+sub _initialise_graphics_collectors {
     unless ($config{gpu}{intel_enabled}
             || $config{gpu}{amd_enabled}
             || $config{gpu}{nvidia_enabled}) {
