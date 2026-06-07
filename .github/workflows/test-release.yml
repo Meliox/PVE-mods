@@ -1,0 +1,52 @@
+name: Test Release Build
+
+# Runs on every push, manual dispatch, or when the 'make-test-build' label
+# is assigned to a pull request.
+
+on:
+  push:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  test-release-build:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.label.name == 'make-test-build'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install build deps
+        run: sudo apt-get install -y devscripts debhelper build-essential
+
+      - name: Build package
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Verify package contents
+        run: |
+          echo "=== Built files ==="
+          ls -la ../*.deb
+          echo ""
+          echo "=== Package info ==="
+          dpkg-deb --info ../*.deb
+          echo ""
+          echo "=== Package contents ==="
+          dpkg-deb --contents ../*.deb
+
+      - name: Collect deb artifacts
+        id: collect
+        run: |
+          mkdir -p artifacts
+          cp ../*.deb artifacts/
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deb as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pve-mods-test-build-${{ steps.collect.outputs.short_sha }}
+          path: artifacts/*.deb
+          retention-days: 3

@@ -1,0 +1,85 @@
+name: Build and Release
+
+# Triggered when debian/changelog changes on main — meaning version-bump.yml
+# just committed a new version. Builds the .deb and publishes a GitHub Release.
+# The actor guard ensures this only fires for the bot's commit, not manual edits.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'debian/changelog'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.actor == 'github-actions[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from changelog
+        id: version
+        run: |
+          VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y debhelper dpkg-dev
+
+      - name: Build deb package
+        run: |
+          dpkg-buildpackage -us -uc -b
+          ls -lh ../pve-mod_*.deb
+
+      - name: Collect release assets
+        id: assets
+        run: |
+          DEB=$(ls ../pve-mods_${{ steps.version.outputs.version }}.deb)
+          echo "deb=$DEB" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from changelog
+        id: notes
+        run: |
+          # Pull the top changelog entry (lines between first and second "^pve-mod (")
+          NOTES=$(awk '
+            /^pve-mod \(/ { if (found) exit; found=1; next }
+            found && /^ --/ { exit }
+            found { print }
+          ' debian/changelog | grep '^\s*\*' | sed 's/^\s*\* /- /')
+          EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
+          echo "notes<<$EOF"  >> "$GITHUB_OUTPUT"
+          echo "$NOTES"       >> "$GITHUB_OUTPUT"
+          echo "$EOF"         >> "$GITHUB_OUTPUT"
+
+      - name: Create Git tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          DEB: ${{ steps.assets.outputs.deb }}
+        run: |
+          gh release create "$TAG" \
+            --title "pve-mod $TAG" \
+            --notes "$NOTES" \
+            "$DEB" \
+            "install.sh"

@@ -1,0 +1,84 @@
+name: Open / Update Version Bump PR
+
+# Triggered by any push to main where src/ files changed.
+# This happens when a feature PR is merged to main.
+# Creates a dedicated chore/version-bump branch and opens a PR from it.
+# When creating a new PR it assigns the default "bump:patch" label.
+# When updating an existing PR the label is NOT changed, preserving any
+# manual label change (e.g. bump:minor, bump:major) made by a reviewer.
+# The bot guard prevents this from firing on changelog commits.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect src/ commits from merge
+        id: commits
+        run: |
+          LOG=$(git log "HEAD~1..HEAD" --oneline -- src/ | head -50)
+          EOF=$(openssl rand -hex 16)
+          echo "log<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$LOG"      >> "$GITHUB_OUTPUT"
+          echo "$EOF"      >> "$GITHUB_OUTPUT"
+
+      - name: Create or reset version bump branch
+        run: |
+          git checkout -B chore/version-bump
+          git push origin chore/version-bump --force
+
+      - name: Create or update version bump PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITS:  ${{ steps.commits.outputs.log }}
+        run: |
+          BUMP_BRANCH="chore/version-bump"
+          VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          TITLE="chore: bump pve-mod to v${VERSION}"
+
+          {
+            echo "## Changes merged to main"
+            echo ""
+            echo "${COMMITS:-No src/ changes detected.}"
+            echo ""
+            echo "---"
+            echo "*Apply a bump:minor or bump:major label before merging if needed.*"
+            echo "*Default label is bump:patch.*"
+          } > /tmp/pr-body.md
+
+          EXISTING=$(gh pr list \
+            --head "$BUMP_BRANCH" \
+            --base main \
+            --json number --jq '.[0].number' 2>/dev/null || true)
+
+          if [[ -n "$EXISTING" ]]; then
+            gh pr edit "$EXISTING" \
+              --title "$TITLE" \
+              --body-file /tmp/pr-body.md
+            echo "Updated PR #${EXISTING} body and title (label unchanged)"
+          else
+            gh pr create \
+              --title "$TITLE" \
+              --body-file /tmp/pr-body.md \
+              --base main \
+              --head "$BUMP_BRANCH" \
+              --label "bump:patch"
+            echo "Opened new version bump PR with label bump:patch"
+          fi

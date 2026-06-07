@@ -1,0 +1,84 @@
+name: Version Bump
+
+# Triggered when src/ changes land on main (i.e. a PR just merged).
+# Increments the patch version in debian/changelog and commits it.
+# The changelog commit only touches debian/changelog (not src/),
+# so it does not re-trigger this workflow.
+# release.yml picks up the changelog change and builds/publishes the release.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    # Skip commits made by this workflow itself
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and bump version
+        id: version
+        run: |
+          CURRENT=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT" | cut -d. -f3)
+          NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW"         >> "$GITHUB_OUTPUT"
+
+      - name: Collect src/ commits since last tag
+        id: commits
+        run: |
+          LAST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
+          if [[ -n "$LAST_TAG" ]]; then
+            LOG=$(git log "${LAST_TAG}..HEAD" --oneline -- src/ | head -50)
+          else
+            LOG=$(git log --oneline -- src/ | head -50)
+          fi
+          EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
+          echo "log<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$LOG"      >> "$GITHUB_OUTPUT"
+          echo "$EOF"      >> "$GITHUB_OUTPUT"
+
+      - name: Prepend new changelog entry
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+          COMMITS: ${{ steps.commits.outputs.log }}
+        run: |
+          DATE=$(date -R)
+          {
+            echo "pve-mod ($NEW_VERSION) stable; urgency=low"
+            echo ""
+            while IFS= read -r line; do
+              [[ -n "$line" ]] && echo "  * $line"
+            done <<< "$COMMITS"
+            [[ -z "$COMMITS" ]] && echo "  * Automated version bump."
+            echo ""
+            echo " -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  $DATE"
+            echo ""
+            cat debian/changelog
+          } > debian/changelog.new
+          mv debian/changelog.new debian/changelog
+
+      - name: Commit and push changelog
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add debian/changelog
+          git commit -m "Release v${NEW_VERSION}"
+          git push

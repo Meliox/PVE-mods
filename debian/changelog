@@ -1,0 +1,70 @@
+pve-mod (0.1.5) stable; urgency=low
+
+  * cfeccc2 align with main
+  * 463dd66 fix startup_message
+  * a6b2560 ..
+  * a7d8c3b add debug to pve-mod-configure
+  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 54dd209 test again
+  * a7cef62 rework hook implementation to work on dpkg triggered
+  * d9ff050 first draft for testing
+  * 73567f1 Restructure git repo for installer
+  * bfb078a PVE Temp mod version 2.0 (#152)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 14:12:32 +0000
+
+pve-mod (0.1.4) stable; urgency=low
+
+  * 463dd66 fix startup_message
+  * a6b2560 ..
+  * a7d8c3b add debug to pve-mod-configure
+  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 54dd209 test again
+  * a7cef62 rework hook implementation to work on dpkg triggered
+  * d9ff050 first draft for testing
+  * 73567f1 Restructure git repo for installer
+  * bfb078a PVE Temp mod version 2.0 (#152)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 14:05:47 +0000
+
+pve-mod (0.1.3) stable; urgency=low
+
+  * a6b2560 ..
+  * a7d8c3b add debug to pve-mod-configure
+  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 54dd209 test again
+  * a7cef62 rework hook implementation to work on dpkg triggered
+  * d9ff050 first draft for testing
+  * 73567f1 Restructure git repo for installer
+  * bfb078a PVE Temp mod version 2.0 (#152)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:51:51 +0000
+
+pve-mod (0.1.2) stable; urgency=low
+
+  * a7d8c3b add debug to pve-mod-configure
+  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 54dd209 test again
+  * a7cef62 rework hook implementation to work on dpkg triggered
+  * d9ff050 first draft for testing
+  * 73567f1 Restructure git repo for installer
+  * bfb078a PVE Temp mod version 2.0 (#152)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:48:24 +0000
+
+pve-mod (0.1.1) stable; urgency=low
+
+  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 54dd209 test again
+  * a7cef62 rework hook implementation to work on dpkg triggered
+  * d9ff050 first draft for testing
+  * 73567f1 Restructure git repo for installer
+  * bfb078a PVE Temp mod version 2.0 (#152)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:04:56 +0000
+
+pve-mod (0.1.0) beta; urgency=low
+
+  * Initial release.
+
+ -- Meliox <meliox@users.noreply.github.com>  Sat, 07 Jun 2026 00:00:00 +0000
