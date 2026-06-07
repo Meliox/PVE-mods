@@ -22,6 +22,15 @@ jobs:
       - name: Install build deps
         run: sudo apt-get install -y devscripts debhelper build-essential
 
+      - name: Inject version into PVEMod_Config.pm
+        run: |
+          VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          export BUILD_VERSION="${VERSION}-test-${SHORT_SHA}"
+          perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
+            s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
+          ' src/PVENodeInfo/PVEMod_Config.pm
+
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
 

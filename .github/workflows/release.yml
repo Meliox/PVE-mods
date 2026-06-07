@@ -37,6 +37,14 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y debhelper dpkg-dev
 
+      - name: Inject version into PVEMod_Config.pm
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
+            s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
+          ' src/PVENodeInfo/PVEMod_Config.pm
+
       - name: Build deb package
         run: |
           dpkg-buildpackage -us -uc -b
