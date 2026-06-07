@@ -36,19 +36,19 @@ our %config = (
         gpu_history    => 0,
     },
     debug => {
-        log_enabled         => 0,
-        log_file            => '/tmp/pve-mod-debug.log',
-        nvidia_mode         => 1,
-        nvidia_devices_file => '/tmp/nvidia-smi-devices.csv',
-        nvidia_output_file  => '/tmp/nvidia-smi-output.csv',
-        intel_mode          => 0,
-        intel_devices_file  => '/tmp/intel-gpu-devices.json',
-        amd_mode            => 0,
-        amd_devices_file    => '/tmp/amd-gpu-devices.json',
-        ups_mode            => 0,
-        ups_output_file     => '/tmp/ups-output.json',
+        log_enabled            => 0,
+        log_file               => '/tmp/pve-mod-debug.log',
         lm_sensors_mode        => 0,
         lm_sensors_output_file => '/tmp/sensors-output.json',
+        intel_mode             => 0,
+        intel_devices_file     => '/tmp/intel-gpu-devices.json',
+        nvidia_mode            => 0,
+        nvidia_devices_file    => '/tmp/nvidia-smi-devices.csv',
+        nvidia_output_file     => '/tmp/nvidia-smi-output.csv',
+        amd_mode               => 0,
+        amd_devices_file       => '/tmp/amd-gpu-devices.json',
+        ups_mode               => 0,
+        ups_output_file        => '/tmp/ups-output.json',
     },
     intervals => {
         data_pull         => 1,          # seconds between data pulls
@@ -137,6 +137,9 @@ sub _load_ini_file {
             }
             elsif ($section eq 'system_info' && exists $config{system_info}{$key}) {
                 $config{system_info}{$key} = $val;
+            }
+            elsif ($section eq 'debug' && exists $config{debug}{$key}) {
+                $config{debug}{$key} = $val;
             }
         }
     }

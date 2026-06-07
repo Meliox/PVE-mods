@@ -321,10 +321,90 @@ enabled=${PVE_TRIGGER_ENABLED}
 
 [service]
 mode=embedded
+
+# Debug mode: when a collector's mode is 1, the real tool is not required.
+# Data is read from the file path instead. Useful for development/testing.
+[debug]
+lm_sensors_mode=${DEBUG_LM_SENSORS}
+lm_sensors_output_file=${DEBUG_LM_SENSORS_FILE}
+intel_mode=${DEBUG_INTEL}
+intel_devices_file=${DEBUG_INTEL_FILE}
+nvidia_mode=${DEBUG_NVIDIA}
+nvidia_devices_file=${DEBUG_NVIDIA_DEVICES_FILE}
+nvidia_output_file=${DEBUG_NVIDIA_OUTPUT_FILE}
+amd_mode=${DEBUG_AMD}
+amd_devices_file=${DEBUG_AMD_FILE}
+ups_mode=${DEBUG_UPS}
+ups_output_file=${DEBUG_UPS_FILE}
+log_enabled=${DEBUG_LOG}
+log_file=${DEBUG_LOG_FILE}
 EOF
     info "Configuration saved to $CONF_FILE"
 }
 #endregion write config
+
+#region debug wizard
+configure_debug() {
+    msgb "\n=== Debug / Development Mode ==="
+    echo "Debug mode substitutes real tools with pre-captured data files."
+    echo "When a collector's mode is enabled the tool (sensors/intel_gpu_top/etc.) is not required."
+    local choice
+    choice=$(ask "Configure debug file overrides? (y/N)")
+    [[ "$choice" != [yY] ]] && return
+
+    local newpath
+
+    choice=$(ask "Enable LM-Sensors debug? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_LM_SENSORS=1
+        newpath=$(ask "Path to sensors JSON file [${DEBUG_LM_SENSORS_FILE}]")
+        DEBUG_LM_SENSORS_FILE="${newpath:-$DEBUG_LM_SENSORS_FILE}"
+        info "LM-Sensors debug: ${DEBUG_LM_SENSORS_FILE}"
+    fi
+
+    choice=$(ask "Enable Intel GPU debug? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_INTEL=1
+        newpath=$(ask "Path to Intel GPU devices JSON [${DEBUG_INTEL_FILE}]")
+        DEBUG_INTEL_FILE="${newpath:-$DEBUG_INTEL_FILE}"
+        info "Intel GPU debug: ${DEBUG_INTEL_FILE}"
+    fi
+
+    choice=$(ask "Enable NVIDIA GPU debug? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_NVIDIA=1
+        newpath=$(ask "Path to nvidia-smi output CSV [${DEBUG_NVIDIA_OUTPUT_FILE}]")
+        DEBUG_NVIDIA_OUTPUT_FILE="${newpath:-$DEBUG_NVIDIA_OUTPUT_FILE}"
+        newpath=$(ask "Path to nvidia-smi devices CSV [${DEBUG_NVIDIA_DEVICES_FILE}]")
+        DEBUG_NVIDIA_DEVICES_FILE="${newpath:-$DEBUG_NVIDIA_DEVICES_FILE}"
+        info "NVIDIA GPU debug: output=${DEBUG_NVIDIA_OUTPUT_FILE} devices=${DEBUG_NVIDIA_DEVICES_FILE}"
+    fi
+
+    choice=$(ask "Enable AMD GPU debug? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_AMD=1
+        newpath=$(ask "Path to AMD GPU devices JSON [${DEBUG_AMD_FILE}]")
+        DEBUG_AMD_FILE="${newpath:-$DEBUG_AMD_FILE}"
+        info "AMD GPU debug: ${DEBUG_AMD_FILE}"
+    fi
+
+    choice=$(ask "Enable UPS debug? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_UPS=1
+        newpath=$(ask "Path to UPS output JSON [${DEBUG_UPS_FILE}]")
+        DEBUG_UPS_FILE="${newpath:-$DEBUG_UPS_FILE}"
+        info "UPS debug: ${DEBUG_UPS_FILE}"
+    fi
+
+    choice=$(ask "Enable debug logging? (y/N)")
+    if [[ "$choice" == [yY] ]]; then
+        DEBUG_LOG=1
+        newpath=$(ask "Log file path [${DEBUG_LOG_FILE}]")
+        DEBUG_LOG_FILE="${newpath:-$DEBUG_LOG_FILE}"
+        info "Debug log: ${DEBUG_LOG_FILE}"
+    fi
+}
+#endregion debug wizard
 
 main() {
     # ── Root check ────────────────────────────────────────────────────────────
@@ -362,6 +442,13 @@ main() {
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
     PVE_TRIGGER_ENABLED=0
+    DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
+    DEBUG_INTEL=0;      DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.json"
+    DEBUG_NVIDIA=0;     DEBUG_NVIDIA_OUTPUT_FILE="/tmp/nvidia-smi-output.csv"
+                        DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"
+    DEBUG_AMD=0;        DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
+    DEBUG_UPS=0;        DEBUG_UPS_FILE="/tmp/ups-output.json"
+    DEBUG_LOG=0;        DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
 
     # ── Module selection ──────────────────────────────────────────────────────
     msgb "\n=== pve-mod Module Selection ==="
@@ -390,6 +477,9 @@ main() {
         msgb "\n=== Nag Screen ==="
         info "Subscription nag screen removal will be applied."
     fi
+
+    # ── Debug mode ────────────────────────────────────────────────────────────
+    configure_debug
 
     # ── Re-patch on PVE upgrade ───────────────────────────────────────────────
     msgb "\n=== Auto Re-patching on PVE Upgrade ==="
