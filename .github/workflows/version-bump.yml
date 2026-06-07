@@ -1,25 +1,20 @@
 name: Version Bump
 
-# Triggered by any push to src/ on non-main branches.
-# Increments the patch version in debian/changelog, commits it,
-# and opens (or updates) a "Release vX.Y.Z" PR to main.
-# The changelog commit touches only debian/changelog (not src/),
+# Triggered when src/ changes land on main (i.e. a PR just merged).
+# Increments the patch version in debian/changelog and commits it.
+# The changelog commit only touches debian/changelog (not src/),
 # so it does not re-trigger this workflow.
-#
-# NOTE: GITHUB_TOKEN cannot push to forks, so this workflow only works for
-# branches on the upstream repo (Meliox/PVE-mods). External contributors
-# opening PRs from forks will not get an automatic version bump.
+# release.yml picks up the changelog change and builds/publishes the release.
 
 on:
   push:
-    branches-ignore:
+    branches:
       - main
     paths:
       - 'src/**'
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   bump:
@@ -44,7 +39,7 @@ jobs:
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"         >> "$GITHUB_OUTPUT"
 
-      - name: Build PR body from src/ commits since last release
+      - name: Collect src/ commits since last tag
         id: commits
         run: |
           LAST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
@@ -53,7 +48,6 @@ jobs:
           else
             LOG=$(git log --oneline -- src/ | head -50)
           fi
-          # Escape for GitHub multiline output
           EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
           echo "log<<$EOF" >> "$GITHUB_OUTPUT"
           echo "$LOG"      >> "$GITHUB_OUTPUT"
@@ -79,7 +73,7 @@ jobs:
           } > debian/changelog.new
           mv debian/changelog.new debian/changelog
 
-      - name: Commit changelog
+      - name: Commit and push changelog
         env:
           NEW_VERSION: ${{ steps.version.outputs.new }}
         run: |
@@ -88,36 +82,3 @@ jobs:
           git add debian/changelog
           git commit -m "Release v${NEW_VERSION}"
           git push
-
-      - name: Create or update release PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_VERSION: ${{ steps.version.outputs.new }}
-          COMMITS: ${{ steps.commits.outputs.log }}
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          TITLE="Release v${NEW_VERSION}"
-
-          {
-            echo "## Changes since last release"
-            echo ""
-            echo "${COMMITS:-No src/ changes detected.}"
-            echo ""
-            echo "---"
-            echo "*Merge this PR to build and publish the \`pve-mod_${NEW_VERSION}_all.deb\` release.*"
-          } > /tmp/pr-body.md
-
-          EXISTING=$(gh pr list \
-            --search "\"$TITLE\" in:title" \
-            --json number --jq '.[0].number' 2>/dev/null || true)
-
-          if [[ -n "$EXISTING" ]]; then
-            gh pr edit "$EXISTING" --body-file /tmp/pr-body.md
-            echo "Updated existing PR #$EXISTING"
-          else
-            gh pr create \
-              --title "$TITLE" \
-              --body-file /tmp/pr-body.md \
-              --base  main \
-              --head  "$BRANCH"
-          fi

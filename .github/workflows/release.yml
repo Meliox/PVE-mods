@@ -1,10 +1,15 @@
 name: Build and Release
 
-# Triggered when a "Release vX.Y.Z" PR is merged into main
-# (detected by a push to main that changes debian/changelog).
+# Triggered when debian/changelog changes on main — meaning version-bump.yml
+# just committed a new version. Builds the .deb and publishes a GitHub Release.
+# The actor guard ensures this only fires for the bot's commit, not manual edits.
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'debian/changelog'
 
 permissions:
   contents: write
@@ -12,6 +17,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: github.actor == 'github-actions[bot]'
 
     steps:
       - uses: actions/checkout@v4
@@ -76,4 +82,4 @@ jobs:
             --title "pve-mod $TAG" \
             --notes "$NOTES" \
             "$DEB" \
-            "src/install.sh"
+            "src/Scripts/install.sh"

@@ -1,0 +1,71 @@
+name: Open / Update PR
+
+# Triggered by any push to a non-main branch where src/ files changed.
+# Opens a PR to main if one does not exist, or updates its body if it does.
+# When creating a new PR it assigns the default "bump:patch" label.
+# When updating an existing PR the label is NOT changed, preserving any
+# manual label change (e.g. bump:minor, bump:major) made by a reviewer.
+#
+# Pre-requisite: create the label once in the repo:
+#   gh label create "bump:patch" --color "0075ca" --description "Default patch-version bump"
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'src/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect src/ commits on this branch
+        id: commits
+        run: |
+          LOG=$(git log "origin/main..HEAD" --oneline -- src/ | head -50)
+          EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
+          echo "log<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$LOG"      >> "$GITHUB_OUTPUT"
+          echo "$EOF"      >> "$GITHUB_OUTPUT"
+
+      - name: Create or update PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH:  ${{ github.ref_name }}
+          COMMITS: ${{ steps.commits.outputs.log }}
+        run: |
+          TITLE="feat: $BRANCH"
+
+          {
+            echo "## Changes in \`$BRANCH\`"
+            echo ""
+            echo "${COMMITS:-No src/ changes detected.}"
+          } > /tmp/pr-body.md
+
+          EXISTING=$(gh pr list \
+            --head "$BRANCH" \
+            --json number --jq '.[0].number' 2>/dev/null || true)
+
+          if [[ -n "$EXISTING" ]]; then
+            gh pr edit "$EXISTING" --body-file /tmp/pr-body.md
+            echo "Updated PR #$EXISTING body (label unchanged)"
+          else
+            gh pr create \
+              --title "$TITLE" \
+              --body-file /tmp/pr-body.md \
+              --base main \
+              --head "$BRANCH" \
+              --label "bump:patch"
+            echo "Opened new PR with label bump:patch"
+          fi
