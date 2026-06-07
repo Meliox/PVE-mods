@@ -1,18 +1,16 @@
 name: Test Release Build
 
-# Runs on every push, manual dispatch, or when the 'make-test-build' label
-# is assigned to a pull request.
+# Runs when the 'make-test-build' label is applied to a pull request,
+# or on any subsequent commit while that label is present.
 
 on:
-  push:
-  workflow_dispatch:
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
 
 jobs:
   test-release-build:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.label.name == 'make-test-build'
+    if: contains(github.event.pull_request.labels.*.name, 'make-test-build')
     steps:
       - uses: actions/checkout@v4
         with:
