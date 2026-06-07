@@ -23,6 +23,35 @@ ask()  {
     echo "$response"
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
+
+_load_conf_debug() {
+    [[ -f "$CONF_FILE" ]] || return 0
+    local in_debug=0 line key val
+    while IFS= read -r line; do
+        case "$line" in
+            '[debug]') in_debug=1; continue ;;
+            '['*']')   in_debug=0; continue ;;
+            '#'*|'')   continue ;;
+        esac
+        [[ "$in_debug" -eq 0 ]] && continue
+        key="${line%%=*}"; val="${line#*=}"
+        case "$key" in
+            lm_sensors_mode)        DEBUG_LM_SENSORS="$val" ;;
+            lm_sensors_output_file) DEBUG_LM_SENSORS_FILE="$val" ;;
+            intel_mode)             DEBUG_INTEL="$val" ;;
+            intel_devices_file)     DEBUG_INTEL_FILE="$val" ;;
+            nvidia_mode)            DEBUG_NVIDIA="$val" ;;
+            nvidia_devices_file)    DEBUG_NVIDIA_DEVICES_FILE="$val" ;;
+            nvidia_output_file)     DEBUG_NVIDIA_OUTPUT_FILE="$val" ;;
+            amd_mode)               DEBUG_AMD="$val" ;;
+            amd_devices_file)       DEBUG_AMD_FILE="$val" ;;
+            ups_mode)               DEBUG_UPS="$val" ;;
+            ups_output_file)        DEBUG_UPS_FILE="$val" ;;
+            log_enabled)            DEBUG_LOG="$val" ;;
+            log_file)               DEBUG_LOG_FILE="$val" ;;
+        esac
+    done < "$CONF_FILE"
+}
 #endregion helpers
 
 sanitize_sensors_output() {
@@ -83,26 +112,35 @@ configure_node_info() {
     local lm_sensors_ok=false
     local sensors_detected=false
 
-    _check_or_install_tool sensors lm-sensors "lm-sensors" && lm_sensors_ok=true && LM_SENSORS_ENABLED=1
+    if [[ "$DEBUG_LM_SENSORS" -eq 1 && -f "$DEBUG_LM_SENSORS_FILE" ]]; then
+        info "[debug] Using sensor data from $DEBUG_LM_SENSORS_FILE"
+        lm_sensors_ok=true; LM_SENSORS_ENABLED=1
+    else
+        _check_or_install_tool sensors lm-sensors "lm-sensors" && lm_sensors_ok=true && LM_SENSORS_ENABLED=1
+    fi
 
     if [[ "$lm_sensors_ok" == true ]]; then
         local sensorsOutput sanitisedSensorsOutput
-        sensorsOutput=$(sensors -j 2>/dev/null)
+        if [[ "$DEBUG_LM_SENSORS" -eq 1 ]]; then
+            sensorsOutput=$(cat "$DEBUG_LM_SENSORS_FILE")
+        else
+            sensorsOutput=$(sensors -j 2>/dev/null)
+        fi
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
 
         #region CPU
         msgb "\n=== Detecting CPU temperature sensors ==="
         local cpuList="" cpuCount=0
         for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
-            local found_sensors
-            found_sensors=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" | sed 's/"//g')
-            if [[ -n "$found_sensors" ]]; then
+            local found_cpus
+            found_cpus=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" || true | sed 's/"//g')
+            if [[ -n "$found_cpus" ]]; then
                 while read -r sensor; do
                     [[ -z "$sensor" ]] && continue
                     cpuCount=$((cpuCount + 1))
                     cpuList="${cpuList:+$cpuList,}$sensor"
                     ENABLE_CPU=1
-                done <<< "$found_sensors"
+                done <<< "$found_cpus"
             fi
         done
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
@@ -192,7 +230,17 @@ configure_node_info() {
     #region Intel GPU
     msgb "\n=== Detecting Intel GPU ==="
     local intelCards=""
-    if _check_or_install_tool intel_gpu_top igt-gpu-tools "Intel GPU tools (igt-gpu-tools)"; then
+    if [[ "$DEBUG_INTEL" -eq 1 && -f "$DEBUG_INTEL_FILE" ]]; then
+        info "[debug] Using Intel GPU data from $DEBUG_INTEL_FILE"
+        intelCards=$(cat "$DEBUG_INTEL_FILE")
+        if [[ -n "$intelCards" ]]; then
+            info "Intel GPU(s) detected (debug):"
+            echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
+            ENABLE_INTEL_GPU_INFO=1
+        else
+            warn "No Intel GPUs in debug file."
+        fi
+    elif _check_or_install_tool intel_gpu_top igt-gpu-tools "Intel GPU tools (igt-gpu-tools)"; then
         intelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
         if [[ -n "$intelCards" ]]; then
             info "Intel GPU(s) detected:"
@@ -206,7 +254,18 @@ configure_node_info() {
 
     #region NVIDIA GPU
     msgb "\n=== Detecting NVIDIA GPU ==="
-    if _check_nvidia_tool; then
+    if [[ "$DEBUG_NVIDIA" -eq 1 && -f "$DEBUG_NVIDIA_DEVICES_FILE" ]]; then
+        info "[debug] Using NVIDIA GPU data from $DEBUG_NVIDIA_DEVICES_FILE"
+        local nvidiaCards
+        nvidiaCards=$(cat "$DEBUG_NVIDIA_DEVICES_FILE")
+        if [[ -n "$nvidiaCards" ]]; then
+            info "NVIDIA GPU(s) detected (debug):"
+            echo "$nvidiaCards" | while IFS= read -r line; do echo "  $line"; done
+            ENABLE_NVIDIA_GPU_INFO=1
+        else
+            warn "No NVIDIA GPUs in debug file."
+        fi
+    elif _check_nvidia_tool; then
         local nvidiaCards
         nvidiaCards=$(nvidia-smi -L 2>/dev/null || true)
         if [[ -n "$nvidiaCards" ]]; then
@@ -243,10 +302,15 @@ configure_node_info() {
         [yY])
             local upsConn modelName upsOutput
             upsConn=$(ask "Enter UPS connection string (e.g. upsname@hostname[:port])")
-            if ! command -v upsc &>/dev/null; then
-                err "'upsc' is not available. Install 'nut-client' first."
+            if [[ "$DEBUG_UPS" -eq 1 && -f "$DEBUG_UPS_FILE" ]]; then
+                info "[debug] Using UPS data from $DEBUG_UPS_FILE"
+                upsOutput=$(cat "$DEBUG_UPS_FILE")
+            else
+                if ! command -v upsc &>/dev/null; then
+                    err "'upsc' is not available. Install 'nut-client' first."
+                fi
+                upsOutput=$(upsc "$upsConn" 2>&1)
             fi
-            upsOutput=$(upsc "$upsConn" 2>&1)
             if echo "$upsOutput" | grep -q "device.model:"; then
                 modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d: -f2- | xargs)
                 ENABLE_UPS=1
@@ -407,6 +471,20 @@ configure_debug() {
 #endregion debug wizard
 
 main() {
+    # ── Welcome banner ────────────────────────────────────────────────────────
+    local _version
+    _version=$(dpkg-query -W -f='${Version}' pve-mod 2>/dev/null || echo "unknown")
+    echo -e "\e[1;34m"
+    echo "  ██████╗ ██╗   ██╗███████╗    ███╗   ███╗ ██████╗ ██████╗ "
+    echo "  ██╔══██╗██║   ██║██╔════╝    ████╗ ████║██╔═══██╗██╔══██╗"
+    echo "  ██████╔╝██║   ██║█████╗      ██╔████╔██║██║   ██║██║  ██║"
+    echo "  ██╔═══╝ ╚██╗ ██╔╝██╔══╝      ██║╚██╔╝██║██║   ██║██║  ██║"
+    echo "  ██║      ╚████╔╝ ███████╗    ██║ ╚═╝ ██║╚██████╔╝██████╔╝"
+    echo "  ╚═╝       ╚═══╝  ╚══════╝    ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ "
+    echo -e "\e[0m"
+    echo -e "\e[1m  PVE-Mod Configurator  \e[0;36mv${_version}\e[0m"
+    echo -e "  Proxmox VE enhancement suite — hardware monitoring, GPU info & more\n"
+
     # ── Root check ────────────────────────────────────────────────────────────
     [[ $EUID -eq 0 ]] || err "This script must be run as root."
 
@@ -423,9 +501,8 @@ main() {
 
     # ── Existing config notice ────────────────────────────────────────────────
     if [[ -f "$CONF_FILE" ]]; then
-        warn "Existing configuration found at $CONF_FILE"
         local choice
-        choice=$(ask "Reconfigure? (Y/n)")
+        choice=$(ask "Existing configuration found at $CONF_FILE — Reconfigure? (Y/n)")
         case "$choice" in
             [nN]) info "Keeping existing configuration."; exit 0 ;;
         esac
@@ -449,6 +526,7 @@ main() {
     DEBUG_AMD=0;        DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
     DEBUG_UPS=0;        DEBUG_UPS_FILE="/tmp/ups-output.json"
     DEBUG_LOG=0;        DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
+    _load_conf_debug
 
     # ── Module selection ──────────────────────────────────────────────────────
     msgb "\n=== pve-mod Module Selection ==="
