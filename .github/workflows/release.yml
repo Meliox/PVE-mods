@@ -45,7 +45,7 @@ jobs:
       - name: Collect release assets
         id: assets
         run: |
-          DEB=$(ls ../pvemod_${{ steps.version.outputs.version }}.deb)
+          DEB=$(ls ../pve-mods_${{ steps.version.outputs.version }}.deb)
           echo "deb=$DEB" >> "$GITHUB_OUTPUT"
 
       - name: Extract release notes from changelog
