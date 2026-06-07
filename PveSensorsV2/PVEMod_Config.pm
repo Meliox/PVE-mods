@@ -35,6 +35,8 @@ our %config = (
         nvidia_enabled => 0,
     },
     debug => {
+        log_enabled         => 0,
+        log_file            => '/tmp/pve-mod-debug.log',
         nvidia_mode         => 1,
         nvidia_devices_file => '/tmp/nvidia-smi-devices.csv',
         nvidia_output_file  => '/tmp/nvidia-smi-output.csv',

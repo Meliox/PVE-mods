@@ -7,7 +7,9 @@ use Exporter 'import';
 use JSON;
 use Fcntl qw(O_CREAT O_EXCL O_WRONLY);
 
-use PVE::PVEMod::Config qw($DEBUG_ENABLED $VERSION $pve_mod_working_dir);
+use PVE::PVEMod::Config qw($DEBUG_ENABLED $VERSION $pve_mod_working_dir %config);
+
+my $debug_log_fh;
 
 our @EXPORT_OK = qw(
     debug
@@ -43,12 +45,25 @@ sub debug {
 
     $sub1 =~ s/.*:://;
 
+    my $output;
     if (defined $sub2) {
         $sub2 =~ s/.*:://;
-        warn "[$sub2 -> $sub1:$line] $message\n";
+        $output = "[$sub2 -> $sub1:$line] $message\n";
     } else {
-        warn "[$sub1:$line] $message\n";
+        $output = "[$sub1:$line] $message\n";
     }
+
+    warn $output;
+
+    if ($config{debug}{log_enabled} && !defined $debug_log_fh) {
+        if (open(my $fh, '>>', $config{debug}{log_file})) {
+            $fh->autoflush(1);
+            $debug_log_fh = $fh;
+        } else {
+            warn "[debug] Failed to open log file $config{debug}{log_file}: $!\n";
+        }
+    }
+    print $debug_log_fh $output if defined $debug_log_fh;
 }
 
 # ============================================================================
