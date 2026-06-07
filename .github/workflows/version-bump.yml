@@ -1,17 +1,16 @@
 name: Version Bump
 
-# Triggered when src/ changes land on main (i.e. a PR just merged).
-# Increments the patch version in debian/changelog and commits it.
-# The changelog commit only touches debian/changelog (not src/),
-# so it does not re-trigger this workflow.
-# release.yml picks up the changelog change and builds/publishes the release.
+# Triggered when the chore/version-bump PR is merged to main.
+# Reads the bump:patch / bump:minor / bump:major label to determine
+# the version increment, updates debian/changelog, and commits it.
+# release.yml then picks up the changelog change and builds the release.
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
-    paths:
-      - 'src/**'
 
 permissions:
   contents: write
@@ -19,8 +18,9 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
-    # Skip commits made by this workflow itself
-    if: github.actor != 'github-actions[bot]'
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'chore/version-bump'
 
     steps:
       - uses: actions/checkout@v4
@@ -28,14 +28,42 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine bump type from PR label
+        id: bump_type
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
+          echo "Labels found: $LABELS"
+
+          if echo "$LABELS" | grep -q 'bump:major'; then
+            echo "type=major" >> "$GITHUB_OUTPUT"
+          elif echo "$LABELS" | grep -q 'bump:minor'; then
+            echo "type=minor" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=patch" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Extract and bump version
         id: version
+        env:
+          BUMP_TYPE: ${{ steps.bump_type.outputs.type }}
         run: |
           CURRENT=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
           MAJOR=$(echo "$CURRENT" | cut -d. -f1)
           MINOR=$(echo "$CURRENT" | cut -d. -f2)
           PATCH=$(echo "$CURRENT" | cut -d. -f3)
-          NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+
+          if [[ "$BUMP_TYPE" == "major" ]]; then
+            NEW="$((MAJOR + 1)).0.0"
+          elif [[ "$BUMP_TYPE" == "minor" ]]; then
+            NEW="${MAJOR}.$((MINOR + 1)).0"
+          else
+            NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          echo "Bumping $CURRENT → $NEW ($BUMP_TYPE)"
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"         >> "$GITHUB_OUTPUT"
 
@@ -48,7 +76,7 @@ jobs:
           else
             LOG=$(git log --oneline -- src/ | head -50)
           fi
-          EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64)
+          EOF=$(openssl rand -hex 16)
           echo "log<<$EOF" >> "$GITHUB_OUTPUT"
           echo "$LOG"      >> "$GITHUB_OUTPUT"
           echo "$EOF"      >> "$GITHUB_OUTPUT"
