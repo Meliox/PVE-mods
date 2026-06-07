@@ -24,15 +24,18 @@ jobs:
 
       - name: Verify package contents
         run: |
+          echo "=== Built files ==="
+          ls -la ../*.deb
+          echo ""
           echo "=== Package info ==="
-          dpkg-deb --info *.deb
+          dpkg-deb --info ../*.deb
           echo ""
           echo "=== Package contents ==="
-          dpkg-deb --contents *.deb
+          dpkg-deb --contents ../*.deb
 
       - name: Upload deb as artifact
         uses: actions/upload-artifact@v4
         with:
           name: test-build-deb
-          path: "*.deb"
+          path: "../*.deb"
           retention-days: 3
