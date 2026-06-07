@@ -37,13 +37,16 @@ jobs:
           dpkg-deb --contents ../*.deb
 
       - name: Collect deb artifacts
+        id: collect
         run: |
           mkdir -p artifacts
           cp ../*.deb artifacts/
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Upload deb as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pvemod-test-build-${{ github.sha }}
+          name: pvemod-test-build-${{ steps.collect.outputs.short_sha }}
           path: artifacts/*.deb
           retention-days: 3
