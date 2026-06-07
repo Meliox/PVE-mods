@@ -82,4 +82,4 @@ jobs:
             --title "pve-mod $TAG" \
             --notes "$NOTES" \
             "$DEB" \
-            "src/Scripts/install.sh"
+            "install.sh"
