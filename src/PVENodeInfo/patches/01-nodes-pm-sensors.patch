@@ -1,0 +1,15 @@
+--- usr/share/perl5/PVE/API2/Nodes.pm	2026-05-24 02:05:58.000000000 +0200
++++ /usr/share/perl5/PVE/API2/Nodes.pm	2026-06-08 20:38:56.988900119 +0200
+@@ -536,6 +536,12 @@
+ 
+         $res->{pveversion} = PVE::pvecfg::package() . "/" . PVE::pvecfg::version_text();
+ 
++        # Collect sensor data from PveMod_SensorInfo
++        use PVE::API2::PVEMod_SensorInfo;
++        $res->{PveMod_JsonSensorInfo} = PVE::API2::PVEMod_SensorInfo::get_sensors_info();
++        $res->{PveMod_Version} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();
++        $res->{PveMod_upsInfo} = PVE::API2::PVEMod_SensorInfo::get_ups_info();
++        $res->{PveMod_systemInfo} = PVE::API2::PVEMod_SensorInfo::get_system_info();
+         my $dinfo = df('/', 1); # output is bytes
+ 
+         $res->{rootfs} = {
