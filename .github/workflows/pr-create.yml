@@ -54,7 +54,6 @@ jobs:
           mkdir -p .github/version-bump
           PREV=$(cat .github/version-bump/CHANGES.md 2>/dev/null || true)
           {
-            echo "### Merged at $(date -R)"
             echo "${COMMITS:-No src/ changes detected.}"
             echo ""
             echo "$PREV"
