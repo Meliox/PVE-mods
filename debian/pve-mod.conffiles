@@ -1,1 +1,3 @@
 /etc/pve-mod/pve-mod.conf
+/etc/pve-mod/conf.d/node_info.conf
+/etc/pve-mod/conf.d/nag_screen.conf

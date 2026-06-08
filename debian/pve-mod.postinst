@@ -1,9 +1,15 @@
 #!/bin/bash
 set -e
 
-NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
-DEFAULT_CONF="/usr/share/pve-mod/pve-mod.conf.default"
-USER_CONF="/etc/pve-mod/pve-mod.conf"
+DEFAULT_DIR="/usr/share/pve-mod"
+CONF_DIR="/etc/pve-mod"
+
+# Config file pairs to compare on upgrade: "<default-file>|<user-file>"
+CONF_PAIRS="
+${DEFAULT_DIR}/pve-mod.conf.default|${CONF_DIR}/pve-mod.conf
+${DEFAULT_DIR}/conf.d/node_info.conf.default|${CONF_DIR}/conf.d/node_info.conf
+${DEFAULT_DIR}/conf.d/nag_screen.conf.default|${CONF_DIR}/conf.d/nag_screen.conf
+"
 
 # Extracts "section.key" pairs from an INI file, one per line.
 _extract_conf_keys() {
@@ -17,30 +23,48 @@ _extract_conf_keys() {
     done < "$file"
 }
 
-# Warns about keys present in the default config but missing from the user's config.
-_check_new_config_keys() {
-    [ -f "$DEFAULT_CONF" ] || return 0
-    [ -f "$USER_CONF" ]    || return 0
+# Warns about keys present in a default config but missing from the user's copy.
+_check_one_pair() {
+    local default_conf="$1" user_conf="$2"
+    [ -f "$default_conf" ] || return 0
+    [ -f "$user_conf" ]    || return 0
 
-    local new_keys="" section="" key default_val
+    local new_keys="" section="" key line
     while IFS= read -r line; do
         case "$line" in
             '#'*|'') continue ;;
             '['*']') section="${line#[}"; section="${section%]}"; continue ;;
             *'='*)
                 key="${line%%=*}"
-                if ! _extract_conf_keys "$USER_CONF" | grep -qF "${section}.${key}"; then
-                    new_keys="${new_keys}    [${section}] ${line}\n"
+                if ! _extract_conf_keys "$user_conf" | grep -qF "${section}.${key}"; then
+                    new_keys="${new_keys}    [${section}] ${line} (${user_conf})\n"
                 fi
                 ;;
         esac
-    done < "$DEFAULT_CONF"
+    done < "$default_conf"
 
     if [ -n "$new_keys" ]; then
+        printf "%b" "$new_keys"
+    fi
+}
+
+# Warns about any new config keys across the main config and all per-mod configs.
+_check_new_config_keys() {
+    local all_new="" pair default_conf user_conf
+    while IFS= read -r pair; do
+        [ -n "$pair" ] || continue
+        default_conf="${pair%%|*}"
+        user_conf="${pair#*|}"
+        all_new="${all_new}$(_check_one_pair "$default_conf" "$user_conf")"
+    done <<EOF
+$CONF_PAIRS
+EOF
+
+    if [ -n "$all_new" ]; then
         echo ""
         echo "pve-mod: New configuration options are available since your last install:"
-        printf "%b" "$new_keys"
-        echo "pve-mod: Run 'pve-mod-configure' to configure them, or add them manually to $USER_CONF"
+        printf "%b" "$all_new"
+        echo "pve-mod: Run 'pve-mod-configure' to configure them, or add them manually."
         echo ""
     fi
 }

@@ -8,7 +8,7 @@ Homepage: https://github.com/Meliox/PVE-mods
 
 Package: pve-mod
 Architecture: all
-Depends: ${misc:Depends}, perl, librrds-perl
+Depends: ${misc:Depends}, perl, librrds-perl, patch
 Recommends: lm-sensors, nut-client
 Suggests: intel-gpu-tools
 Description: Proxmox VE UI modifications and sensor monitoring

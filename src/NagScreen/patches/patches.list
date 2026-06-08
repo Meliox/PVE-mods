@@ -1,0 +1,4 @@
+# pve-mod :: nag_screen patch manifest
+# Format: <patch-file> [section.key=value]
+
+01-proxmoxlib-js-nagscreen.patch
