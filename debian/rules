@@ -31,17 +31,46 @@ override_dh_install:
 	# JS module (rename to match loader reference)
 	install -Dm644 src/PVENodeInfo/PveMod_pvemanagerlib.js \
 		debian/pve-mod/usr/share/pve-manager/js/PveMod_PveNodeStatusView.js
-	# Patch helpers
-	install -Dm755 src/PVENodeInfo/apply-patches.sh \
+	# Patch helpers (generic, manifest-driven)
+	install -Dm755 src/Scripts/apply-patches.sh \
 		debian/pve-mod/usr/lib/pve-mod/apply-patches.sh
-	install -Dm755 src/PVENodeInfo/revert-patches.sh \
+	install -Dm755 src/Scripts/revert-patches.sh \
 		debian/pve-mod/usr/lib/pve-mod/revert-patches.sh
+	# node_info mod patches + manifest + hooks
+	install -Dm644 src/PVENodeInfo/patches/patches.list \
+		debian/pve-mod/usr/lib/pve-mod/patches/node_info/patches.list
+	install -Dm644 src/PVENodeInfo/patches/01-nodes-pm-sensors.patch \
+		debian/pve-mod/usr/lib/pve-mod/patches/node_info/01-nodes-pm-sensors.patch
+	install -Dm644 src/PVENodeInfo/patches/02-nodes-pm-GPU-RRD-history.patch \
+		debian/pve-mod/usr/lib/pve-mod/patches/node_info/02-nodes-pm-GPU-RRD-history.patch
+	install -Dm644 src/PVENodeInfo/patches/03-pvemanager-js-sensors.patch \
+		debian/pve-mod/usr/lib/pve-mod/patches/node_info/03-pvemanager-js-sensors.patch
+	install -Dm755 src/PVENodeInfo/patches/post-apply.sh \
+		debian/pve-mod/usr/lib/pve-mod/patches/node_info/post-apply.sh
+	# nag_screen mod patches + manifest + hooks
+	install -Dm644 src/NagScreen/patches/patches.list \
+		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/patches.list
+	install -Dm644 src/NagScreen/patches/01-proxmoxlib-js-nagscreen.patch \
+		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/01-proxmoxlib-js-nagscreen.patch
+	install -Dm755 src/NagScreen/patches/post-apply.sh \
+		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/post-apply.sh
+	install -Dm755 src/NagScreen/patches/post-revert.sh \
+		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/post-revert.sh
 	# Configure tool
 	install -Dm755 src/Scripts/pve-mod-configure \
 		debian/pve-mod/usr/sbin/pve-mod-configure
-	# Default config (conffile for user edits)
+	# Main config (conffile for user edits)
 	install -Dm644 src/pve-mod.conf \
 		debian/pve-mod/etc/pve-mod/pve-mod.conf
-	# Reference copy for upgrade key-diff (not a conffile — always updated)
+	# Per-mod configs under conf.d (conffiles for user edits)
+	install -Dm644 src/PVENodeInfo/node_info.conf \
+		debian/pve-mod/etc/pve-mod/conf.d/node_info.conf
+	install -Dm644 src/NagScreen/nag_screen.conf \
+		debian/pve-mod/etc/pve-mod/conf.d/nag_screen.conf
+	# Reference copies for upgrade key-diff (not conffiles — always updated)
 	install -Dm644 src/pve-mod.conf \
 		debian/pve-mod/usr/share/pve-mod/pve-mod.conf.default
+	install -Dm644 src/PVENodeInfo/node_info.conf \
+		debian/pve-mod/usr/share/pve-mod/conf.d/node_info.conf.default
+	install -Dm644 src/NagScreen/nag_screen.conf \
+		debian/pve-mod/usr/share/pve-mod/conf.d/nag_screen.conf.default
