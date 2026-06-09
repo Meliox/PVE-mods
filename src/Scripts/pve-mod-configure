@@ -24,31 +24,59 @@ ask()  {
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
 
-_load_conf_debug() {
+# Loads every value from an existing config file into the wizard's variables,
+# so that re-running the tool preserves settings the user does not change.
+_load_conf() {
     [[ -f "$CONF_FILE" ]] || return 0
-    local in_debug=0 line key val
+    local section="" line key val
     while IFS= read -r line; do
         case "$line" in
-            '[debug]') in_debug=1; continue ;;
-            '['*']')   in_debug=0; continue ;;
             '#'*|'')   continue ;;
+            '['*']')   section="${line#[}"; section="${section%]}"; continue ;;
         esac
-        [[ "$in_debug" -eq 0 ]] && continue
+        [[ "$line" == *=* ]] || continue
         key="${line%%=*}"; val="${line#*=}"
-        case "$key" in
-            lm_sensors_mode)        DEBUG_LM_SENSORS="$val" ;;
-            lm_sensors_output_file) DEBUG_LM_SENSORS_FILE="$val" ;;
-            intel_mode)             DEBUG_INTEL="$val" ;;
-            intel_devices_file)     DEBUG_INTEL_FILE="$val" ;;
-            nvidia_mode)            DEBUG_NVIDIA="$val" ;;
-            nvidia_devices_file)    DEBUG_NVIDIA_DEVICES_FILE="$val" ;;
-            nvidia_output_file)     DEBUG_NVIDIA_OUTPUT_FILE="$val" ;;
-            amd_mode)               DEBUG_AMD="$val" ;;
-            amd_devices_file)       DEBUG_AMD_FILE="$val" ;;
-            ups_mode)               DEBUG_UPS="$val" ;;
-            ups_output_file)        DEBUG_UPS_FILE="$val" ;;
-            log_enabled)            DEBUG_LOG="$val" ;;
-            log_file)               DEBUG_LOG_FILE="$val" ;;
+        case "${section}.${key}" in
+            # [modules]
+            modules.node_info)              MOD_NODE_INFO="$val" ;;
+            modules.nag_screen)             MOD_NAG_SCREEN="$val" ;;
+            # [gpu]
+            gpu.intel_enabled)              ENABLE_INTEL_GPU_INFO="$val" ;;
+            gpu.nvidia_enabled)             ENABLE_NVIDIA_GPU_INFO="$val" ;;
+            gpu.amd_enabled)                ENABLE_AMD_GPU_INFO="$val" ;;
+            gpu.gpu_history)                ENABLE_GPU_HISTORY="$val" ;;
+            # [lm_sensors]
+            lm_sensors.enabled)             LM_SENSORS_ENABLED="$val" ;;
+            lm_sensors.enable_cpu)          ENABLE_CPU="$val" ;;
+            lm_sensors.cpu_temp_target)     CPU_TEMP_TARGET="$val" ;;
+            lm_sensors.enable_ram_temp)     ENABLE_RAM_TEMP="$val" ;;
+            lm_sensors.enable_hdd_temp)     ENABLE_HDD_TEMP="$val" ;;
+            lm_sensors.enable_nvme_temp)    ENABLE_NVME_TEMP="$val" ;;
+            lm_sensors.enable_fan_speed)    ENABLE_FAN_SPEED="$val" ;;
+            lm_sensors.display_zero_speed_fans) DISPLAY_ZERO_SPEED_FANS="$val" ;;
+            lm_sensors.temp_unit)           TEMP_UNIT="$val" ;;
+            # [ups]
+            ups.enabled)                    ENABLE_UPS="$val" ;;
+            ups.device_name)                UPS_DEVICE_NAME="$val" ;;
+            # [system_info]
+            system_info.enabled)            ENABLE_SYSTEM_INFO="$val" ;;
+            system_info.type)               SYSTEM_INFO_TYPE="$val" ;;
+            # [pve_trigger]
+            pve_trigger.enabled)            PVE_TRIGGER_ENABLED="$val" ;;
+            # [debug]
+            debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
+            debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
+            debug.intel_mode)               DEBUG_INTEL="$val" ;;
+            debug.intel_devices_file)       DEBUG_INTEL_FILE="$val" ;;
+            debug.nvidia_mode)              DEBUG_NVIDIA="$val" ;;
+            debug.nvidia_devices_file)      DEBUG_NVIDIA_DEVICES_FILE="$val" ;;
+            debug.nvidia_output_file)       DEBUG_NVIDIA_OUTPUT_FILE="$val" ;;
+            debug.amd_mode)                 DEBUG_AMD="$val" ;;
+            debug.amd_devices_file)         DEBUG_AMD_FILE="$val" ;;
+            debug.ups_mode)                 DEBUG_UPS="$val" ;;
+            debug.ups_output_file)          DEBUG_UPS_FILE="$val" ;;
+            debug.log_enabled)              DEBUG_LOG="$val" ;;
+            debug.log_file)                 DEBUG_LOG_FILE="$val" ;;
         esac
     done < "$CONF_FILE"
 }
@@ -526,49 +554,38 @@ main() {
     DEBUG_AMD=0;        DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
     DEBUG_UPS=0;        DEBUG_UPS_FILE="/tmp/ups-output.json"
     DEBUG_LOG=0;        DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
-    _load_conf_debug
+    _load_conf
 
     # ── Module / feature selection ────────────────────────────────────────────
+    # Existing settings are loaded above; the user picks ONE option to (re)configure
+    # this run, and all other options retain their previously saved values.
     msgb "\n=== pve-mod Module Selection ==="
-    echo "Available options (select one or more):"
+    echo "Available options (select one):"
     echo "  [1] Node Info   — sensor readings, GPU stats, UPS, system information"
     echo "  [2] Nag Screen  — remove Proxmox subscription nag screen"
     echo "  [3] Auto re-patch on PVE upgrade — automatically re-apply patches when"
-    echo "                    pve-manager is upgraded (requires module 1 and/or 2)"
+    echo "                    pve-manager is upgraded"
     echo "  [n] None / cancel"
     local modChoice
-    modChoice=$(ask "Select options to enable (e.g. '1 2 3' or '1,2'; 'n' to cancel)")
-
-    if [[ "$modChoice" =~ [nN] || ! "$modChoice" =~ [123] ]]; then
-        info "No options selected. Exiting."; exit 0
-    fi
-
-    [[ "$modChoice" == *1* ]] && MOD_NODE_INFO=1
-    [[ "$modChoice" == *2* ]] && MOD_NAG_SCREEN=1
-    [[ "$modChoice" == *3* ]] && PVE_TRIGGER_ENABLED=1
-
-    if [[ "$MOD_NODE_INFO" -eq 0 && "$MOD_NAG_SCREEN" -eq 0 ]]; then
-        [[ "$PVE_TRIGGER_ENABLED" -eq 1 ]] && \
-            warn "Auto re-patching selected but no patching module chosen — nothing to re-apply."
-        info "No modules selected. Exiting."; exit 0
-    fi
-
-    if [[ "$PVE_TRIGGER_ENABLED" -eq 1 ]]; then
-        info "Auto re-patching on PVE upgrade enabled."
-    else
-        info "Auto re-patching on PVE upgrade disabled. Run 'pve-mod-configure' after a PVE upgrade."
-    fi
-
-    # ── Per-module wizards ────────────────────────────────────────────────────
-    if [[ "$MOD_NODE_INFO" -eq 1 ]]; then
-        msgb "\n=== Node Info Configuration ==="
-        configure_node_info
-    fi
-
-    if [[ "$MOD_NAG_SCREEN" -eq 1 ]]; then
-        msgb "\n=== Nag Screen ==="
-        info "Subscription nag screen removal will be applied."
-    fi
+    modChoice=$(ask "Select an option to enable (1/2/3/n)")
+    case "$modChoice" in
+        1)
+            MOD_NODE_INFO=1
+            msgb "\n=== Node Info Configuration ==="
+            configure_node_info
+            ;;
+        2)
+            MOD_NAG_SCREEN=1
+            msgb "\n=== Nag Screen ==="
+            info "Subscription nag screen removal will be applied."
+            ;;
+        3)
+            PVE_TRIGGER_ENABLED=1
+            info "Auto re-patching on PVE upgrade enabled."
+            ;;
+        [nN]) info "No option selected. Exiting."; exit 0 ;;
+        *)    warn "Invalid selection. Exiting."; exit 0 ;;
+    esac
 
     # ── Debug mode ────────────────────────────────────────────────────────────
     configure_debug
