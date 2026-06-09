@@ -1,3 +1,5 @@
+e157336 pve-mod-configure: fix validate the sensors -j output before proceeding (#188)
+
 84f2f07 fix: use intel-gpu-tools instead of intel-igt-tools (#189)
 
 ### Merged at Mon, 08 Jun 2026 20:37:26 +0000
