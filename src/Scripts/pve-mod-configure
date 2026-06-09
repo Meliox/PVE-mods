@@ -133,6 +133,8 @@ configure_node_info() {
             warn "lm-sensors is installed but reported no sensors."
             warn "No kernel sensor drivers appear to be loaded."
             warn "Run 'sensors-detect' and load the suggested modules, then re-run this configurator."
+            warn "lm-sensors output is the foundation for this mod. Mod cannot be enabled without it."
+            exit 0
             lm_sensors_ok=false
             LM_SENSORS_ENABLED=0
         fi
