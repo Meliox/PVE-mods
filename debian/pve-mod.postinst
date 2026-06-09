@@ -71,8 +71,11 @@ EOF
 
 case "$1" in
     configure)
-        # Apply patches for any enabled modules. Fails loudly on error.
-        /usr/lib/pve-mod/apply-patches.sh
+        # Apply patches for any enabled modules. Don't abort the install if a
+        # patch fails — warn instead so dpkg doesn't end half-configured.
+        if ! /usr/lib/pve-mod/apply-patches.sh; then
+            echo "pve-mod: WARNING: Some patches failed to apply. Run 'pve-mod-configure' to retry." >&2
+        fi
 
         if [ -z "$2" ]; then
             echo ""
