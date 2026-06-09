@@ -240,7 +240,7 @@ configure_node_info() {
         else
             warn "No Intel GPUs in debug file."
         fi
-    elif _check_or_install_tool intel_gpu_top igt-gpu-tools "Intel GPU tools (igt-gpu-tools)"; then
+    elif _check_or_install_tool intel_gpu_top intel-gpu-tools "Intel GPU tools (intel-gpu-tools)"; then
         intelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
         if [[ -n "$intelCards" ]]; then
             info "Intel GPU(s) detected:"
