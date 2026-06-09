@@ -10,7 +10,7 @@ Package: pve-mod
 Architecture: all
 Depends: ${misc:Depends}, perl, librrds-perl
 Recommends: lm-sensors, nut-client
-Suggests: igt-gpu-tools
+Suggests: intel-gpu-tools
 Description: Proxmox VE UI modifications and sensor monitoring
  Extends the Proxmox VE web interface with sensor readings including
  CPU, GPU, NVMe/HDD/SSD temperatures, fan speeds, and RAM temperatures
