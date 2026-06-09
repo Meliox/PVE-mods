@@ -124,7 +124,7 @@ configure_node_info() {
         if [[ "$DEBUG_LM_SENSORS" -eq 1 ]]; then
             sensorsOutput=$(cat "$DEBUG_LM_SENSORS_FILE")
         else
-            sensorsOutput=$(sensors -j 2>/dev/null)
+            sensorsOutput=$(sensors -j 2>/dev/null) || true
         fi
 
         local trimmedSensorsOutput
