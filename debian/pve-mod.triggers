@@ -1,1 +1,2 @@
-interest pve-manager
+interest-noawait /usr/share/pve-manager/js
+interest-noawait /usr/share/perl5/PVE
