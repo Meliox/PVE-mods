@@ -120,12 +120,26 @@ configure_node_info() {
     fi
 
     if [[ "$lm_sensors_ok" == true ]]; then
-        local sensorsOutput sanitisedSensorsOutput
+        local sensorsOutput
         if [[ "$DEBUG_LM_SENSORS" -eq 1 ]]; then
             sensorsOutput=$(cat "$DEBUG_LM_SENSORS_FILE")
         else
             sensorsOutput=$(sensors -j 2>/dev/null)
         fi
+
+        local trimmedSensorsOutput
+        trimmedSensorsOutput=$(echo "$sensorsOutput" | tr -d '[:space:]')
+        if [[ -z "$trimmedSensorsOutput" || "$trimmedSensorsOutput" == "{}" ]]; then
+            warn "lm-sensors is installed but reported no sensors."
+            warn "No kernel sensor drivers appear to be loaded."
+            warn "Run 'sensors-detect' and load the suggested modules, then re-run this configurator."
+            lm_sensors_ok=false
+            LM_SENSORS_ENABLED=0
+        fi
+    fi
+
+    if [[ "$lm_sensors_ok" == true ]]; then
+        local sanitisedSensorsOutput
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
 
         #region CPU
