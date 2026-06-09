@@ -528,22 +528,36 @@ main() {
     DEBUG_LOG=0;        DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
     _load_conf_debug
 
-    # ── Module selection ──────────────────────────────────────────────────────
+    # ── Module / feature selection ────────────────────────────────────────────
     msgb "\n=== pve-mod Module Selection ==="
-    echo "Available modules:"
+    echo "Available options (select one or more):"
     echo "  [1] Node Info   — sensor readings, GPU stats, UPS, system information"
     echo "  [2] Nag Screen  — remove Proxmox subscription nag screen"
-    echo "  [3] Both"
+    echo "  [3] Auto re-patch on PVE upgrade — automatically re-apply patches when"
+    echo "                    pve-manager is upgraded (requires module 1 and/or 2)"
     echo "  [n] None / cancel"
     local modChoice
-    modChoice=$(ask "Select modules to enable (1/2/3/n)")
-    case "$modChoice" in
-        1)    MOD_NODE_INFO=1 ;;
-        2)    MOD_NAG_SCREEN=1 ;;
-        3)    MOD_NODE_INFO=1; MOD_NAG_SCREEN=1 ;;
-        [nN]) info "No modules selected. Exiting."; exit 0 ;;
-        *)    warn "Invalid selection. Defaulting to Node Info only."; MOD_NODE_INFO=1 ;;
-    esac
+    modChoice=$(ask "Select options to enable (e.g. '1 2 3' or '1,2'; 'n' to cancel)")
+
+    if [[ "$modChoice" =~ [nN] || ! "$modChoice" =~ [123] ]]; then
+        info "No options selected. Exiting."; exit 0
+    fi
+
+    [[ "$modChoice" == *1* ]] && MOD_NODE_INFO=1
+    [[ "$modChoice" == *2* ]] && MOD_NAG_SCREEN=1
+    [[ "$modChoice" == *3* ]] && PVE_TRIGGER_ENABLED=1
+
+    if [[ "$MOD_NODE_INFO" -eq 0 && "$MOD_NAG_SCREEN" -eq 0 ]]; then
+        [[ "$PVE_TRIGGER_ENABLED" -eq 1 ]] && \
+            warn "Auto re-patching selected but no patching module chosen — nothing to re-apply."
+        info "No modules selected. Exiting."; exit 0
+    fi
+
+    if [[ "$PVE_TRIGGER_ENABLED" -eq 1 ]]; then
+        info "Auto re-patching on PVE upgrade enabled."
+    else
+        info "Auto re-patching on PVE upgrade disabled. Run 'pve-mod-configure' after a PVE upgrade."
+    fi
 
     # ── Per-module wizards ────────────────────────────────────────────────────
     if [[ "$MOD_NODE_INFO" -eq 1 ]]; then
@@ -558,17 +572,6 @@ main() {
 
     # ── Debug mode ────────────────────────────────────────────────────────────
     configure_debug
-
-    # ── Re-patch on PVE upgrade ───────────────────────────────────────────────
-    msgb "\n=== Auto Re-patching on PVE Upgrade ==="
-    echo "pve-mod registers a dpkg trigger on pve-manager. When pve-manager is"
-    echo "upgraded, the trigger fires and can automatically re-apply patches."
-    local triggerChoice
-    triggerChoice=$(ask "Re-apply patches automatically when pve-manager upgrades? (y/N)")
-    case "$triggerChoice" in
-        [yY]) PVE_TRIGGER_ENABLED=1; info "Auto re-patching enabled." ;;
-        *)    PVE_TRIGGER_ENABLED=0; info "Auto re-patching disabled. Run 'pve-mod-configure' after a PVE upgrade." ;;
-    esac
 
     # ── Write config and apply ────────────────────────────────────────────────
     write_config
