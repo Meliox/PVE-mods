@@ -91,8 +91,9 @@ run_hook() {
     case "$rc" in
         0)   ;;
         100) CHANGED=true ;;
-        *)   warn "  hook $(basename "$hook") reported an error (exit $rc)"; FAILED=true ;;
+        *)   warn "  hook $(basename "$hook") reported an error (exit $rc)"; FAILED=true; return 1 ;;
     esac
+    return 0
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -194,7 +195,20 @@ for mod in $(list_modules); do
         info "  already up to date"
     fi
 
-    run_hook "$mod_dir/post-apply.sh" "$mod_conf"
+    # Run the post-apply hook. If it errors, roll the mod back so it is never
+    # left half-applied (matches the preflight atomicity contract).
+    if ! run_hook "$mod_dir/post-apply.sh" "$mod_conf"; then
+        warn "Mod '$mod': post-apply hook failed - reverting mod to clean state."
+        run_hook "$mod_dir/post-revert.sh" "$mod_conf"
+        for (( i=${#active[@]}-1 ; i>=0 ; i-- )); do
+            pf="${active[$i]}"
+            if is_applied "$pf"; then
+                do_revert "$pf" && { info "  reverted $(basename "$pf")"; CHANGED=true; }
+            fi
+        done
+        FAILED=true
+        continue
+    fi
 done
 
 if [[ "$CHANGED" == "true" ]]; then
