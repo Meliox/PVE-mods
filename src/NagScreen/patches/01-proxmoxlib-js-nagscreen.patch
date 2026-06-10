@@ -1,1 +1,42 @@
-gain
+--- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-05-26 16:26:59.000000000 +0200
++++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-06-10 21:12:31.349760790 +0200
+@@ -599,37 +599,8 @@
+             Ext.Msg.alert(gettext('Error'), res.htmlStatus || res.result.message),
+ 
+         checked_command: function (orig_cmd) {
+-            Proxmox.Utils.API2Request({
+-                url: '/nodes/localhost/subscription',
+-                method: 'GET',
+-                failure: function (response, opts) {
+-                    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+-                },
+-                success: function (response, opts) {
+-                    let res = response.result;
+-                    if (
+-                        res === null ||
+-                        res === undefined ||
+-                        !res ||
+-                        res.data.status.toLowerCase() !== 'active'
+-                    ) {
+-                        Ext.Msg.show({
+-                            title: gettext('No valid subscription'),
+-                            icon: Ext.Msg.WARNING,
+-                            message: Proxmox.Utils.getNoSubKeyHtml(res.data.url),
+-                            buttons: Ext.Msg.OK,
+-                            callback: function (btn) {
+-                                if (btn !== 'ok') {
+-                                    return;
+-                                }
+-                                orig_cmd();
+-                            },
+-                        });
+-                    } else {
+-                        orig_cmd();
+-                    }
+-                },
+-            });
++            // disable subscription nag screen
++            orig_cmd();
+         },
+ 
+         assemble_field_data: function (values, data) {

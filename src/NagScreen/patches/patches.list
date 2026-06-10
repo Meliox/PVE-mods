@@ -2,3 +2,4 @@
 # Format: <patch-file> [section.key=value]
 
 01-proxmoxlib-js-nagscreen.patch
+02-index-html-tpl-mobilenag.patch
