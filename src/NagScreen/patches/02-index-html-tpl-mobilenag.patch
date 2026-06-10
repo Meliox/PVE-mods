@@ -1,0 +1,26 @@
+--- /usr/share/pve-yew-mobile-gui/index.html.tpl	2026-06-10 21:39:42.012286927 +0200
++++ /usr/share/pve-yew-mobile-gui/index.html.tpl	2026-06-10 21:40:47.815781830 +0200
+@@ -59,3 +59,23 @@
+ </body>
+ 
+ </html>
++<!-- MANAGED BLOCK FOR MOBILE NAG -->
++<script>
++  function removeSubscriptionElements() {
++    document.querySelectorAll('dialog.pwt-outer-dialog').forEach(dialog => {
++      if ((dialog.textContent || '').toLowerCase().includes('subscription')) {
++        dialog.remove();
++      }
++    });
++    document.querySelectorAll('.pwt-card.pwt-p-2.pwt-d-flex.pwt-interactive.pwt-justify-content-center').forEach(card => {
++      if (!card.querySelector('button') && (card.textContent || '').toLowerCase().includes('subscription')) {
++        card.remove();
++      }
++    });
++  }
++  const observer = new MutationObserver(removeSubscriptionElements);
++  observer.observe(document.body, { childList: true, subtree: true });
++  removeSubscriptionElements();
++  setInterval(removeSubscriptionElements, 300);
++  setTimeout(() => { observer.disconnect(); }, 10000);
++</script>
