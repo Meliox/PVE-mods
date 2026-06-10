@@ -1,3 +1,5 @@
+f91125e Workflow: automatic testing of patches (#191)
+
 0c25030 Migrate file patching from sed/python into generic patching scheme (#181)
 
 0642e77 fix pve-manager triggering mechanism (#187)
