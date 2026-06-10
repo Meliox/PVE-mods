@@ -7,6 +7,9 @@
 set -euo pipefail
 
 CONF_FILE="/etc/pve-mod/pve-mod.conf"
+CONFD_DIR="/etc/pve-mod/conf.d"
+NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
+NAG_SCREEN_CONF="${CONFD_DIR}/nag_screen.conf"
 APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
@@ -24,11 +27,9 @@ ask()  {
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
 
-# Loads every value from an existing config file into the wizard's variables,
-# so that re-running the tool preserves settings the user does not change.
-_load_conf() {
-    [[ -f "$CONF_FILE" ]] || return 0
-    local section="" line key val
+_load_conf_debug() {
+    [[ -f "$NODE_INFO_CONF" ]] || return 0
+    local in_debug=0 line key val
     while IFS= read -r line; do
         case "$line" in
             '#'*|'')   continue ;;
@@ -78,7 +79,7 @@ _load_conf() {
             debug.log_enabled)              DEBUG_LOG="$val" ;;
             debug.log_file)                 DEBUG_LOG_FILE="$val" ;;
         esac
-    done < "$CONF_FILE"
+    done < "$NODE_INFO_CONF"
 }
 #endregion helpers
 
@@ -390,14 +391,32 @@ configure_node_info() {
 
 #region write config
 write_config() {
-    mkdir -p "$(dirname "$CONF_FILE")"
+    mkdir -p "$(dirname "$CONF_FILE")" "$CONFD_DIR"
+
+    # Main config: which mods are enabled + global trigger/service settings.
     cat > "$CONF_FILE" <<EOF
-# pve-mod configuration file
+# pve-mod main configuration file
 # Managed by pve-mod-configure. Re-run to update.
+#
+# This file only declares which mods are enabled. Each mod keeps its own
+# settings in ${CONFD_DIR}/<mod>.conf
 
 [modules]
 node_info=${MOD_NODE_INFO}
 nag_screen=${MOD_NAG_SCREEN}
+
+[pve_trigger]
+enabled=${PVE_TRIGGER_ENABLED}
+
+[service]
+mode=embedded
+EOF
+    info "Main configuration saved to $CONF_FILE"
+
+    # node_info mod config.
+    cat > "$NODE_INFO_CONF" <<EOF
+# pve-mod :: node_info mod configuration
+# Managed by pve-mod-configure. Re-run to update.
 
 [gpu]
 intel_enabled=${ENABLE_INTEL_GPU_INFO}
@@ -424,12 +443,6 @@ device_name=${UPS_DEVICE_NAME}
 enabled=${ENABLE_SYSTEM_INFO}
 type=${SYSTEM_INFO_TYPE}
 
-[pve_trigger]
-enabled=${PVE_TRIGGER_ENABLED}
-
-[service]
-mode=embedded
-
 # Debug mode: when a collector's mode is 1, the real tool is not required.
 # Data is read from the file path instead. Useful for development/testing.
 [debug]
@@ -447,7 +460,16 @@ ups_output_file=${DEBUG_UPS_FILE}
 log_enabled=${DEBUG_LOG}
 log_file=${DEBUG_LOG_FILE}
 EOF
-    info "Configuration saved to $CONF_FILE"
+    info "node_info configuration saved to $NODE_INFO_CONF"
+
+    # nag_screen mod config (placeholder; no tunable settings).
+    if [[ ! -f "$NAG_SCREEN_CONF" ]]; then
+        cat > "$NAG_SCREEN_CONF" <<EOF
+# pve-mod :: nag_screen mod configuration
+# The nag-screen mod has no tunable settings; this file is a placeholder
+# kept for consistency with the per-mod conf.d layout.
+EOF
+    fi
 }
 #endregion write config
 

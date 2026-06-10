@@ -1,0 +1,68 @@
+--- usr/share/perl5/PVE/API2/Nodes.pm	2026-05-24 02:05:58.000000000 +0200
++++ /usr/share/perl5/PVE/API2/Nodes.pm	2026-06-09 22:30:12.187854456 +0200
+@@ -251,6 +251,7 @@
+             { name => 'report' },
+             { name => 'rrd' }, # fixme: remove?
+             { name => 'rrddata' },
++            { name => 'gpurrddata' },
+             { name => 'scan' },
+             { name => 'sdn' },
+             { name => 'services' },
+@@ -878,6 +879,57 @@
+             "pve-node-9.0/$param->{node}", $param->{timeframe}, $param->{cf},
+         );
+     },
+-});
++});
++
++__PACKAGE__->register_method({
++    name => 'gpurrddata',
++    path => 'gpurrddata',
++    method => 'GET',
++    protected => 1,
++    proxyto => 'node',
++    permissions => {
++        check => ['perm', '/nodes/{node}', ['Sys.Audit']],
++    },
++    description => "Read GPU RRD statistics",
++    parameters => {
++        additionalProperties => 0,
++        properties => {
++            node => get_standard_option('pve-node'),
++            card => {
++                description => "The GPU card identifier (e.g. card0, nvidia0).",
++                type => 'string',
++                pattern => '[a-zA-Z0-9]+',
++            },
++            timeframe => {
++                description => "Specify the time frame you are interested in.",
++                type => 'string',
++                enum => ['hour', 'day', 'week', 'month', 'year', 'decade'],
++            },
++            cf => {
++                description => "The RRD consolidation function",
++                type => 'string',
++                enum => ['AVERAGE', 'MAX'],
++                optional => 1,
++            },
++        },
++    },
++    returns => {
++        type => "array",
++        items => {
++            type => "object",
++            properties => {},
++        },
++    },
++    code => sub {
++        my ($param) = @_;
++        my $nodename = PVE::INotify::nodename();
++        my $card = $param->{card};
++        die "invalid card name\n" unless $card =~ /^[a-zA-Z0-9]+$/;
++        return PVE::RRD::create_rrd_data(
++            "pve-mod-gpu/$nodename/$card", $param->{timeframe}, $param->{cf},
++        );
++    },
++});
+ 
+ __PACKAGE__->register_method({

@@ -1,0 +1,9 @@
+# pve-mod :: node_info patch manifest
+# Format: <patch-file> [section.key=value]
+# Patches are applied top-to-bottom. An optional condition (read from this mod's
+# conf.d file, /etc/pve-mod/conf.d/node_info.conf) gates a patch; it is applied
+# only when the key equals the given value.
+
+01-nodes-pm-sensors.patch
+02-nodes-pm-GPU-RRD-history.patch    gpu.gpu_history=1
+03-pvemanager-js-sensors.patch
