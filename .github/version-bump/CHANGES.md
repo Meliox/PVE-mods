@@ -1,3 +1,5 @@
+0642e77 fix pve-manager triggering mechanism (#187)
+
 e157336 pve-mod-configure: fix validate the sensors -j output before proceeding (#188)
 
 84f2f07 fix: use intel-gpu-tools instead of intel-igt-tools (#189)
