@@ -1,3 +1,5 @@
+0c25030 Migrate file patching from sed/python into generic patching scheme (#181)
+
 0642e77 fix pve-manager triggering mechanism (#187)
 
 e157336 pve-mod-configure: fix validate the sensors -j output before proceeding (#188)
