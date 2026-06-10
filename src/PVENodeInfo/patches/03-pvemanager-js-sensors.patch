@@ -1,4 +1,4 @@
---- usr/share/pve-manager/js/pvemanagerlib.js	2026-05-24 02:05:58.000000000 +0200
+--- /usr/share/pve-manager/js/pvemanagerlib.js	2026-05-24 02:05:58.000000000 +0200
 +++ /usr/share/pve-manager/js/pvemanagerlib.js	2026-06-07 15:44:28.581927600 +0200
 @@ -50737,175 +50737,181 @@
          me.reload();
