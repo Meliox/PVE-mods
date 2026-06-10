@@ -1,0 +1,44 @@
+name: Test Patches - Post Build
+
+# Runs automatically after every "Test Release Build" run completes (that build
+# is itself triggered by the 'make-test-build' label on a PR). Reuses the .deb
+# that build produced — no rebuild — installs it on a runner seeded with the
+# latest upstream Proxmox files, and verifies that every mod's patches (and
+# post-apply hooks) apply and revert cleanly. Fails if any mod fails.
+#
+# Wired via workflow_run, so it fires for builds on ANY branch/PR. (GitHub always
+# runs the default-branch copy of this file, so it activates once merged to main.)
+
+on:
+  workflow_run:
+    workflows: ["Test Release Build"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read   # required to download the triggering run's artifact
+
+jobs:
+  patch-install-test:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download deb from the build run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: pve-mods-test-build-*
+          merge-multiple: true
+          path: deb
+
+      - name: Fetch upstream Proxmox files
+        run: bash src/Scripts/test/fetch-proxmox-files.sh
+
+      - name: Install built package
+        run: sudo apt-get install -y ./deb/*.deb
+
+      - name: Test all mods
+        run: sudo bash src/Scripts/test/test-mods.sh all
