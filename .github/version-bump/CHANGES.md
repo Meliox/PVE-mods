@@ -1,3 +1,5 @@
+bfeeb94 Restructure to support dynamically assembly at build runtime (#199)
+
 6b1f761 fix: implement nag patching for pc and mobile web (#193)
 
 c67bbba fix: standardise patch paths (#192)
