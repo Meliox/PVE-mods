@@ -1,0 +1,41 @@
+name: Test Patches - Post Build
+
+# Called by Test Release Build after a successful .deb build.
+# Installs the artifact on a Proxmox-seeded runner and verifies
+# that every mod's patches apply and revert cleanly.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-install-test:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install base tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git sudo wget xz-utils dpkg
+
+      - uses: actions/checkout@v4
+
+      - name: Download deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pve-mods-test-build-*
+          merge-multiple: true
+          path: deb
+
+      - name: Fetch upstream Proxmox files
+        run: bash src/Scripts/test/fetch-proxmox-files.sh
+
+      - name: Install built package
+        run: apt-get install -y ./deb/*.deb
+
+      - name: Test all mods
+        run: bash src/Scripts/test/test-mods.sh all
