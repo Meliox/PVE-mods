@@ -1,5 +1,5 @@
---- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-05-26 16:26:59.000000000 +0200
-+++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-06-10 21:12:31.349760790 +0200
+--- a/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
++++ b/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
 @@ -599,37 +599,8 @@
              Ext.Msg.alert(gettext('Error'), res.htmlStatus || res.result.message),
  

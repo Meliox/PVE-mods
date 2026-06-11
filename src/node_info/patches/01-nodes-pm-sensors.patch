@@ -1,5 +1,5 @@
---- /usr/share/perl5/PVE/API2/Nodes.pm	2026-05-24 02:05:58.000000000 +0200
-+++ /usr/share/perl5/PVE/API2/Nodes.pm	2026-06-08 20:38:56.988900119 +0200
+--- a/usr/share/perl5/PVE/API2/Nodes.pm
++++ b/usr/share/perl5/PVE/API2/Nodes.pm
 @@ -536,6 +536,12 @@
  
          $res->{pveversion} = PVE::pvecfg::package() . "/" . PVE::pvecfg::version_text();

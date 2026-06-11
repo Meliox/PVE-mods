@@ -38,6 +38,7 @@ revert_one_patch() {
         return 0
     fi
     warn "  $(basename "$patch") could not be reverted cleanly; manual cleanup may be needed"
+    patch -R -p1 -F0 -f --dry-run --verbose -d "$PVE_MOD_ROOT" < "$patch" >&2 || true
     return 1
 }
 
