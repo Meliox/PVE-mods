@@ -1,3 +1,5 @@
+abe8dcf chore: enforce LF line endings via .gitattributes (#206)
+
 e05ff6f  change all text files to use LF (#205)
 
 0ab8a67  resolve absolut path patching (#204)
