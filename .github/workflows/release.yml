@@ -37,13 +37,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y debhelper dpkg-dev
 
-      - name: Inject version into PVEMod_Config.pm
+      - name: Inject version into Config.pm
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/node_info/files/PVEMod_Config.pm
+          ' src/node_info/files/Config.pm
 
       - name: Generate dynamic debian rules
         run: |

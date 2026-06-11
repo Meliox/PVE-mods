@@ -31,12 +31,12 @@ jobs:
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "Building version: $BUILD_VERSION"
 
-      - name: Inject version into PVEMod_Config.pm
+      - name: Inject version into Config.pm
         run: |
           export BUILD_VERSION="${{ steps.version.outputs.build_version }}"
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/node_info/files/PVEMod_Config.pm
+          ' src/node_info/files/Config.pm
 
       - name: Set package version in changelog
         run: |
