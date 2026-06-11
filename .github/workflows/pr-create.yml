@@ -45,10 +45,14 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Checkout existing bump branch or create it from main
-          git fetch origin chore/version-bump 2>/dev/null && \
-            git checkout chore/version-bump || \
-            git checkout -b chore/version-bump
+          # Always rebase the bump branch on the latest main so the PR
+          git fetch origin main
+          if git fetch origin chore/version-bump 2>/dev/null; then
+            git checkout chore/version-bump
+            git rebase origin/main
+          else
+            git checkout -b chore/version-bump origin/main
+          fi
 
           # Append this merge's changes to the top of CHANGES.md
           mkdir -p .github/version-bump
@@ -60,8 +64,11 @@ jobs:
           } > .github/version-bump/CHANGES.md
 
           git add .github/version-bump/CHANGES.md
-          git commit -m "chore: accumulate changes from $(git rev-parse --short HEAD~1)"
-          git push origin chore/version-bump
+          MAIN_SHA=$(git rev-parse --short origin/main)
+          git commit -m "chore: accumulate changes from ${MAIN_SHA}"
+
+          # Rebase rewrites history, so the push must be a force (lease-guarded).
+          git push --force-with-lease origin chore/version-bump
 
       - name: Build PR body from accumulated changes
         run: |
@@ -82,8 +89,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BUMP_BRANCH="chore/version-bump"
-          VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
-          TITLE="chore: release next version (current: v${VERSION})"
+          TITLE="chore: release next version"
 
           EXISTING=$(gh pr list \
             --head "$BUMP_BRANCH" \
