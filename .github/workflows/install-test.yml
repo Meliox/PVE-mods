@@ -9,8 +9,6 @@ name: Test Patches - Post Build
 # Wired via workflow_run, so it fires for builds on ANY branch/PR. (GitHub always
 # runs the default-branch copy of this file, so it activates once merged to main.)
 
-name: Test Patches - Post Build
-
 on:
   workflow_run:
     workflows: ["Test Release Build"]
@@ -18,21 +16,13 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: read   # required to download the triggering run's artifact
 
 jobs:
   patch-install-test:
     runs-on: ubuntu-latest
-    container:
-      image: debian:trixie
     if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Install base tools
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            ca-certificates git sudo wget xz-utils dpkg
-
       - uses: actions/checkout@v4
 
       - name: Download deb from the build run
@@ -48,7 +38,7 @@ jobs:
         run: bash src/Scripts/test/fetch-proxmox-files.sh
 
       - name: Install built package
-        run: apt-get install -y ./deb/*.deb
+        run: sudo apt-get install -y ./deb/*.deb
 
       - name: Test all mods
-        run: bash src/Scripts/test/test-mods.sh all
+        run: sudo bash src/Scripts/test/test-mods.sh all
