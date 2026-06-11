@@ -49,14 +49,19 @@ jobs:
       - name: Install build deps
         run: sudo apt-get install -y devscripts debhelper build-essential
 
-      - name: Inject version into PVEMod_Config.pm
+      - name: Inject version into Config.pm
         run: |
           VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
           SHORT_SHA=$(git rev-parse --short HEAD)
           export BUILD_VERSION="${VERSION}-test-${SHORT_SHA}"
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/PVENodeInfo/PVEMod_Config.pm
+          ' src/node_info/files/Config.pm
+
+      - name: Generate dynamic debian rules
+        run: |
+          bash src/gen-rules.sh >> debian/rules
+          bash src/gen-rules.sh conffiles >> debian/pve-mod.conffiles
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b

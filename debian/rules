@@ -3,74 +3,26 @@
 	dh $@
 
 override_dh_install:
-	# PVE API2 facade
-	install -Dm644 src/PVENodeInfo/PveMod_SensorInfo.pm \
-		debian/pve-mod/usr/share/perl5/PVE/API2/PVEMod_SensorInfo.pm
-	# PVEMod core modules (strip PVEMod_ prefix)
-	install -Dm644 src/PVENodeInfo/PVEMod_Config.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Config.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Utils.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Utils.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Store.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Store.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_ProcessManager.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/ProcessManager.pm
-	# Collector plugins
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/Intel.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/Intel.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/Nvidia.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/Nvidia.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/Amd.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/Amd.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/LmSensors.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/LmSensors.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/Ups.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/Ups.pm
-	install -Dm644 src/PVENodeInfo/PVEMod_Collectors/systemInformation.pm \
-		debian/pve-mod/usr/share/perl5/PVE/PVEMod/Collector/SystemInformation.pm
-	# JS module (rename to match loader reference)
-	install -Dm644 src/PVENodeInfo/PveMod_pvemanagerlib.js \
-		debian/pve-mod/usr/share/pve-manager/js/PveMod_PveNodeStatusView.js
+	# ── Static section ─────────────────────────────────────────────────────
+	# Generic, mod-independent files that never change when mods are added.
+	# Everything mod-specific (module files, patches, per-mod configs) is
+	# generated and appended below by src/gen-rules.sh at build time and is
+	# NOT committed to the repository.
+	#
 	# Patch helpers (generic, manifest-driven)
 	install -Dm755 src/Scripts/apply-patches.sh \
 		debian/pve-mod/usr/lib/pve-mod/apply-patches.sh
 	install -Dm755 src/Scripts/revert-patches.sh \
 		debian/pve-mod/usr/lib/pve-mod/revert-patches.sh
-	# node_info mod patches + manifest + hooks
-	install -Dm644 src/PVENodeInfo/patches/patches.list \
-		debian/pve-mod/usr/lib/pve-mod/patches/node_info/patches.list
-	install -Dm644 src/PVENodeInfo/patches/01-nodes-pm-sensors.patch \
-		debian/pve-mod/usr/lib/pve-mod/patches/node_info/01-nodes-pm-sensors.patch
-	install -Dm644 src/PVENodeInfo/patches/02-nodes-pm-GPU-RRD-history.patch \
-		debian/pve-mod/usr/lib/pve-mod/patches/node_info/02-nodes-pm-GPU-RRD-history.patch
-	install -Dm644 src/PVENodeInfo/patches/03-pvemanager-js-sensors.patch \
-		debian/pve-mod/usr/lib/pve-mod/patches/node_info/03-pvemanager-js-sensors.patch
-	install -Dm755 src/PVENodeInfo/patches/post-apply.sh \
-		debian/pve-mod/usr/lib/pve-mod/patches/node_info/post-apply.sh
-	# nag_screen mod patches + manifest + hooks
-	install -Dm644 src/NagScreen/patches/patches.list \
-		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/patches.list
-	install -Dm644 src/NagScreen/patches/01-proxmoxlib-js-nagscreen.patch \
-		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/01-proxmoxlib-js-nagscreen.patch
-	install -Dm755 src/NagScreen/patches/post-apply.sh \
-		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/post-apply.sh
-	install -Dm755 src/NagScreen/patches/post-revert.sh \
-		debian/pve-mod/usr/lib/pve-mod/patches/nag_screen/post-revert.sh
 	# Configure tool
 	install -Dm755 src/Scripts/pve-mod-configure \
 		debian/pve-mod/usr/sbin/pve-mod-configure
 	# Main config (conffile for user edits)
 	install -Dm644 src/pve-mod.conf \
 		debian/pve-mod/etc/pve-mod/pve-mod.conf
-	# Per-mod configs under conf.d (conffiles for user edits)
-	install -Dm644 src/PVENodeInfo/node_info.conf \
-		debian/pve-mod/etc/pve-mod/conf.d/node_info.conf
-	install -Dm644 src/NagScreen/nag_screen.conf \
-		debian/pve-mod/etc/pve-mod/conf.d/nag_screen.conf
-	# Reference copies for upgrade key-diff (not conffiles — always updated)
+	# Main config reference copy for upgrade key-diff (not a conffile)
 	install -Dm644 src/pve-mod.conf \
 		debian/pve-mod/usr/share/pve-mod/pve-mod.conf.default
-	install -Dm644 src/PVENodeInfo/node_info.conf \
-		debian/pve-mod/usr/share/pve-mod/conf.d/node_info.conf.default
-	install -Dm644 src/NagScreen/nag_screen.conf \
-		debian/pve-mod/usr/share/pve-mod/conf.d/nag_screen.conf.default
+	# ── Dynamic section ────────────────────────────────────────────────────
+	# `bash src/gen-rules.sh >> debian/rules` appends per-module install lines
+	# here during CI, just before dpkg-buildpackage. Do not commit them.

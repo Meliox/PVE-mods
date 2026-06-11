@@ -4,12 +4,21 @@ set -e
 DEFAULT_DIR="/usr/share/pve-mod"
 CONF_DIR="/etc/pve-mod"
 
-# Config file pairs to compare on upgrade: "<default-file>|<user-file>"
-CONF_PAIRS="
-${DEFAULT_DIR}/pve-mod.conf.default|${CONF_DIR}/pve-mod.conf
-${DEFAULT_DIR}/conf.d/node_info.conf.default|${CONF_DIR}/conf.d/node_info.conf
-${DEFAULT_DIR}/conf.d/nag_screen.conf.default|${CONF_DIR}/conf.d/nag_screen.conf
-"
+# Build the list of config file pairs to compare on upgrade, one per line as
+# "<default-file>|<user-file>". The main config pair is fixed; per-module pairs
+# are auto-discovered from the reference copies under conf.d so adding a module
+# needs no edit here.
+_build_conf_pairs() {
+    echo "${DEFAULT_DIR}/pve-mod.conf.default|${CONF_DIR}/pve-mod.conf"
+    local default_conf base
+    for default_conf in "${DEFAULT_DIR}"/conf.d/*.default; do
+        [ -f "$default_conf" ] || continue
+        base="${default_conf##*/}"        # <mod>.conf.default
+        base="${base%.default}"           # <mod>.conf
+        echo "${default_conf}|${CONF_DIR}/conf.d/${base}"
+    done
+}
+CONF_PAIRS="$(_build_conf_pairs)"
 
 # Extracts "section.key" pairs from an INI file, one per line.
 _extract_conf_keys() {
