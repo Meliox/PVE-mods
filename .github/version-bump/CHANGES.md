@@ -1,3 +1,5 @@
+d6a160d  add verbose to dry-run patching (#203)
+
 No src/ changes detected.
 
 80137d3 rework test workflow and test setup (#201)
