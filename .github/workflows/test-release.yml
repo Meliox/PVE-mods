@@ -36,12 +36,17 @@ jobs:
           export BUILD_VERSION="${{ steps.version.outputs.build_version }}"
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/PVENodeInfo/PVEMod_Config.pm
+          ' src/node_info/files/PVEMod_Config.pm
 
       - name: Set package version in changelog
         run: |
           BUILD_VERSION="${{ steps.version.outputs.build_version }}"
           sed -i -E "0,/\(([^)]*)\)/s//(${BUILD_VERSION})/" debian/changelog
+
+      - name: Generate dynamic debian rules
+        run: |
+          bash src/gen-rules.sh >> debian/rules
+          bash src/gen-rules.sh conffiles >> debian/pve-mod.conffiles
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b

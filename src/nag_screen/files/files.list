@@ -1,0 +1,10 @@
+# pve-mod :: nag_screen file manifest
+# Maps files in this directory to their installation destinations.
+# Format: <source> <destination> [permission]
+#   source      - path relative to this files/ directory
+#   destination - path relative to the package root (no leading slash)
+#   permission  - octal mode, optional (defaults to 644)
+# Read by src/gen-rules.sh to generate the per-module debian install rules.
+#
+# The nag_screen mod ships no new files - it only patches existing Proxmox
+# files - so this manifest is intentionally empty.

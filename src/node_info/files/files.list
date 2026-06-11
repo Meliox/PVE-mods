@@ -1,0 +1,27 @@
+# pve-mod :: node_info file manifest
+# Maps files in this directory to their installation destinations.
+# Format: <source> <destination> [permission]
+#   source      - path relative to this files/ directory
+#   destination - path relative to the package root (no leading slash)
+#   permission  - octal mode, optional (defaults to 644)
+# Read by src/gen-rules.sh to generate the per-module debian install rules.
+
+# PVE API2 facade
+PveMod_SensorInfo.pm                    usr/share/perl5/PVE/API2/PVEMod_SensorInfo.pm
+
+# PVEMod core modules (strip PVEMod_ prefix)
+PVEMod_Config.pm                        usr/share/perl5/PVE/PVEMod/Config.pm
+PVEMod_Utils.pm                         usr/share/perl5/PVE/PVEMod/Utils.pm
+PVEMod_Store.pm                         usr/share/perl5/PVE/PVEMod/Store.pm
+PVEMod_ProcessManager.pm                usr/share/perl5/PVE/PVEMod/ProcessManager.pm
+
+# Collector plugins
+PVEMod_Collectors/Intel.pm              usr/share/perl5/PVE/PVEMod/Collector/Intel.pm
+PVEMod_Collectors/Nvidia.pm             usr/share/perl5/PVE/PVEMod/Collector/Nvidia.pm
+PVEMod_Collectors/Amd.pm                usr/share/perl5/PVE/PVEMod/Collector/Amd.pm
+PVEMod_Collectors/LmSensors.pm          usr/share/perl5/PVE/PVEMod/Collector/LmSensors.pm
+PVEMod_Collectors/Ups.pm                usr/share/perl5/PVE/PVEMod/Collector/Ups.pm
+PVEMod_Collectors/systemInformation.pm  usr/share/perl5/PVE/PVEMod/Collector/SystemInformation.pm
+
+# JS module (rename to match loader reference)
+PveMod_pvemanagerlib.js                 usr/share/pve-manager/js/PveMod_PveNodeStatusView.js
