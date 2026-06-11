@@ -72,12 +72,12 @@ list_modules() {
 }
 
 # Patch-state helpers (all use zero fuzz for deterministic detection).
-_dry_forward() { patch -p0 -F0 -f --dry-run --verbose < "$1"; }
-_dry_reverse() { patch -R -p0 -F0 -f --dry-run --verbose < "$1"; }
+_dry_forward() { patch -p1 -F0 -f --dry-run -s -d "$PVE_MOD_ROOT" < "$1" >/dev/null 2>&1; }
+_dry_reverse() { patch -R -p1 -F0 -f --dry-run -s -d "$PVE_MOD_ROOT" < "$1" >/dev/null 2>&1; }
 is_applied()   { _dry_reverse "$1"; }
 can_apply()    { _dry_forward "$1"; }
-do_apply()     { patch -p0 -F0 -f -s < "$1"; }
-do_revert()    { patch -R -p0 -F0 -f -s < "$1"; }
+do_apply()     { patch -p1 -F0 -f -s -d "$PVE_MOD_ROOT" < "$1"; }
+do_revert()    { patch -R -p1 -F0 -f -s -d "$PVE_MOD_ROOT" < "$1"; }
 
 CHANGED=false
 FAILED=false
@@ -165,6 +165,7 @@ for mod in $(list_modules); do
                 to_apply+=("$pf")
             else
                 warn "  $(basename "$pf") does not apply cleanly"
+                patch -p1 -F0 -f --dry-run --verbose -d "$PVE_MOD_ROOT" < "$pf" >&2 || true
                 preflight_ok=false
                 break
             fi
