@@ -72,8 +72,8 @@ list_modules() {
 }
 
 # Patch-state helpers (all use zero fuzz for deterministic detection).
-_dry_forward() { patch -p0 -F0 -f --dry-run -s < "$1" >/dev/null 2>&1; }
-_dry_reverse() { patch -R -p0 -F0 -f --dry-run -s < "$1" >/dev/null 2>&1; }
+_dry_forward() { patch -p0 -F0 -f --dry-run --verbose < "$1"; }
+_dry_reverse() { patch -R -p0 -F0 -f --dry-run --verbose < "$1"; }
 is_applied()   { _dry_reverse "$1"; }
 can_apply()    { _dry_forward "$1"; }
 do_apply()     { patch -p0 -F0 -f -s < "$1"; }
