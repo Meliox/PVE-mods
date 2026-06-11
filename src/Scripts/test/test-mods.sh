@@ -15,7 +15,6 @@
 #      so all of the mod's patches are exercised (e.g. node_info's gpu_history)
 #   3. runs apply-patches.sh and asserts it exits 0
 #   4. runs revert-patches.sh and asserts it reports no unclean reversions
-#   5. restores the pristine Proxmox files before moving to the next mod
 #
 # Failure detection relies on the apply exit code: the patch engine performs an
 # atomic preflight dry-run and exits non-zero if any mod cannot apply cleanly.
@@ -29,18 +28,6 @@ CONFD_DIR="${PVE_MOD_CONFD_DIR:-/etc/pve-mod/conf.d}"
 PATCHES_DIR="${PVE_MOD_PATCHES_DIR:-/usr/lib/pve-mod/patches}"
 APPLY="${PVE_MOD_APPLY:-/usr/lib/pve-mod/apply-patches.sh}"
 REVERT="${PVE_MOD_REVERT:-/usr/lib/pve-mod/revert-patches.sh}"
-
-# Proxmox files touched by the patches; snapshotted before and restored after
-# each mod so every mod is tested from a pristine baseline.
-PROXMOX_FILES=(
-    /usr/share/perl5/PVE/API2/Nodes.pm
-    /usr/share/pve-manager/js/pvemanagerlib.js
-    /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
-    /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.min.js
-)
-
-SNAP_DIR="$(mktemp -d)"
-trap 'rm -rf "$SNAP_DIR"' EXIT
 
 info() { echo "[test] $*"; }
 warn() { echo "[test] WARNING: $*" >&2; }
@@ -106,28 +93,6 @@ enable_conditions() {
     done < "$manifest"
 }
 
-snapshot_files() {
-    rm -rf "$SNAP_DIR"/*; mkdir -p "$SNAP_DIR"
-    local i=0 f
-    for f in "${PROXMOX_FILES[@]}"; do
-        if [[ -e "$f" || -L "$f" ]]; then
-            cp -a "$f" "$SNAP_DIR/$i"
-        fi
-        i=$((i+1))
-    done
-}
-
-restore_files() {
-    local i=0 f
-    for f in "${PROXMOX_FILES[@]}"; do
-        if [[ -e "$SNAP_DIR/$i" || -L "$SNAP_DIR/$i" ]]; then
-            rm -f "$f"
-            cp -a "$SNAP_DIR/$i" "$f"
-        fi
-        i=$((i+1))
-    done
-}
-
 # Test a single mod end to end. Returns 0 on success, 1 on failure.
 test_one_mod() {
     local mod="$1"
@@ -143,7 +108,6 @@ test_one_mod() {
     disable_all_modules
     set_conf "$MAIN_CONF" modules "$mod" 1
     enable_conditions "$mod"
-    snapshot_files
 
     info "Applying patches for '$mod'..."
     local apply_log apply_rc
@@ -164,8 +128,6 @@ test_one_mod() {
             ok=1
         fi
     fi
-
-    restore_files
 
     if [[ $ok -eq 0 ]]; then
         info "PASS: $mod"

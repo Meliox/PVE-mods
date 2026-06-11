@@ -74,3 +74,6 @@ jobs:
           name: pve-mods-test-build-pr${{ github.event.pull_request.number }}-${{ steps.version.outputs.short_sha }}
           path: artifacts/*.deb
           retention-days: 3
+  patch-install-test:
+    needs: test-release-build
+    uses: ./.github/workflows/test-patches.yml
