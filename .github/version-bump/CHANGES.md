@@ -1,3 +1,5 @@
+e05ff6f  change all text files to use LF (#205)
+
 0ab8a67  resolve absolut path patching (#204)
 
 d6a160d  add verbose to dry-run patching (#203)
