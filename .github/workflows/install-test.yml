@@ -9,8 +9,6 @@ name: Test Patches - Post Build
 # Wired via workflow_run, so it fires for builds on ANY branch/PR. (GitHub always
 # runs the default-branch copy of this file, so it activates once merged to main.)
 
-name: Test Patches - Post Build
-
 on:
   workflow_run:
     workflows: ["Test Release Build"]
