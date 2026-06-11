@@ -45,7 +45,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Always rebase the bump branch on the latest main so the PR
+          # Always rebase the bump branch on the latest main so the PR is testable
           git fetch origin main
           if git fetch origin chore/version-bump 2>/dev/null; then
             git checkout chore/version-bump
