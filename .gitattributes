@@ -1,5 +1,2 @@
-# Ensure patch files always use LF so they apply correctly on Linux
-*.patch text eol=lf
-
-# Shell scripts must use LF
-*.sh text eol=lf
+# All files must use LF
+* text=auto eol=lf
