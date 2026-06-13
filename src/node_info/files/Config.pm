@@ -18,7 +18,14 @@ our @EXPORT_OK = qw(
 # ============================================================================
 
 our $DEBUG_ENABLED = 1;
-our $VERSION       = 'version-placeholder';
+our $VERSION       = '0.1.5+pr208.b9a43a4';
+
+# ============================================================================
+# Config paths
+# ============================================================================
+
+my $CONF_FILE = '/etc/pve-mod/pve-mod.conf';
+my $CONFD_DIR = '/etc/pve-mod/conf.d';
 
 # Runtime process-type tag — set to 'worker' or 'collector' after fork.
 # Each forked child gets its own copy of this variable.
@@ -105,8 +112,8 @@ our $RRD_BASE   = '/var/lib/rrdcached/db/pve-mod-gpu';
 # ============================================================================
 
 sub _load_ini_file {
-    my $path = '/etc/pve-mod/pve-mod.conf';
-    return unless -f $path;
+    my ($path) = @_;
+    return unless defined $path && -f $path;
 
     open my $fh, '<', $path or return;
     my $section = '';
@@ -147,6 +154,7 @@ sub _load_ini_file {
     close $fh;
 }
 
-_load_ini_file();
+_load_ini_file($CONF_FILE);
+_load_ini_file($_) for glob("$CONFD_DIR/*.conf");
 
 1;
