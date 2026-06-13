@@ -69,6 +69,7 @@ _load_conf() {
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
             debug.intel_devices_file)       DEBUG_INTEL_FILE="$val" ;;
+            debug.intel_output_file)        DEBUG_INTEL_OUTPUT_FILE="$val" ;;
             debug.nvidia_mode)              DEBUG_NVIDIA="$val" ;;
             debug.nvidia_devices_file)      DEBUG_NVIDIA_DEVICES_FILE="$val" ;;
             debug.nvidia_output_file)       DEBUG_NVIDIA_OUTPUT_FILE="$val" ;;
@@ -311,7 +312,6 @@ configure_node_info() {
         if [[ -n "$nvidiaCards" ]]; then
             info "NVIDIA GPU(s) detected (debug):"
             echo "$nvidiaCards" | while IFS= read -r line; do echo "  $line"; done
-            // look for nvidia-smi output file as well, to determine whether to enable GPU stats graphs
             if [[ -f "$DEBUG_NVIDIA_OUTPUT_FILE" ]]; then
                 info "[debug] NVIDIA GPU stats output file found at $DEBUG_NVIDIA_OUTPUT_FILE"
                 ENABLE_NVIDIA_GPU_INFO=1
@@ -358,16 +358,20 @@ configure_node_info() {
         [yY])
             local upsConn modelName upsOutput
             upsConn=$(ask "Enter UPS connection string (e.g. upsname@hostname[:port])")
-            if [[ "$DEBUG_UPS" -eq 1 && -f "$DEBUG_UPS_FILE" ]]; then
-                info "[debug] Using UPS data from $DEBUG_UPS_FILE"
-                upsOutput=$(cat "$DEBUG_UPS_FILE")
-            else
-                if ! command -v upsc &>/dev/null; then
-                    err "'upsc' is not available. Install 'nut-client' first."
+            if [[ "$DEBUG_UPS" -eq 1 ]]; then
+                if [[ -f "$DEBUG_UPS_FILE" ]]; then
+                    info "[debug] Using UPS data from $DEBUG_UPS_FILE"
+                else 
+                    warn "[debug] Debug mode for UPS is enabled but file not found at $DEBUG_UPS_FILE."
                 fi
-                upsOutput=$(upsc "$upsConn" 2>&1)
+                upsOutput=$(cat "$DEBUG_UPS_FILE" || true)
+                ENABLE_UPS=1
+            elif _check_or_install_tool upsc nut-client "Network UPS Tools (upsc)" && [[ -n "$upsConn" ]]; then
+                upsOutput=$(upsc "$upsConn" 2>/dev/null || true)
+            else
+                warn "Could not connect to UPS at '$upsConn'. UPS info will be disabled."
             fi
-            if echo "$upsOutput" | grep -q "device.model:"; then
+            if [[ -n "$upsOutput" ]]; then
                 modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d: -f2- | xargs)
                 ENABLE_UPS=1
                 UPS_DEVICE_NAME="$upsConn"
@@ -376,7 +380,7 @@ configure_node_info() {
                 warn "Could not connect to UPS at '$upsConn'. UPS info will be disabled."
                 ENABLE_UPS=0
             fi
-            ;;
+        ;;
         *) info "UPS information disabled." ;;
     esac
     #endregion UPS
