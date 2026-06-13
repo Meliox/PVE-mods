@@ -462,6 +462,7 @@ lm_sensors_mode=${DEBUG_LM_SENSORS}
 lm_sensors_output_file=${DEBUG_LM_SENSORS_FILE}
 intel_mode=${DEBUG_INTEL}
 intel_devices_file=${DEBUG_INTEL_FILE}
+intel_output_file=${DEBUG_INTEL_OUTPUT_FILE}
 nvidia_mode=${DEBUG_NVIDIA}
 nvidia_devices_file=${DEBUG_NVIDIA_DEVICES_FILE}
 nvidia_output_file=${DEBUG_NVIDIA_OUTPUT_FILE}
