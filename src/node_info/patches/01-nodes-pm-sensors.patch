@@ -1,6 +1,6 @@
 --- a/usr/share/perl5/PVE/API2/Nodes.pm
 +++ b/usr/share/perl5/PVE/API2/Nodes.pm
-@@ -536,6 +536,12 @@
+@@ -536,6 +536,13 @@
  
          $res->{pveversion} = PVE::pvecfg::package() . "/" . PVE::pvecfg::version_text();
  
