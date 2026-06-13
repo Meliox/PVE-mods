@@ -149,8 +149,8 @@ sub _load_graphics_data {
 # API calls
 # ============================================================================
 
-sub get_graphic_info {
-    debug(__LINE__, "get_graphic_info called");
+sub get_graphics_info {
+    debug(__LINE__, "get_graphics_info called");
     if (!($config{gpu}{intel_enabled} || !$config{gpu}{nvidia_enabled} || !$config{gpu}{amd_enabled})) {
         debug(__LINE__, "GPU information collection is disabled");
         return { };
