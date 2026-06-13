@@ -150,6 +150,10 @@ sub _load_graphics_data {
 # ============================================================================
 
 sub get_graphic_info {
+    if (!$config{gpu}{intel_enabled} && !$config{gpu}{nvidia_enabled} && !$config{gpu}{amd_enabled}) {
+        return null;
+    }
+
     debug(__LINE__, "get_graphic_info called");
 
     # Start PVE Mod
@@ -164,6 +168,10 @@ sub get_graphic_info {
 }
 
 sub get_sensors_info {
+    if (!$config{lm_sensors}{enabled}) {
+        return null;
+    }
+
     debug(__LINE__, "get_sensors_info called");
 
     # Start PVE Mod
@@ -178,6 +186,10 @@ sub get_sensors_info {
 }
 
 sub get_ups_info {
+    if (!$config{ups}{enabled}) {
+        return null;
+    }
+
     debug(__LINE__, "get_ups_info called");
 
     # Start PVE Mod
@@ -203,6 +215,10 @@ sub get_pve_mod_version {
 }
 
 sub get_system_information {
+    if (!$config{system_info}{enabled}) {
+        return null;
+    }
+
     debug(__LINE__, "get_system_information called");
 
     if (defined $system_info_cache) {
