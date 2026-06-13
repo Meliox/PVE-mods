@@ -632,19 +632,20 @@ main() {
     esac
 
     # ── Write config and apply/revert ─────────────────────────────────────────
-    write_config
-
     # For mods with patches: apply if being enabled, revert if being disabled.
     # Option 3 (pve_trigger) has no patches — write_config is sufficient.
-    if [[ -n "$selected_mod" ]]; then
-        if [[ "$patching_needed" == "1" ]]; then
-            msgb "\n=== Applying patches ==="
-            "$APPLY_PATCHES" "$selected_mod"
-        else
-            msgb "\n=== Removing patches ==="
-            "$REVERT_PATCHES" "$selected_mod"
+    if [[ "$patching_needed" == "1" ]]; then
+        msgb "\n=== Applying patches ==="
+        if ! "$APPLY_PATCHES" "$selected_mod"; then
+            err "Could not apply all patches for $selected_mod. Configuration was not updated."
+        fi
+    elif [[ -n "$selected_mod" ]]; then
+        msgb "\n=== Removing patches ==="
+        if ! "$REVERT_PATCHES" "$selected_mod"; then
+            err "Could not revert all patches for $selected_mod. Configuration was not updated."
         fi
     fi
+    write_config
 
     msgb "\n=== Done ==="
     info "pve-mod is configured and active."

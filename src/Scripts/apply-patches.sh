@@ -105,7 +105,11 @@ fi
 mapfile -t _all_modules < <(list_modules)
 _target_modules=("${@:-${_all_modules[@]}}")
 for mod in "${_target_modules[@]}"; do
-    [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
+    # When modules are explicitly named as args, the caller decides what to apply.
+    # When running for all modules (no args from dpkg trigger), respect the config.
+    if [[ $# -eq 0 ]]; then
+        [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
+    fi
 
     mod_dir="$PATCHES_DIR/$mod"
     manifest="$mod_dir/patches.list"
