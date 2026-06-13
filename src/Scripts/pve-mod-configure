@@ -281,7 +281,12 @@ configure_node_info() {
         if [[ -n "$intelCards" ]]; then
             info "Intel GPU(s) detected (debug):"
             echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
-            ENABLE_INTEL_GPU_INFO=1
+            if [[ -f "$DEBUG_INTEL_OUTPUT_FILE" ]]; then
+                info "[debug] Intel GPU stats output file found at $DEBUG_INTEL_OUTPUT_FILE"
+                ENABLE_INTEL_GPU_INFO=1
+            else
+                warn "[debug] Intel GPU stats output file not found at $DEBUG_INTEL_OUTPUT_FILE. GPU stats graphs will be empty."
+            fi
         else
             warn "No Intel GPUs in debug file."
         fi
@@ -306,7 +311,13 @@ configure_node_info() {
         if [[ -n "$nvidiaCards" ]]; then
             info "NVIDIA GPU(s) detected (debug):"
             echo "$nvidiaCards" | while IFS= read -r line; do echo "  $line"; done
-            ENABLE_NVIDIA_GPU_INFO=1
+            // look for nvidia-smi output file as well, to determine whether to enable GPU stats graphs
+            if [[ -f "$DEBUG_NVIDIA_OUTPUT_FILE" ]]; then
+                info "[debug] NVIDIA GPU stats output file found at $DEBUG_NVIDIA_OUTPUT_FILE"
+                ENABLE_NVIDIA_GPU_INFO=1
+            else
+                warn "[debug] NVIDIA GPU stats output file not found at $DEBUG_NVIDIA_OUTPUT_FILE. GPU stats graphs will be empty."
+            fi
         else
             warn "No NVIDIA GPUs in debug file."
         fi
