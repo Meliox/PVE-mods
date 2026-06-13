@@ -42,7 +42,7 @@ jobs:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
-            s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
+            s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/${1}$v'"'"';/
           ' src/node_info/files/Config.pm
 
       - name: Generate dynamic debian rules
