@@ -1,3 +1,5 @@
+2221c8f workflow: changes to make test workflow work (#207)
+
 abe8dcf chore: enforce LF line endings via .gitattributes (#206)
 
 e05ff6f  change all text files to use LF (#205)
