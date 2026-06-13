@@ -8,7 +8,7 @@ use File::Path qw(make_path);
 use PVE::INotify;
 use RRDs;
 
-use PVE::PVEMod::Config qw($RRD_SOCKET $RRD_BASE);
+use PVE::PVEMod::Config qw(%config $RRD_SOCKET $RRD_BASE);
 use PVE::PVEMod::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
@@ -40,6 +40,8 @@ sub gpu_rrd_path {
 # ============================================================================
 
 sub _ensure_intel_gpu_rrd {
+    return unless $config{gpu}{gpu_history};
+
     my ($card) = @_;
     my $path = gpu_rrd_path($card);
     return if -f $path;
@@ -104,6 +106,8 @@ sub update_intel_gpu_rrd {
 # ============================================================================
 
 sub _ensure_nvidia_gpu_rrd {
+    return unless $config{gpu}{gpu_history};
+
     my ($index) = @_;
     my $card = "nvidia$index";
     my $path = gpu_rrd_path($card);
