@@ -407,9 +407,6 @@ nag_screen=${MOD_NAG_SCREEN}
 
 [pve_trigger]
 enabled=${PVE_TRIGGER_ENABLED}
-
-[service]
-mode=embedded
 EOF
     info "Main configuration saved to $CONF_FILE"
 
@@ -472,69 +469,6 @@ EOF
     fi
 }
 #endregion write config
-
-#region debug wizard
-configure_debug() {
-    msgb "\n=== Debug / Development Mode ==="
-    echo "Debug mode substitutes real tools with pre-captured data files."
-    echo "When a collector's mode is enabled the tool (sensors/intel_gpu_top/etc.) is not required."
-    local choice
-    choice=$(ask "Configure debug file overrides? (y/N)")
-    [[ "$choice" != [yY] ]] && return
-
-    local newpath
-
-    choice=$(ask "Enable LM-Sensors debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_LM_SENSORS=1
-        newpath=$(ask "Path to sensors JSON file [${DEBUG_LM_SENSORS_FILE}]")
-        DEBUG_LM_SENSORS_FILE="${newpath:-$DEBUG_LM_SENSORS_FILE}"
-        info "LM-Sensors debug: ${DEBUG_LM_SENSORS_FILE}"
-    fi
-
-    choice=$(ask "Enable Intel GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_INTEL=1
-        newpath=$(ask "Path to Intel GPU devices JSON [${DEBUG_INTEL_FILE}]")
-        DEBUG_INTEL_FILE="${newpath:-$DEBUG_INTEL_FILE}"
-        info "Intel GPU debug: ${DEBUG_INTEL_FILE}"
-    fi
-
-    choice=$(ask "Enable NVIDIA GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_NVIDIA=1
-        newpath=$(ask "Path to nvidia-smi output CSV [${DEBUG_NVIDIA_OUTPUT_FILE}]")
-        DEBUG_NVIDIA_OUTPUT_FILE="${newpath:-$DEBUG_NVIDIA_OUTPUT_FILE}"
-        newpath=$(ask "Path to nvidia-smi devices CSV [${DEBUG_NVIDIA_DEVICES_FILE}]")
-        DEBUG_NVIDIA_DEVICES_FILE="${newpath:-$DEBUG_NVIDIA_DEVICES_FILE}"
-        info "NVIDIA GPU debug: output=${DEBUG_NVIDIA_OUTPUT_FILE} devices=${DEBUG_NVIDIA_DEVICES_FILE}"
-    fi
-
-    choice=$(ask "Enable AMD GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_AMD=1
-        newpath=$(ask "Path to AMD GPU devices JSON [${DEBUG_AMD_FILE}]")
-        DEBUG_AMD_FILE="${newpath:-$DEBUG_AMD_FILE}"
-        info "AMD GPU debug: ${DEBUG_AMD_FILE}"
-    fi
-
-    choice=$(ask "Enable UPS debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_UPS=1
-        newpath=$(ask "Path to UPS output JSON [${DEBUG_UPS_FILE}]")
-        DEBUG_UPS_FILE="${newpath:-$DEBUG_UPS_FILE}"
-        info "UPS debug: ${DEBUG_UPS_FILE}"
-    fi
-
-    choice=$(ask "Enable debug logging? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_LOG=1
-        newpath=$(ask "Log file path [${DEBUG_LOG_FILE}]")
-        DEBUG_LOG_FILE="${newpath:-$DEBUG_LOG_FILE}"
-        info "Debug log: ${DEBUG_LOG_FILE}"
-    fi
-}
-#endregion debug wizard
 
 main() {
     # ── Welcome banner ────────────────────────────────────────────────────────
@@ -615,9 +549,6 @@ main() {
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
     esac
-
-    # ── Debug mode ────────────────────────────────────────────────────────────
-    configure_debug
 
     # ── Write config and apply ────────────────────────────────────────────────
     write_config
