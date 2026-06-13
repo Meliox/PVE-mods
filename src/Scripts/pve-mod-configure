@@ -565,15 +565,6 @@ main() {
         err "A legacy pve-mod bash-script installation was detected in Nodes.pm.\nRemove it first:\n  bash /path/to/pve-mod-gui-sensors.sh uninstall"
     fi
 
-    # ── Existing config notice ────────────────────────────────────────────────
-    if [[ -f "$CONF_FILE" ]]; then
-        local choice
-        choice=$(ask "Existing configuration found at $CONF_FILE — Reconfigure? (Y/n)")
-        case "$choice" in
-            [nN]) info "Keeping existing configuration."; exit 0 ;;
-        esac
-    fi
-
     # ── Initialize all config variables with safe defaults ────────────────────
     MOD_NODE_INFO=0; MOD_NAG_SCREEN=0
     LM_SENSORS_ENABLED=0

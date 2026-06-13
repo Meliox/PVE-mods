@@ -1,5 +1,5 @@
---- a/usr/share/perl5/PVE/API2/Nodes.pm
-+++ b/usr/share/perl5/PVE/API2/Nodes.pm
+--- usr/share/perl5/PVE/API2/Nodes.pm	2026-05-24 02:05:58.000000000 +0200
++++ /usr/share/perl5/PVE/API2/Nodes.pm	2026-06-13 16:29:47.810720485 +0200
 @@ -251,6 +251,7 @@
              { name => 'report' },
              { name => 'rrd' }, # fixme: remove?
@@ -8,12 +8,10 @@
              { name => 'scan' },
              { name => 'sdn' },
              { name => 'services' },
-@@ -878,6 +879,57 @@
-             "pve-node-9.0/$param->{node}", $param->{timeframe}, $param->{cf},
+@@ -879,6 +880,56 @@
          );
      },
--});
-+});
+ });
 +
 +__PACKAGE__->register_method({
 +    name => 'gpurrddata',
@@ -66,3 +64,4 @@
 +});
  
  __PACKAGE__->register_method({
+     name => 'syslog',
