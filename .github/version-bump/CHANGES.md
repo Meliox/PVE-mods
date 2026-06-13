@@ -1,3 +1,5 @@
+40ff13c workflow: validate mods syntax check (#210)
+
 2221c8f workflow: changes to make test workflow work (#207)
 
 abe8dcf chore: enforce LF line endings via .gitattributes (#206)
