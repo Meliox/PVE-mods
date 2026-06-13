@@ -76,7 +76,7 @@ jobs:
       - name: Test mod
         run: |
           set -o pipefail
-          sudo bash src/Scripts/test/test-mods.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+          sudo bash src/Scripts/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
 
       - name: Report failure as issue
         if: failure()
