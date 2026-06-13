@@ -102,7 +102,9 @@ if ! command -v patch >/dev/null 2>&1; then
     exit 1
 fi
 
-for mod in $(list_modules); do
+mapfile -t _all_modules < <(list_modules)
+_target_modules=("${@:-${_all_modules[@]}}")
+for mod in "${_target_modules[@]}"; do
     [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
 
     mod_dir="$PATCHES_DIR/$mod"

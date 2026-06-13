@@ -52,9 +52,11 @@ fi
 
 CHANGED=false
 
-for mod_dir in "$PATCHES_DIR"/*/; do
+mapfile -t _all_modules < <(for d in "$PATCHES_DIR"/*/; do [[ -d "$d" ]] && basename "$d"; done)
+_target_modules=("${@:-${_all_modules[@]}}")
+for mod in "${_target_modules[@]}"; do
+    mod_dir="$PATCHES_DIR/$mod/"
     [[ -d "$mod_dir" ]] || continue
-    mod="$(basename "$mod_dir")"
     manifest="$mod_dir/patches.list"
     mod_conf="$CONFD_DIR/$mod.conf"
 

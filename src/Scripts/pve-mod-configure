@@ -11,6 +11,7 @@ CONFD_DIR="/etc/pve-mod/conf.d"
 NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
 NAG_SCREEN_CONF="${CONFD_DIR}/nag_screen.conf"
 APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
+REVERT_PATCHES="/usr/lib/pve-mod/revert-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
@@ -26,10 +27,33 @@ ask()  {
     echo "$response"
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
+mod_status() {
+    local val="$1" on_label="${2:-[enabled]}" off_label="${3:-[disabled]}"
+    [[ "$val" == "1" ]] && echo -e "\e[0;32m${on_label}\e[0m" || echo -e "\e[0;33m${off_label}\e[0m"
+}
 
 _load_conf() {
+    # Load main config (module toggles + pve_trigger)
+    if [[ -f "$CONF_FILE" ]]; then
+        local section="" line key val
+        while IFS= read -r line; do
+            case "$line" in
+                '#'*|'') continue ;;
+                '['*']') section="${line#[}"; section="${section%]}"; continue ;;
+            esac
+            [[ "$line" == *=* ]] || continue
+            key="${line%%=*}"; val="${line#*=}"
+            case "${section}.${key}" in
+                modules.node_info)    MOD_NODE_INFO="$val" ;;
+                modules.nag_screen)   MOD_NAG_SCREEN="$val" ;;
+                pve_trigger.enabled)  PVE_TRIGGER_ENABLED="$val" ;;
+            esac
+        done < "$CONF_FILE"
+    fi
+
+    # Load node_info mod config
     [[ -f "$NODE_INFO_CONF" ]] || return 0
-    local in_debug=0 line key val
+    local in_debug=0 line key val section=""
     while IFS= read -r line; do
         case "$line" in
             '#'*|'')   continue ;;
@@ -569,37 +593,58 @@ main() {
     # this run, and all other options retain their previously saved values.
     msgb "\n=== pve-mod Module Selection ==="
     echo "Available options (select one):"
-    echo "  [1] Node Info   — sensor readings, GPU stats, UPS, system information"
-    echo "  [2] Nag Screen  — remove Proxmox subscription nag screen"
-    echo "  [3] Auto re-patch on PVE upgrade — automatically re-apply patches when"
-    echo "                    pve-manager is upgraded"
-    echo "  [n] None / cancel"
-    local modChoice
-    modChoice=$(ask "Select an option to enable (1/2/3/n)")
+    echo -e "  [1] Node Info   $(mod_status "$MOD_NODE_INFO") — sensor readings, GPU stats, UPS, system information"
+    echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
+    echo -e "  [3] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
+    echo    "                    pve-manager is upgraded"
+    echo    "  [n] None / cancel"
+    local modChoice selected_mod="" patching_needed=0
+    modChoice=$(ask "Select an option (1/2/3/n)")
     case "$modChoice" in
         1)
-            MOD_NODE_INFO=1
-            msgb "\n=== Node Info Configuration ==="
-            configure_node_info
+            selected_mod="node_info"
+            if [[ "$MOD_NODE_INFO" == "1" ]]; then
+                MOD_NODE_INFO=0; info "Node Info will be removed."
+            else
+                MOD_NODE_INFO=1; patching_needed=1
+                msgb "\n=== Node Info Configuration ==="
+                configure_node_info
+            fi
             ;;
         2)
-            MOD_NAG_SCREEN=1
-            msgb "\n=== Nag Screen ==="
-            info "Subscription nag screen removal will be applied."
+            selected_mod="nag_screen"
+            if [[ "$MOD_NAG_SCREEN" == "1" ]]; then
+                MOD_NAG_SCREEN=0; info "Nag Screen will be removed."
+            else
+                MOD_NAG_SCREEN=1; patching_needed=1
+                info "Subscription nag screen removal will be applied."
+            fi
             ;;
         3)
-            PVE_TRIGGER_ENABLED=1
-            info "Auto re-patching on PVE upgrade enabled."
+            if [[ "$PVE_TRIGGER_ENABLED" == "1" ]]; then
+                PVE_TRIGGER_ENABLED=0; info "Auto re-patch disabled."
+            else
+                PVE_TRIGGER_ENABLED=1; info "Auto re-patching on PVE upgrade enabled."
+            fi
             ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
     esac
 
-    # ── Write config and apply ────────────────────────────────────────────────
+    # ── Write config and apply/revert ─────────────────────────────────────────
     write_config
 
-    msgb "\n=== Applying patches ==="
-    "$APPLY_PATCHES"
+    # For mods with patches: apply if being enabled, revert if being disabled.
+    # Option 3 (pve_trigger) has no patches — write_config is sufficient.
+    if [[ -n "$selected_mod" ]]; then
+        if [[ "$patching_needed" == "1" ]]; then
+            msgb "\n=== Applying patches ==="
+            "$APPLY_PATCHES" "$selected_mod"
+        else
+            msgb "\n=== Removing patches ==="
+            "$REVERT_PATCHES" "$selected_mod"
+        fi
+    fi
 
     msgb "\n=== Done ==="
     info "pve-mod is configured and active."
