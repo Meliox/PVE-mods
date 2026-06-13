@@ -1,2 +1,3 @@
 interest-noawait /usr/share/pve-manager/js
 interest-noawait /usr/share/perl5/PVE
+interest-noawait /usr/share/pve-yew-mobile-gui

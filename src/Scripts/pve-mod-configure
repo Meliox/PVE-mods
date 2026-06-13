@@ -27,7 +27,7 @@ ask()  {
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
 
-_load_conf_debug() {
+_load_conf() {
     [[ -f "$NODE_INFO_CONF" ]] || return 0
     local in_debug=0 line key val
     while IFS= read -r line; do
@@ -563,15 +563,6 @@ main() {
     if grep -qF '$res->{sensorsJSONOutput}' "$NODES_PM" 2>/dev/null || \
        grep -qF '$res->{systemInfo}' "$NODES_PM" 2>/dev/null; then
         err "A legacy pve-mod bash-script installation was detected in Nodes.pm.\nRemove it first:\n  bash /path/to/pve-mod-gui-sensors.sh uninstall"
-    fi
-
-    # ── Existing config notice ────────────────────────────────────────────────
-    if [[ -f "$CONF_FILE" ]]; then
-        local choice
-        choice=$(ask "Existing configuration found at $CONF_FILE — Reconfigure? (Y/n)")
-        case "$choice" in
-            [nN]) info "Keeping existing configuration."; exit 0 ;;
-        esac
     fi
 
     # ── Initialize all config variables with safe defaults ────────────────────
