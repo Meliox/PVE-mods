@@ -297,6 +297,25 @@ configure_node_info() {
             info "Intel GPU(s) detected:"
             echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
             ENABLE_INTEL_GPU_INFO=1
+
+            # Write JSON devices file for debug/cache use by the Perl collector
+            local json="["
+            local first=1
+            while IFS= read -r line; do
+                # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
+                if [[ "$line" =~ ^(card[0-9]+)[[:space:]]+(.+[^[:space:]])[[:space:]]+(pci:[^[:space:]]+) ]]; then
+                    local card="${BASH_REMATCH[1]}"
+                    local name="${BASH_REMATCH[2]}"
+                    local path="${BASH_REMATCH[3]}"
+                    name="${name%"${name##*[![:space:]]}"}"  # rtrim
+                    [[ "$first" -eq 0 ]] && json+=","
+                    json+="{\"card\":\"$card\",\"name\":\"$name\",\"path\":\"$path\",\"drm_path\":\"/dev/dri/$card\"}"
+                    first=0
+                fi
+            done <<< "$intelCards"
+            json+="]"
+            echo "$json" > "$DEBUG_INTEL_FILE"
+            info "Intel GPU device list saved to $DEBUG_INTEL_FILE"
         else
             warn "No Intel GPUs detected by intel_gpu_top."
         fi
@@ -536,7 +555,7 @@ main() {
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
     PVE_TRIGGER_ENABLED=0
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
-    DEBUG_INTEL=0;      DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
+    DEBUG_INTEL=0;      DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.json"
                         DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
     DEBUG_NVIDIA=0;     DEBUG_NVIDIA_OUTPUT_FILE="/tmp/nvidia-smi-output.csv"
                         DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"

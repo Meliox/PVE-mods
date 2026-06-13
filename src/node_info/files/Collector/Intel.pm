@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 
 use PVE::PVEMod::Config qw(%config $process_type $pve_mod_working_dir);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json);
+use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_read_json safe_write_json);
 use PVE::PVEMod::Store  qw(update_intel_gpu_rrd);
 
 our @EXPORT_OK = qw(

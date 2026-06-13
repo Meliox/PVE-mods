@@ -53,7 +53,7 @@ sub _get_system_info {
     }
 
     unless (defined $output && length($output) > 0) {
-        debug(__LINE__, "No cached DMI data at $cache_file — re-run pve-mod-configure as root to refresh");
+        debug(__LINE__, "No cached DMI data at $cache_file - re-run pve-mod-configure as root to refresh");
         return {};
     }
 
