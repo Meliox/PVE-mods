@@ -76,4 +76,4 @@ jobs:
           retention-days: 3
   patch-install-test:
     needs: test-release-build
-    uses: ./.github/workflows/test-patches.yml
+    uses: ./.github/workflows/validate-mods.yml

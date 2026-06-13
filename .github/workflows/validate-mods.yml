@@ -1,8 +1,8 @@
-name: Test Patches - Post Build
+name: Validate Mods
 
 # Called by Test Release Build after a successful .deb build.
-# Installs the artifact on a Proxmox-seeded runner and verifies
-# that every mod's patches apply and revert cleanly.
+# Validates source syntax for all mods, then installs the artifact on a
+# Proxmox-seeded runner and verifies that every mod's patches apply and revert cleanly.
 
 on:
   workflow_call:
@@ -20,9 +20,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates git sudo wget xz-utils dpkg
+            ca-certificates git sudo wget xz-utils dpkg nodejs
 
       - uses: actions/checkout@v4
+
+      - name: Validate source syntax
+        run: bash src/Scripts/test/test-syntax.sh all
 
       - name: Download deb artifact
         uses: actions/download-artifact@v4
@@ -38,4 +41,4 @@ jobs:
         run: apt-get install -y ./deb/*.deb
 
       - name: Test all mods
-        run: bash src/Scripts/test/test-mods.sh all
+        run: bash src/Scripts/test/test-patches.sh all
