@@ -42,6 +42,7 @@ our %config = (
         lm_sensors_output_file => '/tmp/sensors-output.json',
         intel_mode             => 0,
         intel_devices_file     => '/tmp/intel-gpu-devices.json',
+        intel_output_file      => '/tmp/intel-gpu-output.json',
         nvidia_mode            => 0,
         nvidia_devices_file    => '/tmp/nvidia-smi-devices.csv',
         nvidia_output_file     => '/tmp/nvidia-smi-output.csv',

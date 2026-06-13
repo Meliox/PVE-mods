@@ -20,26 +20,44 @@ our @EXPORT_OK = qw(
 sub get_intel_gpu_devices {
     my @devices = ();
 
-    debug(__LINE__, "Getting Intel GPU devices");
-    if (open my $fh, '-|', 'intel_gpu_top -L') {
-        while (<$fh>) {
-            chomp;
-            # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
-            # or:    "card0  Intel Alderlake_n (Gen12)  pci:0000:00:02.0"
-            if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
-                my ($card, $name, $path) = ($1, $2, $3);
+    if ($config{debug}{intel_mode} && -f $config{debug}{intel_devices_file}) {
+        debug(__LINE__, "Debug mode: reading Intel GPU devices from $config{debug}{intel_devices_file}");
+        my $data = safe_read_json($config{debug}{intel_devices_file});
+        if ($data && ref $data eq 'ARRAY') {
+            for my $dev (@$data) {
                 push @devices, {
-                    card     => $card,
-                    name     => $name,
-                    path     => $path,
-                    drm_path => "/dev/dri/$card",
+                    card     => $dev->{card},
+                    name     => $dev->{name},
+                    path     => $dev->{path},
+                    drm_path => $dev->{drm_path},
                 };
-                debug(__LINE__, "Found Intel device: $card -> $name ($path)");
+                debug(__LINE__, "Found Intel device (debug): $dev->{card} -> $dev->{name} ($dev->{path})");
             }
+        } else {
+            debug(__LINE__, "Failed to parse debug file $config{debug}{intel_devices_file}");
         }
-        close $fh;
     } else {
-        debug(__LINE__, "Failed to run intel_gpu_top -L: $!");
+        debug(__LINE__, "Getting Intel GPU devices");
+        if (open my $fh, '-|', 'intel_gpu_top -L') {
+            while (<$fh>) {
+                chomp;
+                # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
+                # or:    "card0  Intel Alderlake_n (Gen12)  pci:0000:00:02.0"
+                if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
+                    my ($card, $name, $path) = ($1, $2, $3);
+                    push @devices, {
+                        card     => $card,
+                        name     => $name,
+                        path     => $path,
+                        drm_path => "/dev/dri/$card",
+                    };
+                    debug(__LINE__, "Found Intel device: $card -> $name ($path)");
+                }
+            }
+            close $fh;
+        } else {
+            debug(__LINE__, "Failed to run intel_gpu_top -L: $!");
+        }
     }
 
     return @devices;
@@ -132,46 +150,81 @@ sub collector_for_intel_device {
             if defined $intel_gpu_top_pid && $intel_gpu_top_pid > 0;
     });
 
-    debug(__LINE__, "About to open pipe to intel_gpu_top");
-    my $intel_pull_interval = $config{intervals}{data_pull} * 1000;  # milliseconds
-    $intel_gpu_top_pid = open(my $fh, '-|',
-        "intel_gpu_top -d $drm_dev -s $intel_pull_interval -l 2>&1");
-
-    unless (defined $intel_gpu_top_pid && $intel_gpu_top_pid > 0) {
-        debug(__LINE__, "Failed to run intel_gpu_top for $drm_dev: $!");
-        exit 1;
-    }
-
-    debug(__LINE__, "Pipe opened successfully, PID=$intel_gpu_top_pid");
-
     my $node_name = "node0";
 
-    while (my $line = <$fh>) {
-        last if $shutdown;
-        chomp $line;
+    if ($config{debug}{intel_mode} && -f $config{debug}{intel_output_file}) {
+        debug(__LINE__, "Debug mode: reading Intel GPU stats from $config{debug}{intel_output_file}");
+        while (!$shutdown) {
+            if (open my $fh, '<', $config{debug}{intel_output_file}) {
+                while (my $line = <$fh>) {
+                    chomp $line;
+                    next if $line =~ /MHz|IRQ|RC6|Power|RCS|BCS|VCS|VECS|req\s+act|^\s*$/;
 
-        next if $line =~ /MHz|IRQ|RC6|Power|RCS|BCS|VCS|VECS|req\s+act|^\s*$/;
+                    if ($line =~ /^\s*[\d\s\.]+$/) {
+                        my $stats = _parse_intel_gpu_line($line);
 
-        if ($line =~ /^\s*[\d\s\.]+$/) {
-            my $stats = _parse_intel_gpu_line($line);
+                        if ($stats) {
+                            my $device_data = {
+                                $node_name => {
+                                    name        => $device->{name},
+                                    device_path => $device->{path},
+                                    drm_path    => $device->{drm_path},
+                                    stats       => $stats,
+                                }
+                            };
 
-            if ($stats) {
-                my $device_data = {
-                    $node_name => {
-                        name        => $device->{name},
-                        device_path => $device->{path},
-                        drm_path    => $device->{drm_path},
-                        stats       => $stats,
+                            safe_write_json($device_state_file, $device_data);
+                            update_intel_gpu_rrd($device->{card}, $stats);
+                        }
                     }
-                };
+                }
+                close $fh;
+            } else {
+                debug(__LINE__, "Failed to open debug file $config{debug}{intel_output_file}: $!");
+            }
+            sleep $config{intervals}{data_pull} unless $shutdown;
+        }
+    } else {
+        debug(__LINE__, "About to open pipe to intel_gpu_top");
+        my $intel_pull_interval = $config{intervals}{data_pull} * 1000;  # milliseconds
+        $intel_gpu_top_pid = open(my $fh, '-|',
+            "intel_gpu_top -d $drm_dev -s $intel_pull_interval -l 2>&1");
 
-                safe_write_json($device_state_file, $device_data);
-                update_intel_gpu_rrd($device->{card}, $stats);
+        unless (defined $intel_gpu_top_pid && $intel_gpu_top_pid > 0) {
+            debug(__LINE__, "Failed to run intel_gpu_top for $drm_dev: $!");
+            exit 1;
+        }
+
+        debug(__LINE__, "Pipe opened successfully, PID=$intel_gpu_top_pid");
+
+        while (my $line = <$fh>) {
+            last if $shutdown;
+            chomp $line;
+
+            next if $line =~ /MHz|IRQ|RC6|Power|RCS|BCS|VCS|VECS|req\s+act|^\s*$/;
+
+            if ($line =~ /^\s*[\d\s\.]+$/) {
+                my $stats = _parse_intel_gpu_line($line);
+
+                if ($stats) {
+                    my $device_data = {
+                        $node_name => {
+                            name        => $device->{name},
+                            device_path => $device->{path},
+                            drm_path    => $device->{drm_path},
+                            stats       => $stats,
+                        }
+                    };
+
+                    safe_write_json($device_state_file, $device_data);
+                    update_intel_gpu_rrd($device->{card}, $stats);
+                }
             }
         }
+
+        close $fh;
     }
 
-    close $fh;
     debug(__LINE__, "Collector for $device->{card} shutting down");
     exit 0;
 }
