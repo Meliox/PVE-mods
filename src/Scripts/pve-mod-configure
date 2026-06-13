@@ -27,7 +27,7 @@ ask()  {
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
 
-_load_conf_debug() {
+_load_conf() {
     [[ -f "$NODE_INFO_CONF" ]] || return 0
     local in_debug=0 line key val
     while IFS= read -r line; do
