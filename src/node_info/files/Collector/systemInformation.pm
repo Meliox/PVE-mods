@@ -44,10 +44,16 @@ sub get_system_information_data {
 sub _get_system_info {
     my ($type) = @_;
 
-    my $output = `/usr/sbin/dmidecode -t $type 2>/dev/null`;
+    my $cache_file = "/var/lib/pve-mod/dmidecode-type${type}.txt";
+    my $output;
+    if (open(my $fh, '<', $cache_file)) {
+        local $/;
+        $output = <$fh>;
+        close($fh);
+    }
 
     unless (defined $output && length($output) > 0) {
-        debug(__LINE__, "No output from dmidecode -t $type");
+        debug(__LINE__, "No cached DMI data at $cache_file — re-run pve-mod-configure as root to refresh");
         return {};
     }
 

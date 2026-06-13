@@ -400,6 +400,15 @@ configure_node_info() {
         [nN]) info "System information disabled." ;;
         *)    warn "Invalid selection. Defaulting to type 1."; ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1 ;;
     esac
+
+    if [[ "$ENABLE_SYSTEM_INFO" -eq 1 ]]; then
+        local cache_dir="/var/lib/pve-mod"
+        mkdir -p "$cache_dir"
+        local cache_file="${cache_dir}/dmidecode-type${SYSTEM_INFO_TYPE}.txt"
+        dmidecode -t "$SYSTEM_INFO_TYPE" > "$cache_file" 2>/dev/null || true
+        chmod 644 "$cache_file"
+        info "DMI data cached to $cache_file"
+    fi
     #endregion System info
 }
 #endregion node-info wizard
