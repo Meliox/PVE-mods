@@ -1,3 +1,5 @@
+15c0a45 fix(workflow): More deps for test mod 2 (#214)
+
 1655551 fix(workflow): More deps for test mod (#213)
 
 a6c08dc fix(workflow): Fix versioning and missing deps (#212)
