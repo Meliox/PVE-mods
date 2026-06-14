@@ -102,8 +102,14 @@ if ! command -v patch >/dev/null 2>&1; then
     exit 1
 fi
 
-for mod in $(list_modules); do
-    [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
+mapfile -t _all_modules < <(list_modules)
+_target_modules=("${@:-${_all_modules[@]}}")
+for mod in "${_target_modules[@]}"; do
+    # When modules are explicitly named as args, the caller decides what to apply.
+    # When running for all modules (no args from dpkg trigger), respect the config.
+    if [[ $# -eq 0 ]]; then
+        [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
+    fi
 
     mod_dir="$PATCHES_DIR/$mod"
     manifest="$mod_dir/patches.list"

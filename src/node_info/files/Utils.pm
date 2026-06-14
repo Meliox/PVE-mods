@@ -215,6 +215,10 @@ sub safe_write_json {
     my ($filepath, $data, $pretty) = @_;
     $pretty //= 1;
 
+    # Untaint filepath for taint-mode environments (pveproxy runs with -T)
+    ($filepath) = ($filepath =~ /^([a-zA-Z0-9_\/\-\.]+)$/)
+        or do { debug(__LINE__, "Unsafe filepath rejected: $filepath"); return 0; };
+
     eval {
         open my $fh, '>', $filepath or die "Failed to open $filepath: $!";
         my $json = $pretty ? JSON->new->pretty->encode($data) : encode_json($data);
@@ -231,6 +235,10 @@ sub safe_write_json {
 
 sub safe_read_json {
     my ($filepath, $as_string) = @_;
+
+    # Untaint filepath
+    ($filepath) = ($filepath =~ /^([a-zA-Z0-9_\/\-\.]+)$/)
+        or return;
 
     return unless -f $filepath;
 

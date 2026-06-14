@@ -1000,9 +1000,23 @@ Ext.define('PVE.node.StatusView', {
                 if (value === null || value === undefined) {
                     return '';
                 }
-                return value;
+
+                const titleMap = {
+                    manufacturer:  'Manufacturer',
+                    product_name:  'Product Name',
+                    serial_number: 'Serial Number',
+                };
+
+                let parts = [];
+                ['manufacturer', 'product_name', 'serial_number'].forEach(function(key) {
+                    if (value[key] !== undefined && value[key] !== null) {
+                        parts.push(titleMap[key] + ': ' + value[key]);
+                    }
+                });
+
+                return parts.length > 0 ? parts.join(' | ') : '';
             }
-		},         
+		},        
     ],
 
     updateTitle: function () {

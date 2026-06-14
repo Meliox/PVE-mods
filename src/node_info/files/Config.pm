@@ -20,6 +20,13 @@ our @EXPORT_OK = qw(
 our $DEBUG_ENABLED = 1;
 our $VERSION       = 'version-placeholder';
 
+# ============================================================================
+# Config paths
+# ============================================================================
+
+my $CONF_FILE = '/etc/pve-mod/pve-mod.conf';
+my $CONFD_DIR = '/etc/pve-mod/conf.d';
+
 # Runtime process-type tag — set to 'worker' or 'collector' after fork.
 # Each forked child gets its own copy of this variable.
 our $process_type = 'main';  # 'main', 'worker', or 'collector'
@@ -42,6 +49,7 @@ our %config = (
         lm_sensors_output_file => '/tmp/sensors-output.json',
         intel_mode             => 0,
         intel_devices_file     => '/tmp/intel-gpu-devices.json',
+        intel_output_file      => '/tmp/intel-gpu-output.json',
         nvidia_mode            => 0,
         nvidia_devices_file    => '/tmp/nvidia-smi-devices.csv',
         nvidia_output_file     => '/tmp/nvidia-smi-output.csv',
@@ -104,8 +112,8 @@ our $RRD_BASE   = '/var/lib/rrdcached/db/pve-mod-gpu';
 # ============================================================================
 
 sub _load_ini_file {
-    my $path = '/etc/pve-mod/pve-mod.conf';
-    return unless -f $path;
+    my ($path) = @_;
+    return unless defined $path && -f $path;
 
     open my $fh, '<', $path or return;
     my $section = '';
@@ -146,6 +154,7 @@ sub _load_ini_file {
     close $fh;
 }
 
-_load_ini_file();
+_load_ini_file($CONF_FILE);
+_load_ini_file($_) for glob("$CONFD_DIR/*.conf");
 
 1;

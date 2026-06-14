@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use JSON;
 
-use PVE::PVEMod::Config qw($process_type $ups_state_file);
+use PVE::PVEMod::Config qw(%config $process_type $ups_state_file);
 use PVE::PVEMod::Utils  qw(debug setup_collector_signals);
 
 our @EXPORT_OK = qw(
@@ -40,7 +40,7 @@ sub collector_for_ups {
             debug(__LINE__, "Error writing UPS data: $@");
         }
 
-        sleep 1 unless $shutdown;  # $config{intervals}{data_pull}
+        sleep $config{intervals}{data_pull} unless $shutdown;  
     }
 
     debug(__LINE__, "UPS collector shutting down");
@@ -56,7 +56,17 @@ sub _get_ups_status {
 
     debug(__LINE__, "Collecting UPS status for $ups_name");
 
-    my $output = `/usr/bin/upsc $ups_name 2>/dev/null`;
+    my $output;
+    if ($config{debug}{ups_mode} && -f $config{debug}{ups_output_file}) {
+        debug(__LINE__, "Debug mode: reading UPS data from $config{debug}{ups_output_file}");
+        open my $fh, '<', $config{debug}{ups_output_file}
+            or do { debug(__LINE__, "Failed to open debug file $config{debug}{ups_output_file}: $!"); return encode_json({ error => "Failed to open debug file" }); };
+        local $/;
+        $output = <$fh>;
+        close $fh;
+    } else {
+        $output = `/usr/bin/upsc $ups_name 2>/dev/null`;
+    }
 
     unless (defined $output && length($output) > 0) {
         debug(__LINE__, "No output from upsc for $ups_name");

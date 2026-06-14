@@ -1,6 +1,6 @@
 --- a/usr/share/perl5/PVE/API2/Nodes.pm
 +++ b/usr/share/perl5/PVE/API2/Nodes.pm
-@@ -536,6 +536,12 @@
+@@ -536,6 +536,13 @@
  
          $res->{pveversion} = PVE::pvecfg::package() . "/" . PVE::pvecfg::version_text();
  
@@ -9,7 +9,8 @@
 +        $res->{PveMod_JsonSensorInfo} = PVE::API2::PVEMod_SensorInfo::get_sensors_info();
 +        $res->{PveMod_Version} = PVE::API2::PVEMod_SensorInfo::get_pve_mod_version();
 +        $res->{PveMod_upsInfo} = PVE::API2::PVEMod_SensorInfo::get_ups_info();
-+        $res->{PveMod_systemInfo} = PVE::API2::PVEMod_SensorInfo::get_system_info();
++        $res->{PveMod_graphicsInfo} = PVE::API2::PVEMod_SensorInfo::get_graphics_info();
++        $res->{PveMod_systemInfo} = PVE::API2::PVEMod_SensorInfo::get_system_information();
          my $dinfo = df('/', 1); # output is bytes
  
          $res->{rootfs} = {

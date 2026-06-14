@@ -149,8 +149,12 @@ sub _load_graphics_data {
 # API calls
 # ============================================================================
 
-sub get_graphic_info {
-    debug(__LINE__, "get_graphic_info called");
+sub get_graphics_info {
+    debug(__LINE__, "get_graphics_info called");
+    if (!($config{gpu}{intel_enabled} || !$config{gpu}{nvidia_enabled} || !$config{gpu}{amd_enabled})) {
+        debug(__LINE__, "GPU information collection is disabled");
+        return { };
+    }
 
     # Start PVE Mod
     pve_mod_starter();
@@ -165,6 +169,10 @@ sub get_graphic_info {
 
 sub get_sensors_info {
     debug(__LINE__, "get_sensors_info called");
+    if (!$config{lm_sensors}{enabled}) {
+        debug(__LINE__, "LM Sensors collection is disabled");
+        return {};
+    }
 
     # Start PVE Mod
     pve_mod_starter();
@@ -179,6 +187,10 @@ sub get_sensors_info {
 
 sub get_ups_info {
     debug(__LINE__, "get_ups_info called");
+    if (!$config{ups}{enabled}) {
+        debug(__LINE__, "UPS collection is disabled");
+        return {};
+    }
 
     # Start PVE Mod
     pve_mod_starter();

@@ -11,6 +11,7 @@ CONFD_DIR="/etc/pve-mod/conf.d"
 NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
 NAG_SCREEN_CONF="${CONFD_DIR}/nag_screen.conf"
 APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
+REVERT_PATCHES="/usr/lib/pve-mod/revert-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
@@ -26,10 +27,33 @@ ask()  {
     echo "$response"
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
+mod_status() {
+    local val="$1" on_label="${2:-[enabled]}" off_label="${3:-[disabled]}"
+    [[ "$val" == "1" ]] && echo -e "\e[0;32m${on_label}\e[0m" || echo -e "\e[0;33m${off_label}\e[0m"
+}
 
 _load_conf() {
+    # Load main config (module toggles + pve_trigger)
+    if [[ -f "$CONF_FILE" ]]; then
+        local section="" line key val
+        while IFS= read -r line; do
+            case "$line" in
+                '#'*|'') continue ;;
+                '['*']') section="${line#[}"; section="${section%]}"; continue ;;
+            esac
+            [[ "$line" == *=* ]] || continue
+            key="${line%%=*}"; val="${line#*=}"
+            case "${section}.${key}" in
+                modules.node_info)    MOD_NODE_INFO="$val" ;;
+                modules.nag_screen)   MOD_NAG_SCREEN="$val" ;;
+                pve_trigger.enabled)  PVE_TRIGGER_ENABLED="$val" ;;
+            esac
+        done < "$CONF_FILE"
+    fi
+
+    # Load node_info mod config
     [[ -f "$NODE_INFO_CONF" ]] || return 0
-    local in_debug=0 line key val
+    local in_debug=0 line key val section=""
     while IFS= read -r line; do
         case "$line" in
             '#'*|'')   continue ;;
@@ -69,6 +93,7 @@ _load_conf() {
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
             debug.intel_devices_file)       DEBUG_INTEL_FILE="$val" ;;
+            debug.intel_output_file)        DEBUG_INTEL_OUTPUT_FILE="$val" ;;
             debug.nvidia_mode)              DEBUG_NVIDIA="$val" ;;
             debug.nvidia_devices_file)      DEBUG_NVIDIA_DEVICES_FILE="$val" ;;
             debug.nvidia_output_file)       DEBUG_NVIDIA_OUTPUT_FILE="$val" ;;
@@ -281,7 +306,12 @@ configure_node_info() {
         if [[ -n "$intelCards" ]]; then
             info "Intel GPU(s) detected (debug):"
             echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
-            ENABLE_INTEL_GPU_INFO=1
+            if [[ -f "$DEBUG_INTEL_OUTPUT_FILE" ]]; then
+                info "[debug] Intel GPU stats output file found at $DEBUG_INTEL_OUTPUT_FILE"
+                ENABLE_INTEL_GPU_INFO=1
+            else
+                warn "[debug] Intel GPU stats output file not found at $DEBUG_INTEL_OUTPUT_FILE. GPU stats graphs will be empty."
+            fi
         else
             warn "No Intel GPUs in debug file."
         fi
@@ -291,6 +321,25 @@ configure_node_info() {
             info "Intel GPU(s) detected:"
             echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
             ENABLE_INTEL_GPU_INFO=1
+
+            # Write JSON devices file for debug/cache use by the Perl collector
+            local json="["
+            local first=1
+            while IFS= read -r line; do
+                # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
+                if [[ "$line" =~ ^(card[0-9]+)[[:space:]]+(.+[^[:space:]])[[:space:]]+(pci:[^[:space:]]+) ]]; then
+                    local card="${BASH_REMATCH[1]}"
+                    local name="${BASH_REMATCH[2]}"
+                    local path="${BASH_REMATCH[3]}"
+                    name="${name%"${name##*[![:space:]]}"}"  # rtrim
+                    [[ "$first" -eq 0 ]] && json+=","
+                    json+="{\"card\":\"$card\",\"name\":\"$name\",\"path\":\"$path\",\"drm_path\":\"/dev/dri/$card\"}"
+                    first=0
+                fi
+            done <<< "$intelCards"
+            json+="]"
+            echo "$json" > "$DEBUG_INTEL_FILE"
+            info "Intel GPU device list saved to $DEBUG_INTEL_FILE"
         else
             warn "No Intel GPUs detected by intel_gpu_top."
         fi
@@ -306,7 +355,12 @@ configure_node_info() {
         if [[ -n "$nvidiaCards" ]]; then
             info "NVIDIA GPU(s) detected (debug):"
             echo "$nvidiaCards" | while IFS= read -r line; do echo "  $line"; done
-            ENABLE_NVIDIA_GPU_INFO=1
+            if [[ -f "$DEBUG_NVIDIA_OUTPUT_FILE" ]]; then
+                info "[debug] NVIDIA GPU stats output file found at $DEBUG_NVIDIA_OUTPUT_FILE"
+                ENABLE_NVIDIA_GPU_INFO=1
+            else
+                warn "[debug] NVIDIA GPU stats output file not found at $DEBUG_NVIDIA_OUTPUT_FILE. GPU stats graphs will be empty."
+            fi
         else
             warn "No NVIDIA GPUs in debug file."
         fi
@@ -347,16 +401,20 @@ configure_node_info() {
         [yY])
             local upsConn modelName upsOutput
             upsConn=$(ask "Enter UPS connection string (e.g. upsname@hostname[:port])")
-            if [[ "$DEBUG_UPS" -eq 1 && -f "$DEBUG_UPS_FILE" ]]; then
-                info "[debug] Using UPS data from $DEBUG_UPS_FILE"
-                upsOutput=$(cat "$DEBUG_UPS_FILE")
-            else
-                if ! command -v upsc &>/dev/null; then
-                    err "'upsc' is not available. Install 'nut-client' first."
+            if [[ "$DEBUG_UPS" -eq 1 ]]; then
+                if [[ -f "$DEBUG_UPS_FILE" ]]; then
+                    info "[debug] Using UPS data from $DEBUG_UPS_FILE"
+                else 
+                    warn "[debug] Debug mode for UPS is enabled but file not found at $DEBUG_UPS_FILE."
                 fi
-                upsOutput=$(upsc "$upsConn" 2>&1)
+                upsOutput=$(cat "$DEBUG_UPS_FILE" || true)
+                ENABLE_UPS=1
+            elif _check_or_install_tool upsc nut-client "Network UPS Tools (upsc)" && [[ -n "$upsConn" ]]; then
+                upsOutput=$(upsc "$upsConn" 2>/dev/null || true)
+            else
+                warn "Could not connect to UPS at '$upsConn'. UPS info will be disabled."
             fi
-            if echo "$upsOutput" | grep -q "device.model:"; then
+            if [[ -n "$upsOutput" ]]; then
                 modelName=$(echo "$upsOutput" | grep "device.model:" | cut -d: -f2- | xargs)
                 ENABLE_UPS=1
                 UPS_DEVICE_NAME="$upsConn"
@@ -365,7 +423,7 @@ configure_node_info() {
                 warn "Could not connect to UPS at '$upsConn'. UPS info will be disabled."
                 ENABLE_UPS=0
             fi
-            ;;
+        ;;
         *) info "UPS information disabled." ;;
     esac
     #endregion UPS
@@ -385,6 +443,15 @@ configure_node_info() {
         [nN]) info "System information disabled." ;;
         *)    warn "Invalid selection. Defaulting to type 1."; ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1 ;;
     esac
+
+    if [[ "$ENABLE_SYSTEM_INFO" -eq 1 ]]; then
+        local cache_dir="/var/lib/pve-mod"
+        mkdir -p "$cache_dir"
+        local cache_file="${cache_dir}/dmidecode-type${SYSTEM_INFO_TYPE}.txt"
+        dmidecode -t "$SYSTEM_INFO_TYPE" > "$cache_file" 2>/dev/null || true
+        chmod 644 "$cache_file"
+        info "DMI data cached to $cache_file"
+    fi
     #endregion System info
 }
 #endregion node-info wizard
@@ -407,9 +474,6 @@ nag_screen=${MOD_NAG_SCREEN}
 
 [pve_trigger]
 enabled=${PVE_TRIGGER_ENABLED}
-
-[service]
-mode=embedded
 EOF
     info "Main configuration saved to $CONF_FILE"
 
@@ -450,6 +514,7 @@ lm_sensors_mode=${DEBUG_LM_SENSORS}
 lm_sensors_output_file=${DEBUG_LM_SENSORS_FILE}
 intel_mode=${DEBUG_INTEL}
 intel_devices_file=${DEBUG_INTEL_FILE}
+intel_output_file=${DEBUG_INTEL_OUTPUT_FILE}
 nvidia_mode=${DEBUG_NVIDIA}
 nvidia_devices_file=${DEBUG_NVIDIA_DEVICES_FILE}
 nvidia_output_file=${DEBUG_NVIDIA_OUTPUT_FILE}
@@ -472,69 +537,6 @@ EOF
     fi
 }
 #endregion write config
-
-#region debug wizard
-configure_debug() {
-    msgb "\n=== Debug / Development Mode ==="
-    echo "Debug mode substitutes real tools with pre-captured data files."
-    echo "When a collector's mode is enabled the tool (sensors/intel_gpu_top/etc.) is not required."
-    local choice
-    choice=$(ask "Configure debug file overrides? (y/N)")
-    [[ "$choice" != [yY] ]] && return
-
-    local newpath
-
-    choice=$(ask "Enable LM-Sensors debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_LM_SENSORS=1
-        newpath=$(ask "Path to sensors JSON file [${DEBUG_LM_SENSORS_FILE}]")
-        DEBUG_LM_SENSORS_FILE="${newpath:-$DEBUG_LM_SENSORS_FILE}"
-        info "LM-Sensors debug: ${DEBUG_LM_SENSORS_FILE}"
-    fi
-
-    choice=$(ask "Enable Intel GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_INTEL=1
-        newpath=$(ask "Path to Intel GPU devices JSON [${DEBUG_INTEL_FILE}]")
-        DEBUG_INTEL_FILE="${newpath:-$DEBUG_INTEL_FILE}"
-        info "Intel GPU debug: ${DEBUG_INTEL_FILE}"
-    fi
-
-    choice=$(ask "Enable NVIDIA GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_NVIDIA=1
-        newpath=$(ask "Path to nvidia-smi output CSV [${DEBUG_NVIDIA_OUTPUT_FILE}]")
-        DEBUG_NVIDIA_OUTPUT_FILE="${newpath:-$DEBUG_NVIDIA_OUTPUT_FILE}"
-        newpath=$(ask "Path to nvidia-smi devices CSV [${DEBUG_NVIDIA_DEVICES_FILE}]")
-        DEBUG_NVIDIA_DEVICES_FILE="${newpath:-$DEBUG_NVIDIA_DEVICES_FILE}"
-        info "NVIDIA GPU debug: output=${DEBUG_NVIDIA_OUTPUT_FILE} devices=${DEBUG_NVIDIA_DEVICES_FILE}"
-    fi
-
-    choice=$(ask "Enable AMD GPU debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_AMD=1
-        newpath=$(ask "Path to AMD GPU devices JSON [${DEBUG_AMD_FILE}]")
-        DEBUG_AMD_FILE="${newpath:-$DEBUG_AMD_FILE}"
-        info "AMD GPU debug: ${DEBUG_AMD_FILE}"
-    fi
-
-    choice=$(ask "Enable UPS debug? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_UPS=1
-        newpath=$(ask "Path to UPS output JSON [${DEBUG_UPS_FILE}]")
-        DEBUG_UPS_FILE="${newpath:-$DEBUG_UPS_FILE}"
-        info "UPS debug: ${DEBUG_UPS_FILE}"
-    fi
-
-    choice=$(ask "Enable debug logging? (y/N)")
-    if [[ "$choice" == [yY] ]]; then
-        DEBUG_LOG=1
-        newpath=$(ask "Log file path [${DEBUG_LOG_FILE}]")
-        DEBUG_LOG_FILE="${newpath:-$DEBUG_LOG_FILE}"
-        info "Debug log: ${DEBUG_LOG_FILE}"
-    fi
-}
-#endregion debug wizard
 
 main() {
     # ── Welcome banner ────────────────────────────────────────────────────────
@@ -578,6 +580,7 @@ main() {
     PVE_TRIGGER_ENABLED=0
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;      DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.json"
+                        DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
     DEBUG_NVIDIA=0;     DEBUG_NVIDIA_OUTPUT_FILE="/tmp/nvidia-smi-output.csv"
                         DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"
     DEBUG_AMD=0;        DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
@@ -590,40 +593,59 @@ main() {
     # this run, and all other options retain their previously saved values.
     msgb "\n=== pve-mod Module Selection ==="
     echo "Available options (select one):"
-    echo "  [1] Node Info   — sensor readings, GPU stats, UPS, system information"
-    echo "  [2] Nag Screen  — remove Proxmox subscription nag screen"
-    echo "  [3] Auto re-patch on PVE upgrade — automatically re-apply patches when"
-    echo "                    pve-manager is upgraded"
-    echo "  [n] None / cancel"
-    local modChoice
-    modChoice=$(ask "Select an option to enable (1/2/3/n)")
+    echo -e "  [1] Node Info   $(mod_status "$MOD_NODE_INFO") — sensor readings, GPU stats, UPS, system information"
+    echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
+    echo -e "  [3] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
+    echo    "                    pve-manager is upgraded"
+    echo    "  [n] None / cancel"
+    local modChoice selected_mod="" patching_needed=0
+    modChoice=$(ask "Select an option (1/2/3/n)")
     case "$modChoice" in
         1)
-            MOD_NODE_INFO=1
-            msgb "\n=== Node Info Configuration ==="
-            configure_node_info
+            selected_mod="node_info"
+            if [[ "$MOD_NODE_INFO" == "1" ]]; then
+                MOD_NODE_INFO=0; info "Node Info will be removed."
+            else
+                MOD_NODE_INFO=1; patching_needed=1
+                msgb "\n=== Node Info Configuration ==="
+                configure_node_info
+            fi
             ;;
         2)
-            MOD_NAG_SCREEN=1
-            msgb "\n=== Nag Screen ==="
-            info "Subscription nag screen removal will be applied."
+            selected_mod="nag_screen"
+            if [[ "$MOD_NAG_SCREEN" == "1" ]]; then
+                MOD_NAG_SCREEN=0; info "Nag Screen will be removed."
+            else
+                MOD_NAG_SCREEN=1; patching_needed=1
+                info "Subscription nag screen removal will be applied."
+            fi
             ;;
         3)
-            PVE_TRIGGER_ENABLED=1
-            info "Auto re-patching on PVE upgrade enabled."
+            if [[ "$PVE_TRIGGER_ENABLED" == "1" ]]; then
+                PVE_TRIGGER_ENABLED=0; info "Auto re-patch disabled."
+            else
+                PVE_TRIGGER_ENABLED=1; info "Auto re-patching on PVE upgrade enabled."
+            fi
             ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
     esac
 
-    # ── Debug mode ────────────────────────────────────────────────────────────
-    configure_debug
-
-    # ── Write config and apply ────────────────────────────────────────────────
+    # ── Write config and apply/revert ─────────────────────────────────────────
+    # For mods with patches: apply if being enabled, revert if being disabled.
+    # Option 3 (pve_trigger) has no patches — write_config is sufficient.
+    if [[ "$patching_needed" == "1" ]]; then
+        msgb "\n=== Applying patches ==="
+        if ! "$APPLY_PATCHES" "$selected_mod"; then
+            err "Could not apply all patches for $selected_mod. Configuration was not updated."
+        fi
+    elif [[ -n "$selected_mod" ]]; then
+        msgb "\n=== Removing patches ==="
+        if ! "$REVERT_PATCHES" "$selected_mod"; then
+            err "Could not revert all patches for $selected_mod. Configuration was not updated."
+        fi
+    fi
     write_config
-
-    msgb "\n=== Applying patches ==="
-    "$APPLY_PATCHES"
 
     msgb "\n=== Done ==="
     info "pve-mod is configured and active."

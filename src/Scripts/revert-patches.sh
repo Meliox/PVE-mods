@@ -39,7 +39,7 @@ revert_one_patch() {
     fi
     warn "  $(basename "$patch") could not be reverted cleanly; manual cleanup may be needed"
     patch -R -p1 -F0 -f --dry-run --verbose -d "$PVE_MOD_ROOT" < "$patch" >&2 || true
-    return 1
+    return 2
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -51,10 +51,13 @@ fi
 [[ -d "$PATCHES_DIR" ]] || exit 0
 
 CHANGED=false
+FAILED=false
 
-for mod_dir in "$PATCHES_DIR"/*/; do
+mapfile -t _all_modules < <(for d in "$PATCHES_DIR"/*/; do [[ -d "$d" ]] && basename "$d"; done)
+_target_modules=("${@:-${_all_modules[@]}}")
+for mod in "${_target_modules[@]}"; do
+    mod_dir="$PATCHES_DIR/$mod/"
     [[ -d "$mod_dir" ]] || continue
-    mod="$(basename "$mod_dir")"
     manifest="$mod_dir/patches.list"
     mod_conf="$CONFD_DIR/$mod.conf"
 
@@ -88,9 +91,13 @@ for mod_dir in "$PATCHES_DIR"/*/; do
         patch_name="${patches[$i]}"
         patch_file="$mod_dir/$patch_name"
         [[ -f "$patch_file" ]] || continue
-        if revert_one_patch "$patch_file"; then
+        revert_one_patch "$patch_file"
+        rc=$?
+        if [[ "$rc" -eq 0 ]]; then
             info "  reverted $patch_name"
             CHANGED=true
+        elif [[ "$rc" -eq 2 ]]; then
+            FAILED=true
         fi
     done
 done
@@ -99,4 +106,6 @@ if [[ "$CHANGED" == "true" ]]; then
     info "Restarting pveproxy..."
     systemctl restart pveproxy 2>/dev/null || true
 fi
+
+[[ "$FAILED" == "false" ]] || exit 1
 exit 0
