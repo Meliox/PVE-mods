@@ -1,3 +1,5 @@
+1655551 fix(workflow): More deps for test mod (#213)
+
 a6c08dc fix(workflow): Fix versioning and missing deps (#212)
 
 40ff13c workflow: validate mods syntax check (#210)
