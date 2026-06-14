@@ -13,9 +13,9 @@ echo "deb [trusted=yes] http://download.proxmox.com/debian/pve $SUITE pve-no-sub
     | sudo tee /etc/apt/sources.list.d/pve-test.list >/dev/null
 sudo apt-get update -qq
 
-echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, and pve-yew-mobile-gui..."
+echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, and libpve-common-perl..."
 cd "$WORKDIR"
-apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui
+apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl
 
 echo "[fetch] Extracting to system paths..."
 for deb in *.deb; do
