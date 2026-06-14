@@ -1,3 +1,5 @@
+5df83ec fix collectors, modular apply/unapply patches, correct config loading in pve-mod-configure (#208)
+
 8547e33 fix(workflow): More deps for test mod 3 (#215)
 
 15c0a45 fix(workflow): More deps for test mod 2 (#214)
