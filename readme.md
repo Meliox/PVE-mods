@@ -14,7 +14,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 
 Compatibility: PVE 9.0+
 
-![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
+TBD PICTURE
 
 `pve-mod` is a proper Debian package that installs UI patches, a background sensor daemon, and an interactive configuration wizard. It replaces the legacy standalone scripts with a structured, maintainable approach.
 
@@ -42,7 +42,7 @@ pve-mod-configure
 # Then clear the browser cache to ensure all changes are visualized.
 ```
 
-`pve-mod-configure` can be re-run at any time to change settings or enable/disable modules.
+`pve-mod-configure` can be re-run at any time to change settings or enable/disable modules. Then clear the browser cache to ensure all changes are visualized.
 
 ### Notes
 
@@ -60,6 +60,8 @@ pve-mod-configure
 > **These scripts are archived.** For new installations, use the [v2 Debian package](#version-2--debian-package) above.
 
 ### Node sensor readings view
+
+![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
 
 Compatibility:
 - 9.0-9.2. Newer versions may often work
