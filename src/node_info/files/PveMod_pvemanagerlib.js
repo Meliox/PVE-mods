@@ -335,7 +335,7 @@ Ext.define('PVE.node.StatusView', {
                 
                 const cpuKeys = bINTEL ? cpuKeysI : cpuKeysA.length > 0 ? cpuKeysA : cpuKeysRpi;
                 const cpuItemPrefix = bINTEL ? INTELPackagePrefix : cpuKeysA.length > 0 ? AMDPackagePrefix : 'temp';
-                const cpuTempCaption = bINTEL ? INTELPackageCaption : cpuKeysA.length > 0 ? AMDPackageCaption : 'Temp';
+                const cpuTempCaption = bINTEL ? INTELPackageCaption : cpuKeysA.length > 0 ? AMDPackageCaption : 'SoC';
                 const formatTemp = bINTEL ? '0' : '0.0';
                 const cpuCount = cpuKeys.length;
                 let temps = [];
