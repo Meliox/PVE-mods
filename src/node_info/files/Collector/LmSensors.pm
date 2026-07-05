@@ -287,7 +287,7 @@ sub _get_cpu_name {
     }
 
     my @entries =
-        grep { /^coretemp-isa-/ || /^k10temp-pci-/ } keys %{$sensors_data};
+        grep { /^coretemp-isa-/ || /^k10temp-pci-/ || /^cpu_thermal-virtual-/ } keys %{$sensors_data};
 
     debug(__LINE__, "Found " . scalar(@entries) . " CPU entries in sensors output");
 
@@ -364,6 +364,13 @@ sub _get_cpu_name {
                 }
             }
 
+            # ----- Raspberry Pi cpu_thermal -----
+            elsif ($entry =~ /^cpu_thermal-virtual-/) {
+                $pkg       = 0;
+                $cpu_model = _rpi_cpu_model();
+                debug(__LINE__, "Found RPi CPU: $entry -> Model: $cpu_model");
+            }
+
             $cache_ref->{$entry} = { model => $cpu_model, package => $pkg };
             debug(__LINE__, "CPU: $entry -> Package $pkg (Model: $cpu_model)");
         }
@@ -376,6 +383,27 @@ sub _get_cpu_name {
     }
 
     return JSON->new->pretty->canonical->encode($sensors_data);
+}
+
+# ============================================================================
+# Raspberry Pi model lookup helper
+# ============================================================================
+
+sub _rpi_cpu_model {
+    for my $field ('Model', 'Hardware') {
+        if (open my $fh, '<', '/proc/cpuinfo') {
+            while (my $line = <$fh>) {
+                chomp $line;
+                if ($line =~ /^$field\s*:\s*(.+)$/) {
+                    close $fh;
+                    (my $model = $1) =~ s/^\s+|\s+$//g;
+                    return $model;
+                }
+            }
+            close $fh;
+        }
+    }
+    return "Raspberry Pi";
 }
 
 # ============================================================================

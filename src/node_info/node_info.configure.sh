@@ -12,7 +12,7 @@
 #   node_info_write_conf  — write /etc/pve-mod/conf.d/node_info.conf
 
 NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
-KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-")
+KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-" "cpu_thermal-virtual-")
 
 # --- utilities ---------------------------------------------------------------
 
@@ -191,15 +191,25 @@ node_info_configure() {
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
             info "Detected CPU sensors ($cpuCount): $cpuList"
             sensors_detected=true
-            while true; do
-                local choice
-                choice=$(ask "Display temperatures for all cores [C] or average per CPU [a]? (C/a)")
-                case "$choice" in
-                    [cC]|"") CPU_TEMP_TARGET="Core"; info "Showing per-core temperatures."; break ;;
-                    [aA])    CPU_TEMP_TARGET="Package"; info "Showing average per-CPU temperature."; break ;;
-                    *)       warn "Invalid input, choose C or a." ;;
-                esac
-            done
+            local bRpiOnly=false
+            if [[ "$cpuList" == *"cpu_thermal-virtual-"* ]] && \
+               [[ "$cpuList" != *"coretemp-isa-"* ]] && \
+               [[ "$cpuList" != *"k10temp-pci-"* ]]; then
+                bRpiOnly=true
+            fi
+            if [[ "$bRpiOnly" == true ]]; then
+                CPU_TEMP_TARGET="Core"
+            else
+                while true; do
+                    local choice
+                    choice=$(ask "Display temperatures for all cores [C] or average per CPU [a]? (C/a)")
+                    case "$choice" in
+                        [cC]|"") CPU_TEMP_TARGET="Core"; info "Showing per-core temperatures."; break ;;
+                        [aA])    CPU_TEMP_TARGET="Package"; info "Showing average per-CPU temperature."; break ;;
+                        *)       warn "Invalid input, choose C or a." ;;
+                    esac
+                done
+            fi
         else
             warn "No CPU temperature sensors found."
         fi
