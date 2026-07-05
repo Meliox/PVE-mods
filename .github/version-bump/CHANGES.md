@@ -1,3 +1,5 @@
+ac007f5 readd hdd and ssd support (#229)
+
 679d844 implement support for other thermals (#228)
 
 70f9790 implement toggling of widgets (#227)
