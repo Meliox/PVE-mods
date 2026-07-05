@@ -16,7 +16,7 @@ Compatibility: PVE 9.0+
 
 TBD PICTURE
 
-`pve-mod` is a proper Debian package that installs UI patches, a background sensor daemon, and an interactive configuration wizard. It replaces the legacy standalone scripts with a structured, maintainable approach.
+`pve-mod` is a Debian package that installs UI patches, a background sensor daemon, and an interactive configuration wizard.
 
 ### Modules
 
