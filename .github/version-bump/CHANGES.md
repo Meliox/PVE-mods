@@ -1,3 +1,5 @@
+679d844 implement support for other thermals (#228)
+
 70f9790 implement toggling of widgets (#227)
 
 0855a19 add rpi cpu temp support (#226)
