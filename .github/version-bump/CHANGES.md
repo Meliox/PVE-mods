@@ -1,3 +1,5 @@
+70f9790 implement toggling of widgets (#227)
+
 0855a19 add rpi cpu temp support (#226)
 
 96b8a12 refactor mod configurator (#222)
