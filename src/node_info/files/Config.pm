@@ -69,6 +69,7 @@ our %config = (
         enable_ram_temp       => 0,
         enable_hdd_temp       => 0,
         enable_nvme_temp      => 0,
+        enable_other_temp     => 0,
         enable_fan_speed      => 0,
         display_zero_speed_fans => 0,
         temp_unit             => 'C',

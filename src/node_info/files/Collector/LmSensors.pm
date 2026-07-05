@@ -91,7 +91,14 @@ sub _get_temperature_sensors {
         return $data;
     }
 
-    $data = JSON->new->pretty->encode({ "PVE MOD lm-sensors Enhanced" => $sensors_json });
+    $data = JSON->new->pretty->encode({
+        cpu   => $config{lm_sensors}{enable_cpu}        ? \1 : \0,
+        nvme  => $config{lm_sensors}{enable_nvme_temp}  ? \1 : \0,
+        fans  => $config{lm_sensors}{enable_fan_speed}  ? \1 : \0,
+        hdd   => $config{lm_sensors}{enable_hdd_temp}   ? \1 : \0,
+        other => $config{lm_sensors}{enable_other_temp} ? \1 : \0,
+        data  => { 'PVE MOD lm-sensors Enhanced' => $sensors_json },
+    });
 
     return $data;
 }

@@ -288,8 +288,15 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+                    const parsed = value || {};
+                    if (parsed.disabled === true) {
+                        this.hide();
+                        return '';
+                    } else if (parsed.cpu !== true) {
+                        this.hide();
+                        return '';
+                    }
+                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
@@ -576,8 +583,15 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-					objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+					const parsed = value || {};
+					if (parsed.disabled === true) {
+						this.hide();
+						return '';
+					} else if (parsed.nvme !== true) {
+						this.hide();
+						return '';
+					}
+					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
 				}
@@ -661,6 +675,9 @@ Ext.define('PVE.node.StatusView', {
 					if (parsed.disabled === true) {
 						this.hide();
 						return '';
+					} else if (parsed.other !== true) {
+						this.hide();
+						return '';
 					}
 					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
@@ -735,7 +752,7 @@ Ext.define('PVE.node.StatusView', {
 				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
             }
         },
-                
+
         // ========== TERTIARY DIAGNOSTICS (Tier 3) ==========
         {
             xtype: 'box',
@@ -754,8 +771,15 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+                    const parsed = value || {};
+                    if (parsed.disabled === true) {
+                        this.hide();
+                        return '';
+                    } else if (parsed.fans !== true) {
+                        this.hide();
+                        return '';
+                    }
+                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
