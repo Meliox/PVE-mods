@@ -10,8 +10,8 @@ use PVE::PVEMod::Collector::SystemInformation qw(get_system_information_data);
 
 # Per-endpoint state caches (module-level, reset on worker restart)
 my $graphics_cache     = { data => {},        mtime => 0 };
-my $sensors_cache      = { data => '{}',       mtime => 0 };
-my $ups_cache          = { data => '{}',       mtime => 0 };
+my $sensors_cache      = { data => {},  mtime => 0 };
+my $ups_cache          = { data => {},  mtime => 0 };
 my $system_info_cache  = undef;
 
 
@@ -153,7 +153,7 @@ sub get_graphics_info {
     debug(__LINE__, "get_graphics_info called");
     if (!($config{gpu}{intel_enabled} || !$config{gpu}{nvidia_enabled} || !$config{gpu}{amd_enabled})) {
         debug(__LINE__, "GPU information collection is disabled");
-        return { };
+        return { disabled => \1 };
     }
 
     # Start PVE Mod
@@ -171,13 +171,13 @@ sub get_sensors_info {
     debug(__LINE__, "get_sensors_info called");
     if (!$config{lm_sensors}{enabled}) {
         debug(__LINE__, "LM Sensors collection is disabled");
-        return {};
+        return { disabled => \1 };
     }
 
     # Start PVE Mod
     pve_mod_starter();
 
-    my $data = _read_state_file_cached($sensors_state_file, $sensors_cache, 1, '{}');
+    my $data = _read_state_file_cached($sensors_state_file, $sensors_cache, 0, {});
 
     # Notify pve_mod_worker of activity
     notify_pve_mod_worker();
@@ -189,13 +189,13 @@ sub get_ups_info {
     debug(__LINE__, "get_ups_info called");
     if (!$config{ups}{enabled}) {
         debug(__LINE__, "UPS collection is disabled");
-        return {};
+        return { disabled => \1 };
     }
 
     # Start PVE Mod
     pve_mod_starter();
 
-    my $data = _read_state_file_cached($ups_state_file, $ups_cache, 1, '{}');
+    my $data = _read_state_file_cached($ups_state_file, $ups_cache, 0, {});
 
     # Notify pve_mod_worker of activity
     notify_pve_mod_worker();
@@ -216,6 +216,11 @@ sub get_pve_mod_version {
 
 sub get_system_information {
     debug(__LINE__, "get_system_information called");
+
+    if (!$config{system_info}{enabled}) {
+        debug(__LINE__, "System information collection is disabled");
+        return { disabled => \1 };
+    }
 
     if (defined $system_info_cache) {
         debug(__LINE__, "Returning cached system information");

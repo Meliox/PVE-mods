@@ -160,7 +160,10 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (!gpuStats || !gpuStats.Graphics) {
+                if (gpuStats && gpuStats.disabled === true) {
+                    this.hide();
+                    return '';
+                } else if (!gpuStats || !gpuStats.Graphics) {
                     return '';
                 }
 
@@ -288,8 +291,15 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+                    const parsed = value || {};
+                    if (parsed.disabled === true) {
+                        this.hide();
+                        return '';
+                    } else if (parsed.cpu !== true) {
+                        this.hide();
+                        return '';
+                    }
+                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
@@ -456,7 +466,10 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (!gpuStats || !gpuStats.Graphics) {
+                if (gpuStats && gpuStats.disabled === true) {
+                    this.hide();
+                    return '';
+                } else if (!gpuStats || !gpuStats.Graphics) {
                     return '';
                 }
 
@@ -576,8 +589,15 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-					objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+					const parsed = value || {};
+					if (parsed.disabled === true) {
+						this.hide();
+						return '';
+					} else if (parsed.nvme !== true) {
+						this.hide();
+						return '';
+					}
+					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
 				}
@@ -655,8 +675,15 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    objValue = JSON.parse(value) || {};
-                    objValue = objValue[Object.keys(objValue)[0]] || {};
+                    const parsed = value || {};
+                    if (parsed.disabled === true) {
+                        this.hide();
+                        return '';
+                    } else if (parsed.fans !== true) {
+                        this.hide();
+                        return '';
+                    }
+                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
@@ -714,7 +741,10 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-snowflake-o',
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
+                if (gpuStats && gpuStats.disabled === true) {
+                    this.hide();
+                    return '';
+                } else if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
                     return '';
                 }
 
@@ -742,7 +772,7 @@ Ext.define('PVE.node.StatusView', {
                 });
                 
                 if (rows.length === 0) {
-                    return 'N/A';
+                    return '';
                 }
 
                 return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
@@ -756,20 +786,17 @@ Ext.define('PVE.node.StatusView', {
 			iconCls: 'fa fa-fw fa-battery-three-quarters',
 			textField: 'PveMod_upsInfo',
 			renderer: function(value) {
-                let objValue = {};
+                let objValue;
                 try {
-                    // Parse the UPS data
-                    if (typeof value === 'string') {
-                        objValue = JSON.parse(value) || {};
-                    } else if (typeof value === 'object') {
-                        objValue = value || {};
-                    }
+                    objValue = value || {};
                 } catch(e) {
                     objValue = {};
                 }
-                
-                // If objValue is null or empty, return N/A
-                if (!objValue || Object.keys(objValue).length === 0) {
+
+                if (objValue.disabled === true) {
+                    this.hide();
+                    return '';
+                } else if (!objValue || Object.keys(objValue).length === 0) {
                     return 'N/A';
                 }
 
@@ -999,6 +1026,9 @@ Ext.define('PVE.node.StatusView', {
 			textField: 'PveMod_systemInfo',
             renderer: function(value) {
                 if (value === null || value === undefined) {
+                    return '';
+                } else if (value.disabled === true) {
+                    this.hide();
                     return '';
                 }
 
