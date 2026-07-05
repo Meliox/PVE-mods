@@ -251,6 +251,12 @@ node_info_configure() {
         fi
         #endregion NVMe
 
+        #region Other thermals
+        msgb "\n=== Detecting other thermal sensors ==="
+        local otherCount
+
+        #region Other thermals
+
         #region Fans
         msgb "\n=== Detecting fan speed sensors ==="
         local fanCount
