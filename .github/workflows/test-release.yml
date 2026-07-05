@@ -18,7 +18,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install build deps
-        run: sudo apt-get install -y devscripts debhelper build-essential
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y devscripts debhelper build-essential
 
       - name: Compute build version
         id: version

@@ -47,7 +47,9 @@ jobs:
 
       # ── Build (mirrors test-release.yml) ───────────────────────────────────
       - name: Install build deps
-        run: sudo apt-get install -y devscripts debhelper build-essential
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y devscripts debhelper build-essential
 
       - name: Inject version into Config.pm
         run: |
