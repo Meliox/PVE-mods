@@ -1,3 +1,5 @@
+8d17ad9 fix temperature conversion (#232)
+
 edcd445 fix intel gpu debug (#231)
 
 ac007f5 readd hdd and ssd support (#229)
