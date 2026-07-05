@@ -656,7 +656,108 @@ Ext.define('PVE.node.StatusView', {
 				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
             }
         },
-        
+        {
+			itemId: 'otherThermals',
+			colspan: 2,
+			printBar: false,
+			title: gettext('Other Temperatures'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'PveMod_JsonSensorInfo',
+			renderer: function(value) {
+				// Prefixes belonging to other known categories (excluded from this view)
+				const excludePrefixes = [
+					'nvme-pci-',
+					'coretemp-isa-',
+					'k10temp-pci-',
+					'cpu_thermal-virtual-',
+					'drivetemp-',
+					'spd5118-',
+				];
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
+				// ---
+				let objValue;
+				try {
+					const parsed = value || {};
+					if (parsed.disabled === true) {
+						this.hide();
+						return '';
+					} else if (parsed.other !== true) {
+						this.hide();
+						return '';
+					}
+					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+				} catch(e) {
+					objValue = {};
+				}
+
+				// Keep only keys that do not belong to known categories
+				const otherKeys = Object.keys(objValue).filter(key =>
+					!excludePrefixes.some(prefix => String(key).startsWith(prefix))
+				).sort();
+
+				let rows = [];
+
+				otherKeys.forEach(sensorKey => {
+					try {
+						const sensorObj = objValue[sensorKey];
+						if (!sensorObj || typeof sensorObj !== 'object') { return; }
+
+						// Collect all nested temp* sub-objects
+						const tempKeys = Object.keys(sensorObj).filter(k => String(k).startsWith('temp')).sort();
+						if (tempKeys.length === 0) { return; }
+
+						let tempParts = [];
+						tempKeys.forEach(tempKey => {
+							try {
+								const tempData = sensorObj[tempKey];
+								if (!tempData || typeof tempData !== 'object') { return; }
+
+								let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+								Object.keys(tempData).forEach(subKey => {
+									if (subKey.endsWith('_input')) {
+										tempVal = tempHelper.getTemp(parseFloat(tempData[subKey]));
+									} else if (subKey.endsWith('_max')) {
+										tempMax = tempHelper.getTemp(parseFloat(tempData[subKey]));
+									} else if (subKey.endsWith('_crit')) {
+										tempCrit = tempHelper.getTemp(parseFloat(tempData[subKey]));
+									}
+								});
+
+								if (!isNaN(tempVal)) {
+									let tempStyle = '';
+									if (!isNaN(tempMax) && tempVal >= tempMax) {
+										tempStyle = 'color: #FFC300; font-weight: bold;';
+									}
+									if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+										tempStyle = 'color: red; font-weight: bold;';
+									}
+									tempParts.push(`${tempKey}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
+								}
+							} catch(e) { /*_*/ }
+						});
+
+						if (tempParts.length > 0) {
+							rows.push({ label: sensorKey, temps: tempParts.join('&nbsp;| ') });
+						}
+					} catch(e) { /*_*/ }
+				});
+
+				if (rows.length === 0) {
+					return '';
+				}
+
+				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
+				rows.forEach(row => {
+					html += '<tr>';
+					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${row.label}</td>`;
+					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${row.temps}</td>`;
+					html += '</tr>';
+				});
+				html += '</table>';
+				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
+            }
+        },
+
         // ========== TERTIARY DIAGNOSTICS (Tier 3) ==========
         {
             xtype: 'box',

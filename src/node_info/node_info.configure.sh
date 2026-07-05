@@ -64,7 +64,7 @@ _check_nvidia_tool() {
 node_info_defaults() {
     LM_SENSORS_ENABLED=0
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
-    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0
+    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
     ENABLE_GPU_HISTORY=0
@@ -101,6 +101,7 @@ node_info_load_conf() {
             lm_sensors.enable_ram_temp)     ENABLE_RAM_TEMP="$val" ;;
             lm_sensors.enable_hdd_temp)     ENABLE_HDD_TEMP="$val" ;;
             lm_sensors.enable_nvme_temp)    ENABLE_NVME_TEMP="$val" ;;
+            lm_sensors.enable_other_temp)   ENABLE_OTHER_TEMP="$val" ;;
             lm_sensors.enable_fan_speed)    ENABLE_FAN_SPEED="$val" ;;
             lm_sensors.display_zero_speed_fans) DISPLAY_ZERO_SPEED_FANS="$val" ;;
             lm_sensors.temp_unit)           TEMP_UNIT="$val" ;;
@@ -131,7 +132,7 @@ node_info_configure() {
     # Initialize all variables to off
     LM_SENSORS_ENABLED=0
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
-    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0
+    ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
     ENABLE_GPU_HISTORY=0
@@ -250,6 +251,21 @@ node_info_configure() {
             warn "No NVMe temperature sensors found."
         fi
         #endregion NVMe
+
+        #region Other thermals
+        msgb "\n=== Detecting other thermal sensors ==="
+        local otherTempCount
+        otherTempCount=$(echo "$sanitisedSensorsOutput" \
+            | grep -Ev '"(coretemp|k10temp-pci|cpu_thermal-virtual|nvme|drivetemp-scsi|SODIMM|spd5118)[^"]*"' \
+            | grep -c '"temp[0-9]*_input"' || true)
+
+        if [[ "$otherTempCount" -gt 0 ]]; then
+            info "Detected $otherTempCount other temperature reading(s)."
+            ENABLE_OTHER_TEMP=1; sensors_detected=true
+        else
+            warn "No other temperature sensors found."
+        fi
+        #region Other thermals
 
         #region Fans
         msgb "\n=== Detecting fan speed sensors ==="
@@ -459,6 +475,7 @@ cpu_temp_target=${CPU_TEMP_TARGET}
 enable_ram_temp=${ENABLE_RAM_TEMP}
 enable_hdd_temp=${ENABLE_HDD_TEMP}
 enable_nvme_temp=${ENABLE_NVME_TEMP}
+enable_other_temp=${ENABLE_OTHER_TEMP}
 enable_fan_speed=${ENABLE_FAN_SPEED}
 display_zero_speed_fans=${DISPLAY_ZERO_SPEED_FANS}
 temp_unit=${TEMP_UNIT}

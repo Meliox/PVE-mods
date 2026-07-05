@@ -6,7 +6,7 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 ### Temperature Sensors (lm-sensors)
 
-Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context.
+Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
 ### NVIDIA GPU
 
