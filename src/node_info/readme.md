@@ -10,7 +10,7 @@ Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry
 
 ### NVIDIA GPU
 
-Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics stored in RRD for historical graphing.
+Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics can be stored in RRD for historical graphing.
 
 | Metric | Unit |
 |--------|------|
@@ -23,7 +23,7 @@ Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics s
 
 ### Intel GPU
 
-Polls `intel_gpu_top` for each detected Intel GPU card. Metrics stored in RRD for historical graphing.
+Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in RRD for historical graphing.
 
 | Metric | Unit |
 |--------|------|
