@@ -256,7 +256,7 @@ node_info_configure() {
         msgb "\n=== Detecting other thermal sensors ==="
         local otherTempCount
         otherTempCount=$(echo "$sanitisedSensorsOutput" \
-            | grep -Ev '"(coretemp|k10temp-pci|cpu_thermal-virtual|nvme|drivetemp-scsi|SODIMM)[^"]*"' \
+            | grep -Ev '"(coretemp|k10temp-pci|cpu_thermal-virtual|nvme|drivetemp-scsi|SODIMM|spd5118)[^"]*"' \
             | grep -c '"temp[0-9]*_input"' || true)
 
         if [[ "$otherTempCount" -gt 0 ]]; then

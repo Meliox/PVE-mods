@@ -743,7 +743,6 @@ Ext.define('PVE.node.StatusView', {
 				});
 
 				if (rows.length === 0) {
-					this.hide();
 					return '';
 				}
 
