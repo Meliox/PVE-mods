@@ -102,6 +102,12 @@ emit_install_rules() {
         emit_install 644 "$rel_mod/$mod.conf" "etc/pve-mod/conf.d/$mod.conf"
         emit_install 644 "$rel_mod/$mod.conf" "usr/share/pve-mod/conf.d/$mod.conf.default"
     fi
+
+    # 4. Per-module configure script.
+    local configure_script="$mod_dir/$mod.configure.sh"
+    if [[ -f "$configure_script" ]]; then
+        emit_install 755 "$rel_mod/$mod.configure.sh" "usr/lib/pve-mod/configure.d/$mod.sh"
+    fi
 }
 
 emit_conffiles() {
