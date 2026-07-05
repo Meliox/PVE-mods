@@ -576,16 +576,14 @@ Ext.define('PVE.node.StatusView', {
 			itemId: 'thermalHdd',
 			colspan: 2,
 			printBar: false,
-			title: gettext('HDD/SSD Thermal State'),
+			title: gettext('HDD/SSD Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'sensorsOutput',
+			textField: 'PveMod_JsonSensorInfo',
 			renderer: function(value) {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
 				const sensorName = "temp1";
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
-				// display configuration
-				const itemsPerRow = 1;
 				// ---
 				let objValue;
 				try {
@@ -600,20 +598,20 @@ Ext.define('PVE.node.StatusView', {
 					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
-				}                
-
+				}
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-				let temps = [];
-				drvKeys.forEach((drvKey, index) => {
+				let drvData = [];
+				drvKeys.forEach((drvKey) => {
 					try {
+						const drv = objValue[drvKey];
 						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-						Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {
+						Object.keys(drv[sensorName]).forEach((secondLevelKey) => {
 							if (secondLevelKey.endsWith('_input')) {
-								tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+								tempVal = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
 							} else if (secondLevelKey.endsWith('_max')) {
-								tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+								tempMax = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
 							} else if (secondLevelKey.endsWith('_crit')) {
-								tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+								tempCrit = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
 							}
 						});
 						if (!isNaN(tempVal)) {
@@ -624,15 +622,34 @@ Ext.define('PVE.node.StatusView', {
 							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 								tempStyle = 'color: red; font-weight: bold;';
 							}
-							const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
-							temps.push(tempStr);
+							drvData.push({
+								model: drv['model'] || 'Unknown',
+								serial: drv['serial'] || '',
+								temp: tempVal,
+								tempStyle: tempStyle,
+								unit: tempHelper.getUnit()
+							});
 						}
 					} catch(e) { /*_*/ }
 				});
-				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
-				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
+
+				if (drvData.length === 0) {
+					return 'N/A';
+				}
+
+				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
+				drvData.forEach((data) => {
+					let deviceName = data.model;
+                    deviceName += `&nbsp;(${data.serial})`;
+					html += '<tr>';
+					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
+					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
+					html += '</tr>';
+				});
+				html += '</table>';
+				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
 			}
-		},        
+		},       
         {
 			itemId: 'thermalNvme',
 			colspan: 2,
