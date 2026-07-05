@@ -263,7 +263,7 @@ node_info_configure() {
             info "Detected $otherTempCount other temperature reading(s)."
             ENABLE_OTHER_TEMP=1; sensors_detected=true
         else
-            warn "No other (non-CPU/RAM/HDD/NVMe) temperature sensors found."
+            warn "No other temperature sensors found."
         fi
         #region Other thermals
 
