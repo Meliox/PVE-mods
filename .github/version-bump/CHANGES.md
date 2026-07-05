@@ -1,3 +1,5 @@
+0855a19 add rpi cpu temp support (#226)
+
 96b8a12 refactor mod configurator (#222)
 
 9805ce4 Add readmes to each mod (#223)
