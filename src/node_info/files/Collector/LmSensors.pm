@@ -97,6 +97,7 @@ sub _get_temperature_sensors {
         fans  => $config{lm_sensors}{enable_fan_speed}  ? \1 : \0,
         hdd   => $config{lm_sensors}{enable_hdd_temp}   ? \1 : \0,
         other => $config{lm_sensors}{enable_other_temp} ? \1 : \0,
+        temp_unit => $config{lm_sensors}{temp_unit},
         data  => { 'PVE MOD lm-sensors Enhanced' => $sensors_json },
     });
 

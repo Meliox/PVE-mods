@@ -284,8 +284,6 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-thermometer-half',
             textField: 'PveMod_JsonSensorInfo',
             renderer: function(value){
-                // sensors configuration
-                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
                 // display configuration
                 const itemsPerRow = 0;
                 // ---
@@ -303,6 +301,8 @@ Ext.define('PVE.node.StatusView', {
                 } catch(e) {
                     objValue = {};
                 }
+                // sensors configuration
+                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
@@ -583,7 +583,6 @@ Ext.define('PVE.node.StatusView', {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
 				const sensorName = "temp1";
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
 				// ---
 				let objValue;
 				try {
@@ -599,6 +598,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
@@ -661,7 +661,6 @@ Ext.define('PVE.node.StatusView', {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
 				const sensorName = "Composite";
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
 				// display configuration
 				const itemsPerRow = 0;
 				// ---
@@ -679,6 +678,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
@@ -751,7 +751,6 @@ Ext.define('PVE.node.StatusView', {
 					'drivetemp-',
 					'spd5118-',
 				];
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
 				// ---
 				let objValue;
 				try {
@@ -767,6 +766,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
