@@ -573,6 +573,67 @@ Ext.define('PVE.node.StatusView', {
             },
         },
         {
+			itemId: 'thermalHdd',
+			colspan: 2,
+			printBar: false,
+			title: gettext('HDD/SSD Thermal State'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'sensorsOutput',
+			renderer: function(value) {
+				// sensors configuration
+				const addressPrefix = "drivetemp-scsi-";
+				const sensorName = "temp1";
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: PVE.mod.TempHelper.CELSIUS});
+				// display configuration
+				const itemsPerRow = 1;
+				// ---
+				let objValue;
+				try {
+					const parsed = value || {};
+					if (parsed.disabled === true) {
+						this.hide();
+						return '';
+					} else if (parsed.hdd !== true) {
+						this.hide();
+						return '';
+					}
+					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+				} catch(e) {
+					objValue = {};
+				}                
+
+				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+				let temps = [];
+				drvKeys.forEach((drvKey, index) => {
+					try {
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+						Object.keys(objValue[drvKey][sensorName]).forEach((secondLevelKey) => {
+							if (secondLevelKey.endsWith('_input')) {
+								tempVal = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_max')) {
+								tempMax = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_crit')) {
+								tempCrit = tempHelper.getTemp(parseFloat(objValue[drvKey][sensorName][secondLevelKey]));
+							}
+						});
+						if (!isNaN(tempVal)) {
+							let tempStyle = '';
+							if (!isNaN(tempMax) && tempVal >= tempMax) {
+								tempStyle = 'color: #FFC300; font-weight: bold;';
+							}
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+								tempStyle = 'color: red; font-weight: bold;';
+							}
+							const tempStr = `Drive&nbsp;${index + 1}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`;
+							temps.push(tempStr);
+						}
+					} catch(e) { /*_*/ }
+				});
+				const result = temps.map((strTemp, index, arr) => { return strTemp + (index + 1 < arr.length ? ((index + 1) % itemsPerRow === 0 ? '<br>' : '&nbsp;| ') : ''); });
+				return '<div style="text-align: left; margin-left: 28px;">' + (result.length > 0 ? result.join('') : 'N/A') + '</div>';
+			}
+		},        
+        {
 			itemId: 'thermalNvme',
 			colspan: 2,
 			printBar: false,
