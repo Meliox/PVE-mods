@@ -71,7 +71,7 @@ node_info_defaults() {
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
-    DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.json"
+    DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
     DEBUG_NVIDIA=0;      DEBUG_NVIDIA_OUTPUT_FILE="/tmp/nvidia-smi-output.csv"
                          DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"
