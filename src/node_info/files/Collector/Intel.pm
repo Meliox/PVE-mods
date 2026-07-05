@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 
 use PVE::PVEMod::Config qw(%config $process_type $pve_mod_working_dir);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_read_json safe_write_json);
+use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json);
 use PVE::PVEMod::Store  qw(update_intel_gpu_rrd);
 
 our @EXPORT_OK = qw(
@@ -19,46 +19,40 @@ our @EXPORT_OK = qw(
 
 sub get_intel_gpu_devices {
     my @devices = ();
+    my $fh;
+
+    # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
+    # or:    "card0  Intel Alderlake_n (Gen12)  pci:0000:00:02.0"
 
     if ($config{debug}{intel_mode} && -f $config{debug}{intel_devices_file}) {
-        debug(__LINE__, "Debug mode: reading Intel GPU devices from $config{debug}{intel_devices_file}");
-        my $data = safe_read_json($config{debug}{intel_devices_file});
-        if ($data && ref $data eq 'ARRAY') {
-            for my $dev (@$data) {
-                push @devices, {
-                    card     => $dev->{card},
-                    name     => $dev->{name},
-                    path     => $dev->{path},
-                    drm_path => $dev->{drm_path},
-                };
-                debug(__LINE__, "Found Intel device (debug): $dev->{card} -> $dev->{name} ($dev->{path})");
-            }
-        } else {
-            debug(__LINE__, "Failed to parse debug file $config{debug}{intel_devices_file}");
+        my $file = $config{debug}{intel_devices_file};
+        debug(__LINE__, "Debug mode: reading Intel GPU devices from $file");
+        unless (open $fh, '<', $file) {
+            debug(__LINE__, "Failed to open debug file $file: $!");
+            return @devices;
         }
     } else {
         debug(__LINE__, "Getting Intel GPU devices");
-        if (open my $fh, '-|', 'intel_gpu_top -L') {
-            while (<$fh>) {
-                chomp;
-                # Parse: "card0  Intel Alderlake_n (Gen12)  pci:vendor=8086,device=46D0,card=0"
-                # or:    "card0  Intel Alderlake_n (Gen12)  pci:0000:00:02.0"
-                if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
-                    my ($card, $name, $path) = ($1, $2, $3);
-                    push @devices, {
-                        card     => $card,
-                        name     => $name,
-                        path     => $path,
-                        drm_path => "/dev/dri/$card",
-                    };
-                    debug(__LINE__, "Found Intel device: $card -> $name ($path)");
-                }
-            }
-            close $fh;
-        } else {
+        unless (open $fh, '-|', 'intel_gpu_top -L') {
             debug(__LINE__, "Failed to run intel_gpu_top -L: $!");
+            return @devices;
         }
     }
+
+    while (<$fh>) {
+        chomp;
+        if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
+            my ($card, $name, $path) = ($1, $2, $3);
+            push @devices, {
+                card     => $card,
+                name     => $name,
+                path     => $path,
+                drm_path => "/dev/dri/$card",
+            };
+            debug(__LINE__, "Found Intel device: $card -> $name ($path)");
+        }
+    }
+    close $fh;
 
     return @devices;
 }
