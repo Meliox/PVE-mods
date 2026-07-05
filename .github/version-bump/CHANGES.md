@@ -1,3 +1,5 @@
+edcd445 fix intel gpu debug (#231)
+
 ac007f5 readd hdd and ssd support (#229)
 
 679d844 implement support for other thermals (#228)
