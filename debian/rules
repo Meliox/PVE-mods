@@ -10,19 +10,14 @@ override_dh_install:
 	# NOT committed to the repository.
 	#
 	# Patch helpers (generic, manifest-driven)
-	install -Dm755 src/Scripts/apply-patches.sh \
-		debian/pve-mod/usr/lib/pve-mod/apply-patches.sh
-	install -Dm755 src/Scripts/revert-patches.sh \
-		debian/pve-mod/usr/lib/pve-mod/revert-patches.sh
+	install -Dm755 src/Scripts/apply-patches.sh debian/pve-mod/usr/lib/pve-mod/apply-patches.sh
+	install -Dm755 src/Scripts/revert-patches.sh debian/pve-mod/usr/lib/pve-mod/revert-patches.sh
 	# Configure tool
-	install -Dm755 src/Scripts/pve-mod-configure \
-		debian/pve-mod/usr/sbin/pve-mod-configure
+	install -Dm755 src/Scripts/pve-mod-configure debian/pve-mod/usr/sbin/pve-mod-configure
 	# Main config (conffile for user edits)
-	install -Dm644 src/pve-mod.conf \
-		debian/pve-mod/etc/pve-mod/pve-mod.conf
+	install -Dm644 src/pve-mod.conf debian/pve-mod/etc/pve-mod/pve-mod.conf
 	# Main config reference copy for upgrade key-diff (not a conffile)
-	install -Dm644 src/pve-mod.conf \
-		debian/pve-mod/usr/share/pve-mod/pve-mod.conf.default
+	install -Dm644 src/pve-mod.conf debian/pve-mod/usr/share/pve-mod/pve-mod.conf.default
 	# ── Dynamic section ────────────────────────────────────────────────────
 	# `bash src/gen-rules.sh >> debian/rules` appends per-module install lines
 	# here during CI, just before dpkg-buildpackage. Do not commit them.
