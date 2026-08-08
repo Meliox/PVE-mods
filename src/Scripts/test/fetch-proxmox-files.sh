@@ -9,7 +9,9 @@ WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 echo "[fetch] Configuring Proxmox no-subscription repo ($SUITE)..."
-echo "deb [trusted=yes] http://download.proxmox.com/debian/pve $SUITE pve-no-subscription" \
+sudo wget -q "https://enterprise.proxmox.com/debian/proxmox-archive-keyring-${SUITE}.gpg" \
+    -O /usr/share/keyrings/proxmox-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/proxmox-archive-keyring.gpg] http://download.proxmox.com/debian/pve $SUITE pve-no-subscription" \
     | sudo tee /etc/apt/sources.list.d/pve-test.list >/dev/null
 sudo apt-get update -qq
 
