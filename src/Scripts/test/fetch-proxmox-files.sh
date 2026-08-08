@@ -15,7 +15,7 @@ sudo apt-get update -qq
 
 echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, libpve-common-perl, libclone-perl, liblinux-inotify2-perl, libcommon-sense-perl, libhttp-message-perl, libstring-shellquote-perl, libencode-locale-perl, libdevel-cycle-perl and liburi-perl..."
 cd "$WORKDIR"
-apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl libhttp-message-perl libstring-shellquote-perl libencode-locale-perl libdevel-cycle-perl liburi-perl
+apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl libhttp-message-perl libstring-shellquote-perl libencode-locale-perl libdevel-cycle-perl liburi-perl libnet-ip-perl
 
 echo "[fetch] Extracting to system paths..."
 for deb in *.deb; do
