@@ -1,3 +1,5 @@
+6e3fd79 Fix duplicate deb config warning (#247)
+
 32ed174 More build check fixes (#246)
 
 8d17ad9 fix temperature conversion (#232)
