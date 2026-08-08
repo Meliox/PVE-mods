@@ -160,22 +160,24 @@ main() {
     esac
 
     # ── Write config and apply/revert ─────────────────────────────────────────
-    # For mods with patches: apply if being enabled, revert if being disabled.
-    # Option 3 (pve_trigger) has no patches — write_main_conf is sufficient.
+    # Write configs FIRST so pveproxy reads the new settings when restarted by
+    # apply-patches.sh. For mods with patches: apply if being enabled, revert if
+    # being disabled. Option 3 (pve_trigger) has no patches — write_main_conf is
+    # sufficient.
+    write_main_conf
+    node_info_write_conf
+    nag_screen_write_conf
     if [[ "$patching_needed" == "1" ]]; then
         msgb "\n=== Applying patches ==="
         if ! "$APPLY_PATCHES" "$selected_mod"; then
-            err "Could not apply all patches for $selected_mod. Configuration was not updated."
+            err "Could not apply all patches for $selected_mod."
         fi
     elif [[ -n "$selected_mod" ]]; then
         msgb "\n=== Removing patches ==="
         if ! "$REVERT_PATCHES" "$selected_mod"; then
-            err "Could not revert all patches for $selected_mod. Configuration was not updated."
+            err "Could not revert all patches for $selected_mod."
         fi
     fi
-    write_main_conf
-    node_info_write_conf
-    nag_screen_write_conf
 
     msgb "\n=== Done ==="
     info "pve-mod is configured and active."
