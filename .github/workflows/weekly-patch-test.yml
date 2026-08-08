@@ -20,7 +20,7 @@ jobs:
     outputs:
       mods: ${{ steps.list.outputs.mods }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Discover mods from [modules]
         id: list
@@ -41,7 +41,7 @@ jobs:
       matrix:
         mod: ${{ fromJSON(needs.discover.outputs.mods) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
