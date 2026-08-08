@@ -11,12 +11,11 @@
 # pve-mod.conf and the install path usr/lib/pve-mod/patches/<mod>/).
 #
 # Usage:
-#   gen-rules.sh            Emit dpkg install lines (tab-indented, no header).
-#                           Append to debian/rules' override_dh_install recipe:
-#                               bash src/gen-rules.sh >> debian/rules
-#   gen-rules.sh conffiles  Emit per-module conffile paths (one per line).
-#                           Append to debian/pve-mod.conffiles:
-#                               bash src/gen-rules.sh conffiles >> debian/pve-mod.conffiles
+#   gen-rules.sh    Emit dpkg install lines (tab-indented, no header).
+#                   Append to debian/rules' override_dh_install recipe:
+#                       bash src/gen-rules.sh >> debian/rules
+#                   Conffiles under etc/ are detected automatically by
+#                   debhelper (compat 13+); no separate conffiles step needed.
 #
 # For each module it emits, in order:
 #   1. files/files.list  -> install each mapped file at its destination.
@@ -40,8 +39,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SRC_DIR="$REPO_ROOT/src"
 PKG_DIR="debian/pve-mod"
-
-MODE="${1:-install}"
 
 # Print the list of module directory names (basenames), sorted, that contain a
 # files/ or patches/ subdirectory.
@@ -110,31 +107,6 @@ emit_install_rules() {
     fi
 }
 
-emit_conffiles() {
-    local mod="$1"
-    if [[ -f "$SRC_DIR/$mod/$mod.conf" ]]; then
-        echo "/etc/pve-mod/conf.d/$mod.conf"
-    fi
-}
-
-main() {
-    local mod
-    case "$MODE" in
-        install)
-            for mod in $(list_modules); do
-                emit_install_rules "$mod"
-            done
-            ;;
-        conffiles)
-            for mod in $(list_modules); do
-                emit_conffiles "$mod"
-            done
-            ;;
-        *)
-            echo "Usage: $0 [install|conffiles]" >&2
-            exit 2
-            ;;
-    esac
-}
-
-main
+for mod in $(list_modules); do
+    emit_install_rules "$mod"
+done
