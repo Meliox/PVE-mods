@@ -22,10 +22,10 @@ jobs:
           apt-get install -y --no-install-recommends \
             ca-certificates git sudo wget xz-utils dpkg nodejs
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: pve-mods-test-build-*
           merge-multiple: true
