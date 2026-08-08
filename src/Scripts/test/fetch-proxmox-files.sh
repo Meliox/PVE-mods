@@ -9,13 +9,15 @@ WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 echo "[fetch] Configuring Proxmox no-subscription repo ($SUITE)..."
-echo "deb [trusted=yes] http://download.proxmox.com/debian/pve $SUITE pve-no-subscription" \
+sudo wget -q "https://enterprise.proxmox.com/debian/proxmox-archive-keyring-${SUITE}.gpg" \
+    -O /usr/share/keyrings/proxmox-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/proxmox-archive-keyring.gpg] http://download.proxmox.com/debian/pve $SUITE pve-no-subscription" \
     | sudo tee /etc/apt/sources.list.d/pve-test.list >/dev/null
 sudo apt-get update -qq
 
-echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, libpve-common-perl, libclone-perl, liblinux-inotify2-perl and libcommon-sense-perl..."
+echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, libpve-common-perl, libclone-perl, liblinux-inotify2-perl, libcommon-sense-perl, libhttp-message-perl, libstring-shellquote-perl, libencode-locale-perl, libdevel-cycle-perl, liburi-perl, libnet-ip-perl, libtimedate-perl and libfilesys-df-perl..."
 cd "$WORKDIR"
-apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl
+apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl libhttp-message-perl libstring-shellquote-perl libencode-locale-perl libdevel-cycle-perl liburi-perl libnet-ip-perl libtimedate-perl libfilesys-df-perl
 
 echo "[fetch] Extracting to system paths..."
 for deb in *.deb; do
