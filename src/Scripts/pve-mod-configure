@@ -137,6 +137,8 @@ main() {
                 msgb "\n=== Node Info Configuration ==="
                 node_info_configure
             fi
+            # Write before patching so pveproxy restarts with the new config.
+            write_main_conf; node_info_write_conf
             ;;
         2)
             selected_mod="nag_screen"
@@ -147,6 +149,8 @@ main() {
                 info "Subscription nag screen removal will be applied."
                 nag_screen_configure
             fi
+            # Write before patching so pveproxy restarts with the new config.
+            write_main_conf; nag_screen_write_conf
             ;;
         3)
             if [[ "$PVE_TRIGGER_ENABLED" == "1" ]]; then
@@ -154,28 +158,25 @@ main() {
             else
                 PVE_TRIGGER_ENABLED=1; info "Auto re-patching on PVE upgrade enabled."
             fi
+            write_main_conf  # no patches for this option
             ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
     esac
 
-    # ── Write config and apply/revert ─────────────────────────────────────────
-    # For mods with patches: apply if being enabled, revert if being disabled.
-    # Option 3 (pve_trigger) has no patches — write_main_conf is sufficient.
+    # ── Apply / revert patches ────────────────────────────────────────────────
+    # Config is already written above; pveproxy will restart with new settings.
     if [[ "$patching_needed" == "1" ]]; then
         msgb "\n=== Applying patches ==="
         if ! "$APPLY_PATCHES" "$selected_mod"; then
-            err "Could not apply all patches for $selected_mod. Configuration was not updated."
+            err "Could not apply all patches for $selected_mod."
         fi
     elif [[ -n "$selected_mod" ]]; then
         msgb "\n=== Removing patches ==="
         if ! "$REVERT_PATCHES" "$selected_mod"; then
-            err "Could not revert all patches for $selected_mod. Configuration was not updated."
+            err "Could not revert all patches for $selected_mod."
         fi
     fi
-    write_main_conf
-    node_info_write_conf
-    nag_screen_write_conf
 
     msgb "\n=== Done ==="
     info "pve-mod is configured and active."
