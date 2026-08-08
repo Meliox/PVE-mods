@@ -4,7 +4,7 @@
 #   source      - path relative to this files/ directory
 #   destination - path relative to the package root (no leading slash)
 #   permission  - octal mode, optional (defaults to 644)
-# Read by src/gen-rules.sh to generate the per-module debian install rules.
+# Read by build/gen-rules.sh to generate the per-module debian install rules.
 
 # PVE API2 facade
 PveMod_SensorInfo.pm                    usr/share/perl5/PVE/API2/PVEMod_SensorInfo.pm

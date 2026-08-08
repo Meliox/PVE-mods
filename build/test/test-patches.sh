@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# src/Scripts/test/test-mods.sh
+# build/test/test-patches.sh
 #
 # Exercises pve-mod's patch engine against the installed Proxmox files.
 #

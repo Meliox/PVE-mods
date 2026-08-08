@@ -58,19 +58,19 @@ jobs:
           export BUILD_VERSION="${VERSION}-test-${SHORT_SHA}"
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/node_info/files/Config.pm
+          ' src/modules/node_info/files/Config.pm
 
       - name: Generate dynamic debian rules
         run: |
-          bash src/gen-rules.sh >> debian/rules
-          bash src/gen-rules.sh conffiles >> debian/pve-mod.conffiles
+          bash build/gen-rules.sh >> debian/rules
+          bash build/gen-rules.sh conffiles >> debian/pve-mod.conffiles
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
 
       # ── Test ───────────────────────────────────────────────────────────────
       - name: Fetch upstream Proxmox files
-        run: bash src/Scripts/test/fetch-proxmox-files.sh
+        run: bash build/test/fetch-proxmox-files.sh
 
       - name: Install built package
         run: sudo apt-get install -y ../pve-mod_*.deb
@@ -78,7 +78,7 @@ jobs:
       - name: Test mod
         run: |
           set -o pipefail
-          sudo bash src/Scripts/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+          sudo bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
 
       - name: Report failure as issue
         if: failure()

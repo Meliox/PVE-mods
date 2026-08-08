@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# src/gen-rules.sh
+# build/gen-rules.sh
 #
 # Generates the per-module portion of the Debian build configuration from each
 # module's metadata, so adding or changing a module never requires touching
 # debian/rules by hand.
 #
-# A module is any directory under src/ that contains a files/ and/or patches/
-# subdirectory (so src/Scripts/, which has neither, is ignored). The module's
-# directory name is its canonical mod key (matches the [modules] keys in
-# pve-mod.conf and the install path usr/lib/pve-mod/patches/<mod>/).
+# A module is any directory under src/modules/ that contains a files/ and/or
+# patches/ subdirectory. The module's directory name is its canonical mod key
+# (matches the [modules] keys in pve-mod.conf and the install path
+# usr/lib/pve-mod/patches/<mod>/).
 #
 # Usage:
 #   gen-rules.sh    Emit dpkg install lines (tab-indented, no header).
 #                   Append to debian/rules' override_dh_install recipe:
-#                       bash src/gen-rules.sh >> debian/rules
+#                       bash build/gen-rules.sh >> debian/rules
 #                   Conffiles under etc/ are detected automatically by
 #                   debhelper (compat 13+); no separate conffiles step needed.
 #
@@ -37,7 +37,7 @@ set -euo pipefail
 # regardless of the caller's working directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SRC_DIR="$REPO_ROOT/src"
+SRC_DIR="$REPO_ROOT/src/modules"
 PKG_DIR="debian/pve-mod"
 
 # Print the list of module directory names (basenames), sorted, that contain a
@@ -62,7 +62,7 @@ emit_install() {
 emit_install_rules() {
     local mod="$1"
     local mod_dir="$SRC_DIR/$mod"
-    local rel_mod="src/$mod"
+    local rel_mod="src/modules/$mod"
 
     # 1. Mapped files from files/files.list.
     local manifest="$mod_dir/files/files.list"

@@ -43,11 +43,11 @@ jobs:
         run: |
           perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
             s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/${1}$v'"'"';/
-          ' src/node_info/files/Config.pm
+          ' src/modules/node_info/files/Config.pm
 
       - name: Generate dynamic debian rules
         run: |
-          bash src/gen-rules.sh >> debian/rules
+          bash build/gen-rules.sh >> debian/rules
 
       - name: Build deb package
         run: |
