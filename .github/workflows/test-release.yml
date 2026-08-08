@@ -47,7 +47,6 @@ jobs:
       - name: Generate dynamic debian rules
         run: |
           bash src/gen-rules.sh >> debian/rules
-          bash src/gen-rules.sh conffiles >> debian/pve-mod.conffiles
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
