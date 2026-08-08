@@ -13,9 +13,9 @@ echo "deb [trusted=yes] http://download.proxmox.com/debian/pve $SUITE pve-no-sub
     | sudo tee /etc/apt/sources.list.d/pve-test.list >/dev/null
 sudo apt-get update -qq
 
-echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, libpve-common-perl, libclone-perl, liblinux-inotify2-perl, libcommon-sense-perl, libhttp-message-perl, libstring-shellquote-perl, libencode-locale-perl, libdevel-cycle-perl and liburi-perl..."
+echo "[fetch] Downloading pve-manager, proxmox-widget-toolkit, pve-yew-mobile-gui, libjson-perl, libpve-common-perl, libclone-perl, liblinux-inotify2-perl, libcommon-sense-perl, libhttp-message-perl, libstring-shellquote-perl, libencode-locale-perl, libdevel-cycle-perl, liburi-perl, libnet-ip-perl and libtimedate-perl..."
 cd "$WORKDIR"
-apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl libhttp-message-perl libstring-shellquote-perl libencode-locale-perl libdevel-cycle-perl liburi-perl libnet-ip-perl
+apt-get download pve-manager proxmox-widget-toolkit pve-yew-mobile-gui libjson-perl libpve-common-perl libclone-perl liblinux-inotify2-perl libcommon-sense-perl libhttp-message-perl libstring-shellquote-perl libencode-locale-perl libdevel-cycle-perl liburi-perl libnet-ip-perl libtimedate-perl
 
 echo "[fetch] Extracting to system paths..."
 for deb in *.deb; do
