@@ -96,7 +96,7 @@ emit_install_rules() {
         done < <(find "$patches_dir" -type f | sort)
     fi
 
-    # 3. Per-module config: conffile + reference default copy.
+    # 3. Per-module config: conffile + reference default copy
     local conf="$mod_dir/$mod.conf"
     if [[ -f "$conf" ]]; then
         emit_install 644 "$rel_mod/$mod.conf" "etc/pve-mod/conf.d/$mod.conf"
