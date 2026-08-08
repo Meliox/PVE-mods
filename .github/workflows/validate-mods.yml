@@ -32,13 +32,13 @@ jobs:
           path: deb
 
       - name: Fetch upstream Proxmox files
-        run: bash src/scripts/test/fetch-proxmox-files.sh
+        run: bash build/test/fetch-proxmox-files.sh
 
       - name: Install built package
         run: apt-get install -y ./deb/*.deb
 
       - name: Test all mods
-        run: bash src/scripts/test/test-patches.sh all
+        run: bash build/test/test-patches.sh all
 
       - name: Validate source syntax
-        run: bash src/scripts/test/test-syntax.sh all 
+        run: bash build/test/test-syntax.sh all 

@@ -70,7 +70,7 @@ jobs:
 
       # ── Test ───────────────────────────────────────────────────────────────
       - name: Fetch upstream Proxmox files
-        run: bash src/scripts/test/fetch-proxmox-files.sh
+        run: bash build/test/fetch-proxmox-files.sh
 
       - name: Install built package
         run: sudo apt-get install -y ../pve-mod_*.deb
@@ -78,7 +78,7 @@ jobs:
       - name: Test mod
         run: |
           set -o pipefail
-          sudo bash src/scripts/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+          sudo bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
 
       - name: Report failure as issue
         if: failure()
