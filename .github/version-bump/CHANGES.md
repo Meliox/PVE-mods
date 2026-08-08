@@ -1,3 +1,5 @@
+32ed174 More build check fixes (#246)
+
 8d17ad9 fix temperature conversion (#232)
 
 edcd445 fix intel gpu debug (#231)
