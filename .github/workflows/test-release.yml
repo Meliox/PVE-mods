@@ -37,7 +37,7 @@ jobs:
         run: |
           BUILD_VERSION="${{ steps.version.outputs.build_version }}"
           sed -i -E "s/^our \\\$VERSION\\s*=.*/our \\\$VERSION = '${BUILD_VERSION}';/" \
-            src/node_info/files/Config.pm
+            src/modules/node_info/files/Config.pm
 
       - name: Set package version in changelog
         run: |
@@ -46,7 +46,7 @@ jobs:
 
       - name: Generate dynamic debian rules
         run: |
-          bash src/gen-rules.sh >> debian/rules
+          bash build/gen-rules.sh >> debian/rules
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
