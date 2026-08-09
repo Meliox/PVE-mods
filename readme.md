@@ -28,7 +28,8 @@ TBD PICTURE
 ### How it works
 
 1. The `pve-mod` package installs the mods installation, patch files under `/usr/lib/pve-mod/`.
-2. Running `pve-mod-configure` prompts for which modules to enable, writing configuration to `/etc/pve-mod/`.
+2. The mods main configuration file and mods can be found under `/etc/pve-mod/`.
+2. Running `pve-mod-configure` prompts for which modules to enable and configuration of mods.
 3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
 
 ### Install
