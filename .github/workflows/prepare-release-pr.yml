@@ -2,9 +2,9 @@ name: Open / Update Version Bump PR
 
 # Triggered when any PR merges to main touching src/ or debian/ (push),
 # or when a bump:* label is added to the chore/version-bump PR (labeled).
-# Accumulates changes in CHANGES.md, writes debian/changelog with the correct
-# bumped version, and keeps the PR body up to date.
-# On label change the changelog entry is rewritten with the new version.
+# On push: recreates the branch from main and collects all commits since the
+# last tag — no incremental accumulation, no rebase, no conflicts.
+# On label change: checks out the existing branch and rewrites the changelog entry.
 
 on:
   push:
@@ -38,42 +38,33 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Collect new commits (push only)
-        id: new_commits
-        if: github.event_name == 'push'
-        run: |
-          LOG=$(git log "HEAD~1..HEAD" --oneline -- src/ | head -50)
-          EOF=$(openssl rand -hex 16)
-          echo "log<<$EOF" >> "$GITHUB_OUTPUT"
-          echo "$LOG"      >> "$GITHUB_OUTPUT"
-          echo "$EOF"      >> "$GITHUB_OUTPUT"
-
       - name: Set up chore/version-bump branch
-        env:
-          NEW_COMMITS: ${{ steps.new_commits.outputs.log }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git fetch origin main
-          if git fetch origin chore/version-bump 2>/dev/null; then
-            git checkout chore/version-bump
-            git rebase origin/main
-          else
-            git checkout -b chore/version-bump origin/main
-          fi
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Always recreate from main — avoids rebase conflicts after PR merge
+            git checkout -b chore/version-bump origin/main
+
+            # Collect all commits touching src/ since the last release tag
+            LAST_TAG=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)
+            if [[ -n "$LAST_TAG" ]]; then
+              LOG=$(git log "${LAST_TAG}..origin/main" --oneline -- src/ | head -50)
+            else
+              LOG=$(git log origin/main --oneline -- src/ | head -50)
+            fi
             mkdir -p .github/version-bump
-            PREV=$(cat .github/version-bump/CHANGES.md 2>/dev/null || true)
-            {
-              echo "${NEW_COMMITS:-No src/ changes detected.}"
-              [[ -n "$PREV" ]] && echo "$PREV"
-            } > .github/version-bump/CHANGES.md
+            echo "${LOG:-No src/ changes since last release.}" > .github/version-bump/CHANGES.md
             git add .github/version-bump/CHANGES.md
-            MAIN_SHA=$(git rev-parse --short origin/main)
-            git commit -m "chore: accumulate changes from ${MAIN_SHA}"
-            git push --force-with-lease origin chore/version-bump
+            git commit -m "chore: collect changes since ${LAST_TAG:-initial}"
+            git push --force origin chore/version-bump
+          else
+            # Label change: check out the existing branch, no CHANGES.md update
+            git fetch origin chore/version-bump
+            git checkout chore/version-bump
           fi
 
       - name: Determine bump type
