@@ -1,4 +1,4 @@
-pve-mod (..1) stable; urgency=low
+pve-mod (1.0.0) stable; urgency=low
 
   * aab6568 test 5 (#268)
   * 3eaf040 build test 4 (#265)
@@ -45,7 +45,7 @@ pve-mod (..1) stable; urgency=low
   * 3f4f3cd Move old scripts to legacy folder (#184)
   * 4c1a948 Readme update of test (#176)
 
- -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:00:19 +0000
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:01:00 +0000
 
 pve-mod (0.1.5) stable; urgency=low
 
