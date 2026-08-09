@@ -2,9 +2,8 @@ name: Version Bump
 
 # Triggered when the chore/version-bump PR is merged to main.
 # Reads the bump:patch / bump:minor / bump:major label from the merged PR.
-# Updates debian/changelog and commits to main.
-# Cleans up the CHANGES.md accumulator file in the same commit.
-# release.yml picks up the changelog change and builds the release.
+# Updates debian/changelog, commits it, and pushes a vX.Y.Z tag.
+# release.yml triggers on that tag push and builds the release.
 
 on:
   pull_request:
@@ -51,7 +50,9 @@ jobs:
         env:
           BUMP_TYPE: ${{ steps.bump_type.outputs.type }}
         run: |
-          CURRENT=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          # Prefer latest tag; fall back to debian/changelog on first run
+          CURRENT=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' \
+            || grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
           MAJOR=$(echo "$CURRENT" | cut -d. -f1)
           MINOR=$(echo "$CURRENT" | cut -d. -f2)
           PATCH=$(echo "$CURRENT" | cut -d. -f3)
@@ -98,12 +99,12 @@ jobs:
           } > debian/changelog.new
           mv debian/changelog.new debian/changelog
 
-      - name: Commit changelog and clean up accumulator
+      - name: Commit and tag
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b release/v${{ steps.version.outputs.new }}
           git add debian/changelog
           git rm --ignore-unmatch .github/version-bump/CHANGES.md
           git commit -m "Release v${{ steps.version.outputs.new }}"
-          git push -u origin release/v${{ steps.version.outputs.new }}
+          git tag v${{ steps.version.outputs.new }}
+          git push origin v${{ steps.version.outputs.new }}
