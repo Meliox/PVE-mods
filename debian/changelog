@@ -2,6 +2,12 @@ pve-mod (1.0.2) stable; urgency=low
 
   * 32d308f buildtest7 (#273)
 
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:21:38 +0000
+
+pve-mod (1.0.2) stable; urgency=low
+
+  * 32d308f buildtest7 (#273)
+
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:21:05 +0000
 
 pve-mod (1.0.1) stable; urgency=low
