@@ -22,7 +22,7 @@ TBD PICTURE
 
 | Mod | Description | Dependencies |
 |--------|-------------|--------------|
-| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node status panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `nut-client`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
+| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node status panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `upsc`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
 | [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
 
 ### How it works
@@ -37,9 +37,9 @@ Commands and mod configuration must be run as `root`.
 
 ```bash
 curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
-pve-mod-configure
 ```
-**Then clear the browser cache to ensure all changes are visualized.**
+
+Install respective mod dependencies - see Mod table.
 
 Run `pve-mod-configure` to install/uninstall and configure mods.
 
@@ -59,17 +59,9 @@ apt-get remove pve-mod
 ```
 And remove dependencies needed by respective mods.
 
-
-
-
 ### Notes
 
-- `lm-sensors` must be configured before running `pve-mod-configure`. Run `sensors-detect` and load the suggested kernel modules first.
-- HDDs require the `drivetemp` kernel module to report temperatures.
-- UPS monitoring requires `nut-client` (`upsc`).
-- Intel GPU monitoring requires `intel-gpu-tools`.
-- NVIDIA GPU monitoring requires NVIDIA drivers with `nvidia-smi`.
-- UPS support in multi-node setups requires identical login credentials across nodes.
+Multiple node support requires application to be installed on all nodes with identical configuration. (untested)
 
 ---
 
