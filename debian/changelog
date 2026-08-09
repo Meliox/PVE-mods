@@ -1,3 +1,9 @@
+pve-mod (1.0.6) stable; urgency=low
+
+  * c21b973 remove buildtest file (#288)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 12:21:45 +0000
+
 pve-mod (1.0.5) stable; urgency=low
 
   * f3db7e7 buildtest10 (#285)
