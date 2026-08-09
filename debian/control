@@ -10,7 +10,7 @@ Package: pve-mod
 Architecture: all
 Depends: ${misc:Depends}, perl, librrds-perl, patch
 Recommends:
-Suggests: intel-gpu-tools lm-sensors nut-client nvidia-smi intel-gpu-tools
+Suggests: intel-gpu-tools lm-sensors nut-client nvidia-smi
 Description: Proxmox VE UI modifications
  Extends the Proxmox VE web interface with various information.
  See respective mods for more information
