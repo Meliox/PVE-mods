@@ -37,7 +37,7 @@ TBD PICTURE
 Commands and mod configuration must be run as `root`.
 
 ```bash
-curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
 ```
 
 Install respective mod dependencies - see Mod table.
