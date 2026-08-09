@@ -16,33 +16,51 @@ Compatibility: PVE 9.0+
 
 TBD PICTURE
 
-`pve-mod` is a Debian package that installs UI patches, a background sensor daemon, and an interactive configuration wizard.
+`pve-mod` is a Debian package that installs UI patches and an interactive configuration wizard.
 
-### Modules
+### Mods
 
-| Module | Description |
-|--------|-------------|
-| `node_info` | Displays sensor readings in the node status panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. GPU historical graphs are optionally available. |
-| `nag_screen` | Removes the subscription nag screen from the PVE web UI. |
+| Mod | Description | Dependencies |
+|--------|-------------|--------------|
+| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node status panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally used background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `nut-client`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
+| `nag_screen`(src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
 
 ### How it works
 
-1. The `pve-mod` package installs patch files, a Perl sensor module, and helper scripts under `/usr/lib/pve-mod/`.
-2. Running `pve-mod-configure` detects installed hardware (via `lm-sensors`, `nvidia-smi`, `intel_gpu_top`, etc.), prompts for which features to enable, and writes configuration to `/etc/pve-mod/pve-mod.conf` and `/etc/pve-mod/conf.d/`.
-3. The wizard then applies the selected patches to the PVE system files and restarts `pveproxy`.
-4. Optionally, a dpkg trigger can be enabled to automatically re-apply patches after every `pve-manager` upgrade.
+1. The `pve-mod` package installs the mods installation, patch files under `/usr/lib/pve-mod/`.
+2. Running `pve-mod-configure` prompts for which modules to enable, writing configuration to `/etc/pve-mod/`.
+3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
 
 ### Install
 
-Must be run as `root`.
+Commands and mod configuration must be run as `root`.
 
 ```bash
 curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
 pve-mod-configure
-# Then clear the browser cache to ensure all changes are visualized.
+```
+**Then clear the browser cache to ensure all changes are visualized.**
+
+Run `pve-mod-configure` to install/uninstall and configure mods.
+
+#### Manual configuration changes
+Configuration files are located in `/etc/pve-mod/`. After any manual edits, restart `pveproxy` to apply the changes:
+
+```bash
+systemctl restart pveproxy
 ```
 
-`pve-mod-configure` can be re-run at any time to change settings or enable/disable modules. Then clear the browser cache to ensure all changes are visualized.
+### Uninstall
+
+Commands and mod configuration must be run as `root`.
+
+```bash
+apt-get remove pve-mod 
+```
+And remove dependencies needed by respective mods.
+
+
+
 
 ### Notes
 
