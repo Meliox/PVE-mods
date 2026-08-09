@@ -42,7 +42,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y debhelper dpkg-dev dpkg-sig
+          sudo apt-get install -y debhelper dpkg-dev
 
       - name: Import GPG key
         env:
@@ -72,8 +72,8 @@ jobs:
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
           DEB=$(ls ../pve-mod_*.deb)
-          dpkg-sig --sign builder -k "$GPG_KEY_ID" --gpg-options "--batch" "$DEB"
-          dpkg-sig --verify "$DEB"
+          gpg --batch --armor --detach-sign --local-user "$GPG_KEY_ID" -o "${DEB}.asc" "$DEB"
+          gpg --verify "${DEB}.asc" "$DEB"
 
       - name: Generate and sign checksums
         env:
@@ -99,14 +99,16 @@ jobs:
         run: |
           DEB=$(ls ../pve-mod_*.deb)
           echo "deb=$DEB" >> "$GITHUB_OUTPUT"
+          echo "deb_asc=${DEB}.asc" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG:      ${{ steps.version.outputs.tag }}
           DEB:      ${{ steps.assets.outputs.deb }}
+          DEB_ASC:  ${{ steps.assets.outputs.deb_asc }}
         run: |
-          ASSETS="$DEB /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
+          ASSETS="$DEB $DEB_ASC /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
           [[ -f install.sh ]] && ASSETS="$ASSETS install.sh"
 
           gh release create "$TAG" \
