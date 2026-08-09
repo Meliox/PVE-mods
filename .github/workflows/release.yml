@@ -1,7 +1,7 @@
 name: Build and Release
 
 # Triggered when debian/changelog changes on main — meaning version-bump.yml
-# just committed a new version. Builds the .deb and publishes a GitHub Release.
+# just committed a new version. Builds the .deb, signs it, and publishes a GitHub Release.
 # The actor guard ensures this only fires for the bot's changelog commit.
 
 on:
@@ -35,7 +35,13 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y debhelper dpkg-dev
+          sudo apt-get install -y debhelper dpkg-dev dpkg-sig
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
 
       - name: Inject version into Config.pm
         env:
@@ -53,6 +59,23 @@ jobs:
         run: |
           dpkg-buildpackage -us -uc -b
           ls -lh ../pve-mod_*.deb
+
+      - name: Sign deb package
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          DEB=$(ls ../pve-mod_*.deb)
+          dpkg-sig --sign builder -k "$GPG_KEY_ID" --gpg-options "--batch" "$DEB"
+          dpkg-sig --verify "$DEB"
+
+      - name: Generate and sign checksums
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          DEB=$(ls ../pve-mod_*.deb)
+          sha256sum "$DEB" > /tmp/SHA256SUMS
+          gpg --batch --armor --detach-sign --local-user "$GPG_KEY_ID" \
+            -o /tmp/SHA256SUMS.asc /tmp/SHA256SUMS
 
       - name: Extract release notes from changelog
         id: notes
@@ -85,7 +108,7 @@ jobs:
           TAG:      ${{ steps.version.outputs.tag }}
           DEB:      ${{ steps.assets.outputs.deb }}
         run: |
-          ASSETS="$DEB"
+          ASSETS="$DEB /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
           [[ -f install.sh ]] && ASSETS="$ASSETS install.sh"
 
           gh release create "$TAG" \
