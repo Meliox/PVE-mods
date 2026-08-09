@@ -109,7 +109,6 @@ jobs:
           DEB_ASC:  ${{ steps.assets.outputs.deb_asc }}
         run: |
           ASSETS="$DEB $DEB_ASC /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
-          [[ -f install.sh ]] && ASSETS="$ASSETS install.sh"
 
           gh release create "$TAG" \
             --title "pve-mod $TAG" \
