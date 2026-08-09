@@ -1,8 +1,9 @@
 name: Tag Release
 
 # Triggered when the chore/version-bump PR is merged to main.
-# debian/changelog is already on main from the merged PR — just create the tag.
-# release.yml triggers on the tag push and builds the release.
+# debian/changelog is already on main from the merged PR — just create the tag,
+# then directly invoke the Build and Release reusable workflow.
+# Using workflow_call avoids relying on GitHub tag-push event delivery.
 
 on:
   pull_request:
@@ -20,6 +21,8 @@ jobs:
     if: |
       github.event.pull_request.merged == true &&
       github.event.pull_request.head.ref == 'chore/version-bump'
+    outputs:
+      tag: ${{ steps.create_tag.outputs.tag }}
 
     steps:
       - uses: actions/checkout@v7
@@ -28,9 +31,18 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push tag
+        id: create_tag
         run: |
           VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build-and-release:
+    needs: tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit

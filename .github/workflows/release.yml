@@ -1,12 +1,22 @@
 name: Build and Release
 
-# Triggered when version-bump.yml pushes a vX.Y.Z tag.
+# Reusable workflow called by create-release-tag.yml after the tag is pushed.
 # Builds the .deb, signs it, and publishes a GitHub Release.
+# Can also be triggered manually via workflow_dispatch for re-runs.
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: "The vX.Y.Z tag that was just pushed"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The vX.Y.Z tag to release (e.g. v1.0.2)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,12 +24,11 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: github.actor == 'github-actions[bot]'
 
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -28,7 +37,7 @@ jobs:
         run: |
           VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION"    >> "$GITHUB_OUTPUT"
+          echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Install build dependencies
         run: |
@@ -84,15 +93,6 @@ jobs:
             found { print }
           ' debian/changelog | grep '^\s*\*' | sed 's/^\s*\* /- /' > /tmp/notes.md
           [[ -s /tmp/notes.md ]] || echo "- Automated release." > /tmp/notes.md
-
-      - name: Create Git tag
-        env:
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
 
       - name: Collect release assets
         id: assets
