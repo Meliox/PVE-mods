@@ -1,3 +1,9 @@
+pve-mod (1.0.1) stable; urgency=low
+
+  * 94a4355 buildtest6 (#270)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:14:06 +0000
+
 pve-mod (1.0.0) stable; urgency=low
 
   * aab6568 test 5 (#268)
