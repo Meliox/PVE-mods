@@ -42,7 +42,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y debhelper dpkg-dev
+          sudo apt-get install -y devscripts debhelper build-essential
 
       - name: Import GPG key
         env:
