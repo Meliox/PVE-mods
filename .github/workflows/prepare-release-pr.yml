@@ -59,7 +59,7 @@ jobs:
             mkdir -p .github/version-bump
             echo "${LOG:-No src/ changes since last release.}" > .github/version-bump/CHANGES.md
             git add .github/version-bump/CHANGES.md
-            git commit -m "chore: collect changes since ${LAST_TAG:-initial}"
+            git diff --cached --quiet || git commit -m "chore: collect changes since ${LAST_TAG:-initial}"
             git push --force origin chore/version-bump
           else
             # Label change: check out the existing branch, no CHANGES.md update
