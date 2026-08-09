@@ -1,15 +1,12 @@
 name: Build and Release
 
-# Triggered when debian/changelog changes on main — meaning version-bump.yml
-# just committed a new version. Builds the .deb, signs it, and publishes a GitHub Release.
-# The actor guard ensures this only fires for the bot's changelog commit.
+# Triggered when version-bump.yml pushes a vX.Y.Z tag.
+# Builds the .deb, signs it, and publishes a GitHub Release.
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'debian/changelog'
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -22,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
