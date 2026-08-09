@@ -46,24 +46,21 @@ jobs:
 
           git fetch origin main
 
+          # Collect all commits touching src/ since the last release tag (both paths need this)
+          LAST_TAG=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)
+          if [[ -n "$LAST_TAG" ]]; then
+            LOG=$(git log "${LAST_TAG}..origin/main" --oneline -- src/ | head -50)
+          else
+            LOG=$(git log origin/main --oneline -- src/ | head -50)
+          fi
+          echo "${LOG:-No src/ changes since last release.}" > /tmp/CHANGES.md
+
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # Always recreate from main — avoids rebase conflicts after PR merge
             git checkout -b chore/version-bump origin/main
-
-            # Collect all commits touching src/ since the last release tag
-            LAST_TAG=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)
-            if [[ -n "$LAST_TAG" ]]; then
-              LOG=$(git log "${LAST_TAG}..origin/main" --oneline -- src/ | head -50)
-            else
-              LOG=$(git log origin/main --oneline -- src/ | head -50)
-            fi
-            mkdir -p .github/version-bump
-            echo "${LOG:-No src/ changes since last release.}" > .github/version-bump/CHANGES.md
-            git add .github/version-bump/CHANGES.md
-            git diff --cached --quiet || git commit -m "chore: collect changes since ${LAST_TAG:-initial}"
             git push --force origin chore/version-bump
           else
-            # Label change: check out the existing branch, no CHANGES.md update
+            # Label change: check out the existing branch
             git fetch origin chore/version-bump
             git checkout chore/version-bump
           fi
@@ -119,7 +116,7 @@ jobs:
         env:
           NEW_VERSION: ${{ steps.version.outputs.new }}
         run: |
-          LOG=$(cat .github/version-bump/CHANGES.md 2>/dev/null || true)
+          LOG=$(cat /tmp/CHANGES.md 2>/dev/null || true)
           DATE=$(date -R)
           # Base on main's changelog so reruns always replace the previous bot entry cleanly
           MAIN_CHANGELOG=$(git show origin/main:debian/changelog)
@@ -146,7 +143,7 @@ jobs:
           {
             echo "## Release v${NEW_VERSION}"
             echo ""
-            cat .github/version-bump/CHANGES.md 2>/dev/null || echo "No changes recorded."
+            cat /tmp/CHANGES.md 2>/dev/null || echo "No changes recorded."
             echo ""
             echo "---"
             echo "*Change label to \`bump:minor\` or \`bump:major\` before merging if needed.*"
