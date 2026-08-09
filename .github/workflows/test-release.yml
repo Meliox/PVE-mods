@@ -20,7 +20,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y devscripts debhelper build-essential dpkg-sig
+          sudo apt-get install -y devscripts debhelper build-essential
 
       - name: Compute build version
         id: version
@@ -61,23 +61,6 @@ jobs:
           echo ""
           echo "=== Package contents ==="
           dpkg-deb --contents ../*.deb
-
-      - name: Import GPG key
-        if: env.GPG_PRIVATE_KEY != ''
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-
-      - name: Sign deb package
-        if: env.GPG_PRIVATE_KEY != ''
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-        run: |
-          DEB=$(ls ../*.deb)
-          dpkg-sig --sign builder -k "$GPG_KEY_ID" --gpg-options "--batch" "$DEB"
-          dpkg-sig --verify "$DEB"
 
       - name: Collect deb artifacts
         id: collect
