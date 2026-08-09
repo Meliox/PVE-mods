@@ -23,7 +23,7 @@ TBD PICTURE
 | Mod | Description | Dependencies |
 |--------|-------------|--------------|
 | [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node status panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally used background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `nut-client`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
-| `nag_screen`(src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
+| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
 
 ### How it works
 
