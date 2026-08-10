@@ -51,19 +51,29 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y devscripts debhelper build-essential
 
+      - name: Compute build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          BUILD_VERSION="${BASE_VERSION}+weekly.${SHORT_SHA}"
+          echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version: $BUILD_VERSION"
+
       - name: Inject version into Config.pm
         run: |
-          VERSION=$(grep -m1 '(' debian/changelog | sed 's/.*(\(.*\)).*/\1/')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          export BUILD_VERSION="${VERSION}-test-${SHORT_SHA}"
-          perl -i -pe 'BEGIN { $v = $ENV{BUILD_VERSION} }
-            s/(our \$VERSION\s*=\s*'"'"')[^'"'"']*'"'"';/$1'"'"'$v'"'"';/
-          ' src/modules/node_info/files/Config.pm
+          BUILD_VERSION="${{ steps.version.outputs.build_version }}"
+          sed -i -E "s/^our \\\$VERSION\s*=.*/our \\\$VERSION = '${BUILD_VERSION}';/" \
+            src/modules/node_info/files/Config.pm
+
+      - name: Set package version in changelog
+        run: |
+          BUILD_VERSION="${{ steps.version.outputs.build_version }}"
+          sed -i -E "0,/\(([^)]*)\)/s//(${BUILD_VERSION})/" debian/changelog
 
       - name: Generate dynamic debian rules
         run: |
           bash build/gen-rules.sh >> debian/rules
-          bash build/gen-rules.sh conffiles >> debian/pve-mod.conffiles
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
@@ -79,6 +89,9 @@ jobs:
         run: |
           set -o pipefail
           sudo bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+
+      - name: Validate source syntax
+        run: bash build/test/test-syntax.sh "${{ matrix.mod }}"
 
       - name: Report failure as issue
         if: failure()
