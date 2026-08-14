@@ -444,7 +444,16 @@ Ext.define('PVE.node.StatusView', {
                         const stats = gpuData.stats;
                         
                         let details = [];
-                        
+
+                        // GPU Utilization
+                        if (stats.utilization && stats.utilization.gpu) {
+                            const gpuUsage = parseInt(stats.utilization.gpu);
+                            let gpuStyle = '';
+                            if (gpuUsage >= 90) gpuStyle = 'color: #d9534f; font-weight: bold;';
+                            else if (gpuUsage >= 70) gpuStyle = 'color: #f0ad4e; font-weight: bold;';
+                            details.push(`<span style="${gpuStyle}">GPU: ${stats.utilization.gpu}%</span>`);
+                        }
+                                                
                         // Memory Utilization
                         if (stats.utilization && stats.utilization.memory) {
                             const memUsage = parseInt(stats.utilization.memory);
