@@ -224,8 +224,7 @@ Ext.define('PVE.node.StatusView', {
                     objValue = {};
                 }
                 // sensors configuration
-                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-
+                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
@@ -395,6 +394,12 @@ Ext.define('PVE.node.StatusView', {
                     return '';
                 }
 
+                // Create temperature helper for GPU temperature conversion
+                const gpuTempHelper = Ext.create('PVE.mod.TempHelper', {
+                    srcUnit: PVE.mod.TempHelper.CELSIUS,
+                    dstUnit: gpuStats.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS
+                });
+
                 let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
 
                 // Intel GPUs - Secondary details
@@ -467,13 +472,18 @@ Ext.define('PVE.node.StatusView', {
                         
                         // Temperature
                         if (stats.temperature) {
+                            const gpuTemp = gpuTempHelper.getTemp(parseFloat(stats.temperature.gpu));
+                            const tempUnit = gpuTempHelper.getUnit();
+                            // Convert thresholds to target unit for comparison
+                            const tempHigh = gpuTempHelper.getTemp(80);
+                            const tempWarn = gpuTempHelper.getTemp(70);
                             let tempStyle = '';
-                            if (stats.temperature.gpu >= 80) {
+                            if (gpuTemp >= tempHigh) {
                                 tempStyle = 'color: red; font-weight: bold;';
-                            } else if (stats.temperature.gpu >= 70) {
+                            } else if (gpuTemp >= tempWarn) {
                                 tempStyle = 'color: #FFC300; font-weight: bold;';
                             }
-                            details.push(`Temp: <span style="${tempStyle}">${stats.temperature.gpu}${stats.temperature.unit}</span>`);
+                            details.push(`Temp: <span style="${tempStyle}">${Ext.util.Format.number(gpuTemp, '0')}${tempUnit}</span>`);
                         }
                         
                         // Power
@@ -520,7 +530,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
@@ -600,7 +610,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
@@ -688,7 +698,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: objValue.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
