@@ -36,11 +36,20 @@ jobs:
   test:
     needs: discover
     runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix:
         mod: ${{ fromJSON(needs.discover.outputs.mods) }}
     steps:
+      # ── Base tools (mirrors validate-mods.yml) ──────────────────────────────
+      - name: Install base tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git sudo wget xz-utils dpkg nodejs perl
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -48,8 +57,8 @@ jobs:
       # ── Build (mirrors test-release.yml) ───────────────────────────────────
       - name: Install build deps
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y devscripts debhelper build-essential
+          apt-get update -qq
+          apt-get install -y devscripts debhelper build-essential
 
       - name: Compute build version
         id: version
@@ -83,12 +92,12 @@ jobs:
         run: bash build/test/fetch-proxmox-files.sh
 
       - name: Install built package
-        run: sudo apt-get install -y ../pve-mod_*.deb
+        run: apt-get install -y ../pve-mod_*.deb
 
       - name: Test mod
         run: |
           set -o pipefail
-          sudo bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+          bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
 
       - name: Validate source syntax
         run: bash build/test/test-syntax.sh "${{ matrix.mod }}"
