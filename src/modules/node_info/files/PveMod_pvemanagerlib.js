@@ -229,8 +229,8 @@ Ext.define('PVE.node.StatusView', {
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
                 const bINTEL = cpuKeysI.length > 0 ? true : false;
-                const INTELPackagePrefix = 'Core' == 'Core' ? 'Core ' : 'Package id';
-                const INTELPackageCaption = 'Core' == 'Core' ? 'Core' : 'Package';
+                const INTELPackagePrefix = value.cpu_temp_target == 'Core' ? 'Core ' : 'Package id';
+                const INTELPackageCaption = value.cpu_temp_target == 'Core' ? 'Core' : 'Package';
                 let AMDPackagePrefix = 'Tccd';
                 let AMDPackageCaption = 'CCD';
                 
