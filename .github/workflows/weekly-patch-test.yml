@@ -4,10 +4,6 @@ name: Test Patches - Weekly
 # Mods are auto-discovered from the [modules] section of src/pve-mod.conf and
 # tested in parallel - adding a mod needs no change here. If a mod fails, an
 # issue is opened (or updated) per failed mod explaining why.
-#
-# Runs in the same debian:trixie container as validate-mods.yml so the test
-# environment matches the release/validation path (Perl and other Proxmox
-# tooling deps present, no drift between the two pipelines).
 
 on:
   schedule:
