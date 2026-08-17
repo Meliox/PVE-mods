@@ -58,7 +58,6 @@ jobs:
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # Always recreate from main — avoids rebase conflicts after PR merge
             git checkout -b chore/version-bump origin/main
-            git push --force origin chore/version-bump
           else
             # Label change: check out the existing branch
             git fetch origin chore/version-bump
@@ -133,8 +132,8 @@ jobs:
             echo "$MAIN_CHANGELOG"
           } > debian/changelog
           git add debian/changelog
-          git diff --cached --quiet || git commit -m "chore: update changelog to v${NEW_VERSION}"
-          git push --force-with-lease origin chore/version-bump
+          git commit -m "chore: update changelog to v${NEW_VERSION}"
+          git push --force origin chore/version-bump
 
       - name: Build PR body
         env:
