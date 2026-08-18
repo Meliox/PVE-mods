@@ -112,7 +112,14 @@ sub notify_pve_mod_worker {
 # ============================================================================
 
 sub _worker_lock_file_exists {
-    return -f $pve_mod_worker_lock;
+    return 0 unless -f $pve_mod_worker_lock;
+    my $pid = read_lock_pid($pve_mod_worker_lock);
+    if (defined $pid && $pid =~ /^(\d+)$/ && is_process_alive($1)) {
+        return 1;
+    }
+    debug(__LINE__, "Stale or zombie worker lock found, removing it");
+    unlink($pve_mod_worker_lock);
+    return 0;
 }
 
 # Forks the worker process and records its PID in the lock file.

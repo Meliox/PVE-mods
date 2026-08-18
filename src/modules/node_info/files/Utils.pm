@@ -91,7 +91,15 @@ sub read_sysfs {
 
 sub is_process_alive {
     my ($pid) = @_;
-    return -d "/proc/$pid";
+    return 0 unless -d "/proc/$pid";
+    # A zombie still has /proc/<pid> but is dead - otherwise a stale
+    # worker lock is never cleaned up.
+    if (open my $fh, '<', "/proc/$pid/stat") {
+        my $line = <$fh>;
+        close $fh;
+        return 0 if defined $line && $line =~ /\)\s+Z\s/;
+    }
+    return 1;
 }
 
 sub read_lock_pid {
