@@ -391,7 +391,6 @@ Ext.define('PVE.node.StatusView', {
                     this.hide();
                     return '';
                 } else if (!gpuStats || !gpuStats.Graphics) {
-                    this.hide();
                     return '';
                 }
 
@@ -509,12 +508,9 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 html += '</table>';
-                if (html.indexOf('<tr>') <= 0) {
-                    this.hide();
-                    return '';
-                }
-                this.show();
-                return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
+                return html.indexOf('<tr>') > 0
+                    ? '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>'
+                    : '';
             },
         },
         {
@@ -869,7 +865,6 @@ Ext.define('PVE.node.StatusView', {
                     this.hide();
                     return '';
                 } else if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
-                    this.hide();
                     return '';
                 }
 
@@ -897,10 +892,8 @@ Ext.define('PVE.node.StatusView', {
                 });
                 
                 if (rows.length === 0) {
-                    this.hide();
                     return '';
                 }
-                this.show();
 
                 return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
             },
