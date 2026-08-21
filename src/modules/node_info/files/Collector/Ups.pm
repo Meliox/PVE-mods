@@ -112,6 +112,8 @@ sub _parse_upsc_output {
                 }
             }
         }
+
+        _normalize_ups_data($ups_data);
     };
     if ($@) {
         debug(__LINE__, "Error parsing upsc output: $@");
@@ -120,6 +122,30 @@ sub _parse_upsc_output {
     debug(__LINE__, "Completed parsing upsc output");
 
     return $ups_data;
+}
+
+# ============================================================================
+# UPS — data normalization
+# ============================================================================
+
+sub _normalize_ups_data {
+    my ($ups_data) = @_;
+
+    # Some devices report a placeholder (e.g. "OPEN") instead of a real date
+    if (defined $ups_data->{'battery.mfr.date'} && $ups_data->{'battery.mfr.date'} !~ m{^\d{4}[/-]\d{1,2}[/-]\d{1,2}$}) {
+        delete $ups_data->{'battery.mfr.date'};
+    }
+
+    # Derive real power draw for devices that don't report ups.realpower directly
+    if (!defined $ups_data->{'ups.realpower'}) {
+        if (defined $ups_data->{'ups.load'} && defined $ups_data->{'ups.realpower.nominal'}) {
+            $ups_data->{'ups.realpower'} = int((($ups_data->{'ups.load'} / 100) * $ups_data->{'ups.realpower.nominal'}) + 0.5);
+        } elsif (defined $ups_data->{'output.current'} && defined $ups_data->{'output.voltage'}) {
+            $ups_data->{'ups.realpower'} = int(($ups_data->{'output.current'} * $ups_data->{'output.voltage'}) + 0.5);
+        }
+    }
+
+    return;
 }
 
 1;
