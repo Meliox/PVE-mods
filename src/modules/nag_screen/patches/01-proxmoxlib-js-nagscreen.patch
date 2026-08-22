@@ -1,7 +1,7 @@
---- a/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
-+++ b/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
-@@ -599,37 +599,8 @@
-             Ext.Msg.alert(gettext('Error'), res.htmlStatus || res.result.message),
+--- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.orig	2026-08-22 21:11:30.401400044 +0200
++++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-08-22 21:12:57.664635944 +0200
+@@ -612,37 +612,8 @@
+             ),
  
          checked_command: function (orig_cmd) {
 -            Proxmox.Utils.API2Request({
@@ -35,8 +35,8 @@
 -                    }
 -                },
 -            });
-+            // disable subscription nag screen
-+            orig_cmd();
+++           // disable subscription nag screen
+++           orig_cmd();
          },
  
          assemble_field_data: function (values, data) {
