@@ -15,6 +15,7 @@ our @EXPORT_OK = qw(
     debug
     read_sysfs
     is_process_alive
+    get_process_ppid
     read_lock_pid
     acquire_exclusive_lock
     ensure_pve_mod_directory_exists
@@ -100,6 +101,24 @@ sub is_process_alive {
         return 0 if defined $line && $line =~ /\)\s+Z\s/;
     }
     return 1;
+}
+
+# Returns the parent PID of $pid, or undef if it can't be determined.
+sub get_process_ppid {
+    my ($pid) = @_;
+    return undef unless open my $fh, '<', "/proc/$pid/stat";
+    my $line = <$fh>;
+    close $fh;
+    return undef unless defined $line;
+
+    # comm field (2nd, in parens) can itself contain ')', so split on the
+    # last one before parsing the remaining space-separated fields.
+    my $last_paren = rindex($line, ')');
+    return undef if $last_paren < 0;
+
+    my @fields = split ' ', substr($line, $last_paren + 1);
+    return undef unless defined $fields[1] && $fields[1] =~ /^(\d+)$/;
+    return $1;
 }
 
 sub read_lock_pid {

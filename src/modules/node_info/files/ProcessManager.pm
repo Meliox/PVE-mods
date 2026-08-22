@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Exporter 'import';
 
-use POSIX qw(WNOHANG);
+use POSIX qw(WNOHANG setsid);
 use File::Path qw(remove_tree);
 
 use PVE::PVEMod::Config qw(
@@ -13,7 +13,7 @@ use PVE::PVEMod::Config qw(
     $pve_mod_worker_lock $startup_lock
 );
 use PVE::PVEMod::Utils qw(
-    debug is_process_alive read_lock_pid
+    debug is_process_alive get_process_ppid read_lock_pid
     acquire_exclusive_lock ensure_pve_mod_directory_exists
     check_executable startup_message
 );
@@ -113,16 +113,36 @@ sub notify_pve_mod_worker {
 
 sub _worker_lock_file_exists {
     return 0 unless -f $pve_mod_worker_lock;
+
     my $pid = read_lock_pid($pve_mod_worker_lock);
-    if (defined $pid && $pid =~ /^(\d+)$/ && is_process_alive($1)) {
+    if (!defined $pid || $pid !~ /^(\d+)$/) {
+        debug(__LINE__, "Worker lock is invalid (PID: " . ($pid // 'undefined') . "), removing");
+        unlink($pve_mod_worker_lock);
+        return 0;
+    }
+    my $worker_pid = $1;
+
+    if (is_process_alive($worker_pid)) {
         return 1;
     }
-    debug(__LINE__, "Stale or zombie worker lock found, removing it");
+
+    debug(__LINE__, "Stale or zombie worker lock found for PID $worker_pid, reaping if needed");
+    my $reaped_pid = waitpid($worker_pid, WNOHANG);
+    if ($reaped_pid == $worker_pid) {
+        debug(__LINE__, "Reaped stale worker PID $worker_pid");
+    } elsif ($reaped_pid == -1 && $!{ECHILD}) {
+        # Expected once the worker is double-forked: we're not its parent, init is.
+        debug(__LINE__, "PID $worker_pid is not a child of this process; treating lock as stale");
+    } else {
+        debug(__LINE__, "waitpid on PID $worker_pid returned $reaped_pid: $!");
+    }
+
     unlink($pve_mod_worker_lock);
     return 0;
 }
 
-# Forks the worker process and records its PID in the lock file.
+# Double-forks so the worker is reparented to init (PID 1) instead of the
+# caller; init reaps it on exit, so it never lingers as a <defunct> zombie.
 sub _pve_mod_worker {
     debug(__LINE__, "_pve_mod_worker called");
 
@@ -132,34 +152,57 @@ sub _pve_mod_worker {
     print $pve_mod_worker_fh "$$\n";
     close($pve_mod_worker_fh);
 
-    debug(__LINE__, "Forking new pve_mod_worker process");
-    my $pve_mod_worker_pid = fork();
+    debug(__LINE__, "Forking intermediate process for pve_mod_worker");
+    my $intermediate_pid = fork();
 
-    unless (defined $pve_mod_worker_pid) {
-        debug(__LINE__, "Failed to fork pve_mod_worker process: $!");
+    unless (defined $intermediate_pid) {
+        debug(__LINE__, "Failed to fork intermediate pve_mod_worker process: $!");
+        unlink($pve_mod_worker_lock);
         return;
     }
 
-    if ($pve_mod_worker_pid == 0) {
-        # Child
-        $0 = "pve_mod_worker_controller";
-        debug(__LINE__, "Child process forked, calling _pve_mod_keep_alive");
-        _pve_mod_keep_alive();
-        exit(0);
+    if ($intermediate_pid == 0) {
+        # Intermediate child: detach into its own session, fork the real
+        # worker, then exit immediately so the worker is reparented to init.
+        setsid();
+
+        my $worker_pid = fork();
+        unless (defined $worker_pid) {
+            debug(__LINE__, "Failed to fork pve_mod_worker process: $!");
+            unlink($pve_mod_worker_lock);
+            POSIX::_exit(1);
+        }
+
+        if ($worker_pid == 0) {
+            # Grandchild — the actual worker
+            $0 = "pve_mod_worker_controller";
+            if (open my $fh, '>', $pve_mod_worker_lock) {
+                print $fh "$$\n";
+                close $fh;
+                debug(__LINE__, "Wrote pve_mod_worker PID to lock file: $pve_mod_worker_lock");
+            } else {
+                debug(__LINE__, "Failed to write pve_mod_worker lock file: $!");
+            }
+            debug(__LINE__, "Worker process forked, calling _pve_mod_keep_alive");
+            _pve_mod_keep_alive();
+            exit(0);
+        }
+
+        debug(__LINE__, "Intermediate process exiting, worker PID $worker_pid reparented to init");
+        # _exit (not exit) so we skip END blocks/global destruction — this
+        # process only ever existed to perform the double fork.
+        POSIX::_exit(0);
     }
 
-    # Parent — update lock file with real child PID
-    debug(__LINE__, "Forked pve_mod_worker process with PID $pve_mod_worker_pid");
-    if (open my $fh, '>', $pve_mod_worker_lock) {
-        print $fh "$pve_mod_worker_pid\n";
-        close $fh;
-        debug(__LINE__, "Wrote pve_mod_worker PID to lock file: $pve_mod_worker_lock");
+    # Parent — reap the short-lived intermediate process immediately, so it
+    # never has a chance to become a zombie under us either.
+    waitpid($intermediate_pid, 0);
+    my $status = $? >> 8;
+    if ($status == 0) {
+        debug(__LINE__, "pve_mod_worker process started successfully");
     } else {
-        debug(__LINE__, "Failed to write pve_mod_worker lock file: $!");
-        kill('TERM', $pve_mod_worker_pid);
+        debug(__LINE__, "Intermediate pve_mod_worker process exited with status $status");
     }
-
-    debug(__LINE__, "pve_mod_worker process started successfully");
 }
 
 # ============================================================================
@@ -205,6 +248,8 @@ sub _pve_mod_keep_alive {
         unlink($pve_mod_worker_lock) if -f $pve_mod_worker_lock;
         exit(0);
     };
+
+    _reap_orphaned_collectors();
 
     debug(__LINE__, "Worker starting all collectors");
     _initialise_sensors_collector();
@@ -456,6 +501,74 @@ sub _stop_child_collectors {
     }
 
     debug(__LINE__, "Cleanup complete");
+}
+
+# Finds and terminates collector processes left behind by a previous worker
+# that never got to run _stop_child_collectors() (e.g. killed with SIGKILL).
+# Only targets processes reparented to init, never a running worker's own.
+sub _reap_orphaned_collectors {
+    debug(__LINE__, "Scanning for orphaned collector processes from a previous worker");
+
+    my $dh;
+    unless (opendir($dh, '/proc')) {
+        debug(__LINE__, "Failed to open /proc: $!");
+        return;
+    }
+
+    my @orphans;
+    while (my $entry = readdir($dh)) {
+        next unless $entry =~ /^(\d+)$/;
+        my $pid = $1;
+        next if $pid == $$;
+
+        next unless open(my $fh, '<', "/proc/$pid/cmdline");
+        my $cmdline = <$fh>;
+        close($fh);
+        next unless defined $cmdline;
+
+        my ($name) = split /\0/, $cmdline;
+        next unless defined $name && $name =~ /^collector-/;
+
+        my $ppid = get_process_ppid($pid);
+        next unless defined $ppid && $ppid == 1;
+
+        push @orphans, $pid;
+    }
+    closedir($dh);
+
+    unless (@orphans) {
+        debug(__LINE__, "No orphaned collectors found");
+        return;
+    }
+
+    debug(__LINE__, "Found " . scalar(@orphans) . " orphaned collector(s), terminating");
+    foreach my $pid (@orphans) {
+        kill('TERM', $pid);
+        debug(__LINE__, "Sent SIGTERM to orphaned collector PID $pid");
+    }
+
+    # Orphans are already zombies as soon as init reaps them, and kill(0,...)
+    # keeps reporting a zombie's PID as present - use is_process_alive() so we
+    # don't spin the full timeout (or send a pointless KILL) on a dead PID.
+    my $timeout = 2;
+    my $start   = time();
+    while (time() - $start < $timeout) {
+        my $any_alive = 0;
+        foreach my $pid (@orphans) {
+            if (is_process_alive($pid)) { $any_alive = 1; last; }
+        }
+        last unless $any_alive;
+        select(undef, undef, undef, 0.1);
+    }
+
+    foreach my $pid (@orphans) {
+        if (is_process_alive($pid)) {
+            debug(__LINE__, "Force killing orphaned collector process $pid");
+            kill('KILL', $pid);
+        }
+    }
+
+    debug(__LINE__, "Orphan cleanup complete");
 }
 
 # ============================================================================
