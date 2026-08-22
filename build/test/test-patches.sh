@@ -121,7 +121,7 @@ test_one_mod() {
     if [[ $ok -eq 0 ]]; then
         info "Reverting patches for '$mod'..."
         local revert_log
-        revert_log="$("$REVERT" 2>&1)"
+        revert_log="$("$REVERT" "$mod" 2>&1)"
         echo "$revert_log"
         if echo "$revert_log" | grep -qE "could not be reverted cleanly|reported an error"; then
             warn "revert-patches.sh reported an unclean revert for mod '$mod'"
