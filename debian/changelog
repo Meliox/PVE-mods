@@ -1,3 +1,14 @@
+pve-mod (1.0.7) stable; urgency=low
+
+  * c768eac fix(nag_screen): Fix nag screen patch webui line offsets (#315)
+  * 8a9b756 fix(node_info): hide GPU Details and GPU Fans when no GPU is present (#311)
+  * f754331 fix(node_info): fix stale worker lock detection for zombie processes (#306)
+  * e46734c fix(node_info): return average and core temps for intel (#302)
+  * cee8d04 feat/fix(node_info): expose temp_unit in graphics API response & fix temperature conversion (#295)
+  * 8ebc2b4 feat(node_info): add GPU utilization display with color-coded thresholds for NVIDIA GPUs (#296)
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sat, 22 Aug 2026 19:20:34 +0000
+
 pve-mod (1.0.6) stable; urgency=low
 
   * c21b973 remove buildtest file (#288)
