@@ -91,6 +91,16 @@ jobs:
       - name: Fetch upstream Proxmox files
         run: bash build/test/fetch-proxmox-files.sh
 
+      - name: Capture upstream package versions
+        id: pve_versions
+        run: |
+          PVE_MANAGER_VERSION=$(dpkg-query -W -f='${Version}' pve-manager 2>/dev/null || echo "unknown")
+          PWT_VERSION=$(dpkg-query -W -f='${Version}' proxmox-widget-toolkit 2>/dev/null || echo "unknown")
+          echo "pve_manager=${PVE_MANAGER_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "proxmox_widget_toolkit=${PWT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "pve-manager: ${PVE_MANAGER_VERSION}"
+          echo "proxmox-widget-toolkit: ${PWT_VERSION}"
+
       - name: Install built package
         run: apt-get install -y ../pve-mod_*.deb
 
@@ -111,6 +121,10 @@ jobs:
           TITLE="[patch-break] ${MOD}"
           {
             echo "The weekly patch test failed for mod \`${MOD}\` against the latest Proxmox VE files."
+            echo ""
+            echo "**Proxmox versions tested:**"
+            echo "- pve-manager: \`${{ steps.pve_versions.outputs.pve_manager }}\`"
+            echo "- proxmox-widget-toolkit: \`${{ steps.pve_versions.outputs.proxmox_widget_toolkit }}\`"
             echo ""
             echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo ""
