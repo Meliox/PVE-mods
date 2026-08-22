@@ -65,11 +65,11 @@ node_info_defaults() {
     LM_SENSORS_ENABLED=0
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
-    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
+    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
     ENABLE_GPU_HISTORY=0
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
-    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
+    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1; TEMP_UNIT="C"; IGNORE_TEMP_BELOW=5
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
@@ -104,11 +104,12 @@ node_info_load_conf() {
             lm_sensors.enable_other_temp)   ENABLE_OTHER_TEMP="$val" ;;
             lm_sensors.enable_fan_speed)    ENABLE_FAN_SPEED="$val" ;;
             lm_sensors.display_zero_speed_fans) DISPLAY_ZERO_SPEED_FANS="$val" ;;
-            lm_sensors.temp_unit)           TEMP_UNIT="$val" ;;
             ups.enabled)                    ENABLE_UPS="$val" ;;
             ups.device_name)                UPS_DEVICE_NAME="$val" ;;
             system_info.enabled)            ENABLE_SYSTEM_INFO="$val" ;;
             system_info.type)               SYSTEM_INFO_TYPE="$val" ;;
+            system_info.temp_unit)          TEMP_UNIT="$val" ;;
+            system_info.ignore_temp_below)  IGNORE_TEMP_BELOW="$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
@@ -133,11 +134,11 @@ node_info_configure() {
     LM_SENSORS_ENABLED=0
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
-    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0; TEMP_UNIT="C"
+    ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
     ENABLE_GPU_HISTORY=0
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
-    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1
+    ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1; TEMP_UNIT="C"; IGNORE_TEMP_BELOW=5
 
     local lm_sensors_ok=false
     local sensors_detected=false
@@ -294,6 +295,26 @@ node_info_configure() {
                 [fF]) TEMP_UNIT="F"; info "Using Fahrenheit." ;;
                 *)    TEMP_UNIT="C"; info "Using Celsius." ;;
             esac
+
+            msgb "\n=== Ignore threshold ==="
+            local default_c=5 default_display entered
+            if [[ "$TEMP_UNIT" == "F" ]]; then
+                default_display=$(awk -v c="$default_c" 'BEGIN{printf "%.0f", c*9/5+32}')
+            else
+                default_display="$default_c"
+            fi
+            while true; do
+                entered=$(ask "Hide temperature readings below this value (°${TEMP_UNIT}) [${default_display}]")
+                [[ -z "$entered" ]] && entered="$default_display"
+                [[ "$entered" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] && break
+                warn "Invalid number, please try again."
+            done
+            if [[ "$TEMP_UNIT" == "F" ]]; then
+                IGNORE_TEMP_BELOW=$(awk -v f="$entered" 'BEGIN{printf "%.1f", (f-32)*5/9}')
+            else
+                IGNORE_TEMP_BELOW="$entered"
+            fi
+            info "Temperature readings below ${entered}°${TEMP_UNIT} will be hidden."
         fi
         #endregion Temperature unit
     fi
@@ -478,7 +499,6 @@ enable_nvme_temp=${ENABLE_NVME_TEMP}
 enable_other_temp=${ENABLE_OTHER_TEMP}
 enable_fan_speed=${ENABLE_FAN_SPEED}
 display_zero_speed_fans=${DISPLAY_ZERO_SPEED_FANS}
-temp_unit=${TEMP_UNIT}
 
 [ups]
 enabled=${ENABLE_UPS}
@@ -487,6 +507,8 @@ device_name=${UPS_DEVICE_NAME}
 [system_info]
 enabled=${ENABLE_SYSTEM_INFO}
 type=${SYSTEM_INFO_TYPE}
+temp_unit=${TEMP_UNIT}
+ignore_temp_below=${IGNORE_TEMP_BELOW}
 
 # Debug mode: when a collector's mode is 1, the real tool is not required.
 # Data is read from the file path instead. Useful for development/testing.

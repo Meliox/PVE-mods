@@ -71,7 +71,8 @@ sub _merge_graphics_files {
             Intel     => {},
             NVIDIA    => {},
             AMD       => {},
-            temp_unit => $config{lm_sensors}{temp_unit},
+            temp_unit => $config{system_info}{temp_unit},
+            ignore_temp_below => $config{system_info}{ignore_temp_below} + 0,
         }
     };
 
@@ -135,7 +136,7 @@ sub _load_graphics_data {
         \@filepaths,
         $graphics_cache,
         \&_merge_graphics_files,
-        { Graphics => { Intel => {}, NVIDIA => {}, AMD => {}, temp_unit => $config{lm_sensors}{temp_unit} } }
+        { Graphics => { Intel => {}, NVIDIA => {}, AMD => {}, temp_unit => $config{system_info}{temp_unit}, ignore_temp_below => $config{system_info}{ignore_temp_below} + 0 } }
     );
 
     my $intel_count  = scalar(keys %{$data->{Graphics}{Intel}  // {}});

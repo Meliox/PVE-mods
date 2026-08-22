@@ -225,6 +225,7 @@ Ext.define('PVE.node.StatusView', {
                 }
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+                const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(value.ignore_temp_below));
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
@@ -304,7 +305,7 @@ Ext.define('PVE.node.StatusView', {
                                 }
                             });
                             
-                            if (!isNaN(tempVal)) {
+                            if (!isNaN(tempVal) && tempVal >= cpuIgnoreThreshold) {
                                 let tempStyle = '';
                                 if (!isNaN(tempMax) && tempVal >= tempMax) {
                                     tempStyle = 'color: #FFC300; font-weight: bold;';
@@ -483,17 +484,20 @@ Ext.define('PVE.node.StatusView', {
                         // Temperature
                         if (stats.temperature) {
                             const gpuTemp = gpuTempHelper.getTemp(parseFloat(stats.temperature.gpu));
-                            const tempUnit = gpuTempHelper.getUnit();
-                            // Convert thresholds to target unit for comparison
-                            const tempHigh = gpuTempHelper.getTemp(80);
-                            const tempWarn = gpuTempHelper.getTemp(70);
-                            let tempStyle = '';
-                            if (gpuTemp >= tempHigh) {
-                                tempStyle = 'color: red; font-weight: bold;';
-                            } else if (gpuTemp >= tempWarn) {
-                                tempStyle = 'color: #FFC300; font-weight: bold;';
+                            const gpuIgnoreThreshold = gpuTempHelper.getTemp(parseFloat(gpuStats.ignore_temp_below));
+                            if (gpuTemp >= gpuIgnoreThreshold) {
+                                const tempUnit = gpuTempHelper.getUnit();
+                                // Convert thresholds to target unit for comparison
+                                const tempHigh = gpuTempHelper.getTemp(80);
+                                const tempWarn = gpuTempHelper.getTemp(70);
+                                let tempStyle = '';
+                                if (gpuTemp >= tempHigh) {
+                                    tempStyle = 'color: red; font-weight: bold;';
+                                } else if (gpuTemp >= tempWarn) {
+                                    tempStyle = 'color: #FFC300; font-weight: bold;';
+                                }
+                                details.push(`Temp: <span style="${tempStyle}">${Ext.util.Format.number(gpuTemp, '0')}${tempUnit}</span>`);
                             }
-                            details.push(`Temp: <span style="${tempStyle}">${Ext.util.Format.number(gpuTemp, '0')}${tempUnit}</span>`);
                         }
                         
                         // Power
@@ -544,6 +548,7 @@ Ext.define('PVE.node.StatusView', {
 					objValue = {};
 				}
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
@@ -559,7 +564,7 @@ Ext.define('PVE.node.StatusView', {
 								tempCrit = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
 							}
 						});
-						if (!isNaN(tempVal)) {
+						if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 							let tempStyle = '';
 							if (!isNaN(tempMax) && tempVal >= tempMax) {
 								tempStyle = 'color: #FFC300; font-weight: bold;';
@@ -624,6 +629,7 @@ Ext.define('PVE.node.StatusView', {
 					objValue = {};
 				}
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
@@ -641,7 +647,7 @@ Ext.define('PVE.node.StatusView', {
 						model = objValue[nvmeKey]['model'] || 'Unknown';
 						serial = objValue[nvmeKey]['serial'] || '';
 						
-						if (!isNaN(tempVal)) {
+						if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 							let tempStyle = '';
 							if (!isNaN(tempMax) && tempVal >= tempMax) {
 								tempStyle = 'color: #FFC300; font-weight: bold;';
@@ -712,6 +718,7 @@ Ext.define('PVE.node.StatusView', {
 					objValue = {};
 				}
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
@@ -746,7 +753,7 @@ Ext.define('PVE.node.StatusView', {
 									}
 								});
 
-								if (!isNaN(tempVal)) {
+								if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 									let tempStyle = '';
 									if (!isNaN(tempMax) && tempVal >= tempMax) {
 										tempStyle = 'color: #FFC300; font-weight: bold;';

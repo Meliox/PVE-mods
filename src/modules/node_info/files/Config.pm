@@ -72,7 +72,6 @@ our %config = (
         enable_other_temp     => 0,
         enable_fan_speed      => 0,
         display_zero_speed_fans => 0,
-        temp_unit             => 'C',
     },
     ups => {
         enabled     => 0,
@@ -81,6 +80,8 @@ our %config = (
     system_info => {
         enabled => 0,
         type    => 1,  # 1 = System (dmidecode -t 1), 2 = Baseboard/Motherboard (dmidecode -t 2)
+        temp_unit => 'C',
+        ignore_temp_below => 5,
     },
     paths => {
         working_dir => '/run/pveproxy/pve-mod',
