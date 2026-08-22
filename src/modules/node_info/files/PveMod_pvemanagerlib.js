@@ -223,6 +223,7 @@ Ext.define('PVE.node.StatusView', {
                 } catch(e) {
                     objValue = {};
                 }
+                this.show();
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
@@ -543,6 +544,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
@@ -623,6 +625,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
@@ -711,6 +714,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
+				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 
 				// Keep only keys that do not belong to known categories
@@ -811,6 +815,7 @@ Ext.define('PVE.node.StatusView', {
                 } catch(e) {
                     objValue = {};
                 }
+                this.show();
 
                 // Recursive function to find fan keys and values
                 function findFanKeys(obj, fanKeys, parentKey = null) {
@@ -926,6 +931,7 @@ Ext.define('PVE.node.StatusView', {
                 } else if (!objValue || Object.keys(objValue).length === 0) {
                     return 'N/A';
                 }
+                this.show();
 
                 // Helper function to get status color
                 function getStatusColor(status) {
@@ -1158,6 +1164,7 @@ Ext.define('PVE.node.StatusView', {
                     this.hide();
                     return '';
                 }
+                this.show();
 
                 const titleMap = {
                     manufacturer:  'Manufacturer',
