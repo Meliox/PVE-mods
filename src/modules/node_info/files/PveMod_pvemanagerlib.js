@@ -908,188 +908,236 @@ Ext.define('PVE.node.StatusView', {
         {
 			itemId: 'upsc',
 			colspan: 2,
-			printBar: false,
 			title: gettext('UPS Status'),
 			iconCls: 'fa fa-fw fa-battery-three-quarters',
-			textField: 'PveMod_upsInfo',
+			valueField: 'PveMod_upsInfo',
+			printBar: true,
+			warningThreshold: 1.1,
+			criticalThreshold: 1.2,
+			layout: {
+				type: 'vbox',
+				align: 'stretch',
+			},
+			items: [
+				{
+					xtype: 'component',
+					itemId: 'label',
+					data: {
+						title: '',
+						usage: '',
+						iconCls: undefined,
+					},
+					tpl: [
+						'<div class="left-aligned">',
+						'<tpl if="iconCls">',
+						'<i class="{iconCls}"></i> ',
+						'</tpl>',
+						'{title}</div>',
+					],
+				},
+				{
+					xtype: 'container',
+					layout: {
+						type: 'hbox',
+						align: 'middle',
+					},
+					items: [
+						{
+							xtype: 'component',
+							itemId: 'usageText',
+							flex: 1,
+							minWidth: 0,
+							margin: '0 16 0 0',
+						},
+						{
+							xtype: 'progressbar',
+							itemId: 'progress',
+							flex: 1,
+							minWidth: 0,
+							height: 5,
+							value: 0,
+							animate: true,
+						},
+					],
+				},
+			],
+			initComponent: function() {
+				var me = this;
+				if (!me.title) {
+					throw 'no title defined';
+				}
+				Ext.container.Container.prototype.initComponent.call(me);
+				var progress = me.down('#progress');
+				if (progress) {
+					progress.setVisible(!!me.printBar);
+				}
+				me.updateValue(me.text, me.value);
+				me.setIconCls(me.iconCls);
+			},
+			setPrintBar: function(enable) {
+				var me = this;
+				me.printBar = enable;
+				var progress = me.down('#progress');
+				if (progress) {
+					progress.setVisible(enable);
+				}
+			},
+			updateValue: function(text, usage) {
+				var me = this;
+				if (me.lastText === text && me.lastUsage === usage) {
+					return;
+				}
+				me.lastText = text;
+				me.lastUsage = usage;
+
+				var label = me.getComponent('label');
+				if (label) {
+					label.update(Ext.apply(label.data, { title: me.title, usage: '' }));
+				}
+
+				var usageText = me.down('#usageText');
+				if (usageText) {
+					if (usageText.setHtml) {
+						usageText.setHtml(text || '');
+					} else {
+						usageText.update(text || '');
+					}
+				}
+
+				var progressBar = me.down('#progress');
+				if (usage !== undefined && me.printBar && Ext.isNumeric(usage) && usage >= 0 && progressBar) {
+					progressBar.updateProgress(usage, '');
+					if (usage > me.criticalThreshold) {
+						progressBar.removeCls('warning');
+						progressBar.addCls('critical');
+					} else if (usage > me.warningThreshold) {
+						progressBar.removeCls('critical');
+						progressBar.addCls('warning');
+					} else {
+						progressBar.removeCls('warning');
+						progressBar.removeCls('critical');
+					}
+				}
+			},
+			calculate: function(used) {
+				if (!used || used.disabled === true || typeof used !== 'object') {
+					return 0;
+				}
+				let charge = NaN;
+				Object.keys(used).forEach(function(k) {
+					const row = used[k];
+					if (row && typeof row === 'object' && row['battery.charge'] != null) {
+						charge = parseFloat(row['battery.charge']);
+					}
+				});
+				if (isNaN(charge)) {
+					return 0;
+				}
+				return Math.max(0, Math.min(1, charge / 100));
+			},
 			renderer: function(value) {
-                let objValue;
-                try {
-                    objValue = value || {};
-                } catch(e) {
-                    objValue = {};
-                }
+				let objValue;
+				try {
+					objValue = value || {};
+				} catch (e) {
+					objValue = {};
+				}
 
-                if (objValue.disabled === true) {
-                    this.hide();
-                    return '';
-                } else if (!objValue || Object.keys(objValue).length === 0) {
-                    return 'N/A';
-                }
+				if (objValue.disabled === true) {
+					this.hide();
+					this.setPrintBar(false);
+					return '';
+				}
 
-                // Helper function to get status color
-                function getStatusColor(status) {
-                    if (!status) return '#999';
-                    const statusUpper = status.toUpperCase();
-                    if (statusUpper.includes('OL')) return null;
-                    if (statusUpper.includes('OB')) return '#d9534f';
-                    if (statusUpper.includes('LB')) return '#d9534f';
-                    return '#f0ad4e';
-                }
+				const upsKeys = Object.keys(objValue).filter(function(k) {
+					return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
+				});
+				if (!upsKeys.length) {
+					this.hide();
+					this.setPrintBar(false);
+					return '';
+				}
+				this.show();
+				this.setPrintBar(true);
 
-                // Helper function to get load/charge color
-                function getPercentageColor(value, isLoad = false) {
-                    if (!value || isNaN(value)) return '#999';
-                    const num = parseFloat(value);
-                    if (isLoad) {
-                        if (num >= 80) return '#d9534f';
-                        if (num >= 60) return '#f0ad4e';
-                        return null;
-                    } else {
-                        if (num <= 20) return '#d9534f';
-                        if (num <= 50) return '#f0ad4e';
-                        return null;
-                    }
-                }
+				function formatRuntime(seconds) {
+					const s = parseInt(seconds, 10);
+					if (!s || isNaN(s)) {
+						return null;
+					}
+					const h = Math.floor(s / 3600);
+					const m = Math.floor((s % 3600) / 60);
+					if (h > 0) {
+						return h + 'h ' + m + 'm';
+					}
+					return m + 'm';
+				}
 
-                // Helper function to format runtime
-                function formatRuntime(seconds) {
-                    if (!seconds || isNaN(seconds)) return 'N/A';
-                    const mins = Math.floor(seconds / 60);
-                    const secs = seconds % 60;
-                    return `${mins}m ${secs}s`;
-                }
+				function statusText(upsStatus) {
+					const u = String(upsStatus || '').toUpperCase();
+					if (u.indexOf('LB') >= 0) {
+						return { text: 'Low Battery', color: '#d9534f' };
+					}
+					if (u.indexOf('OB') >= 0) {
+						return { text: 'On Battery', color: '#d9534f' };
+					}
+					if (u.indexOf('FSD') >= 0) {
+						return { text: 'Shutdown', color: '#d9534f' };
+					}
+					if (u.indexOf('OL') >= 0) {
+						return {
+							text: u.indexOf('CHRG') >= 0 ? 'Online, charging' : 'Online',
+							color: null,
+						};
+					}
+					return { text: upsStatus || 'Unknown', color: '#f0ad4e' };
+				}
 
-                // Process each UPS in the data
-                let allDisplayItems = [];
-                
-                Object.keys(objValue).forEach(upsKey => {
-                    const upsData = objValue[upsKey];
-                    
-                    // Extract key UPS information
-                    const batteryCharge = upsData['battery.charge'];
-                    const batteryRuntime = upsData['battery.runtime'];
-                    const inputVoltage = upsData['input.voltage'];
-                    const upsLoad = upsData['ups.load'];
-                    const upsStatus = upsData['ups.status'];
-                    const upsModel = upsData['ups.model'] || upsData['device.model'];
-                    const testResult = upsData['ups.test.result'];
-                    const batteryChargeLow = upsData['battery.charge.low'];
-                    const batteryRuntimeLow = upsData['battery.runtime.low'];
-                    const upsRealPowerNominal = upsData['ups.realpower.nominal'];
-                    const batteryMfrDate = upsData['battery.mfr.date'];
+				function colorize(label, color) {
+					if (!color) {
+						return label;
+					}
+					return '<span style="color:' + color + ';">' + label + '</span>';
+				}
 
-                    // Main status line with all metrics
-                    let statusLine = '';
+				const lines = [];
+				upsKeys.forEach(function(upsKey) {
+					const upsData = objValue[upsKey] || {};
+					const charge = parseFloat(upsData['battery.charge']);
+					const runtime = formatRuntime(upsData['battery.runtime']);
+					const inputVoltage = parseFloat(upsData['input.voltage']);
+					const load = parseFloat(upsData['ups.load']);
+					const watts = parseFloat(upsData['ups.realpower']);
+					const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
+					const st = statusText(upsData['ups.status']);
+					const bits = [];
+					if (model) {
+						bits.push(model);
+					}
+					if (st.text) {
+						bits.push(colorize(st.text, st.color));
+					}
+					if (!isNaN(charge)) {
+						bits.push('Battery ' + Math.round(charge) + '%');
+					}
+					if (!isNaN(watts)) {
+						bits.push(Math.round(watts) + ' W');
+					}
+					if (!isNaN(load)) {
+						bits.push('Load ' + Math.round(load) + '%');
+					}
+					if (runtime) {
+						bits.push(runtime + ' left');
+					}
+					if (!isNaN(inputVoltage)) {
+						const places = inputVoltage >= 50 ? 0 : 1;
+						bits.push(inputVoltage.toFixed(places) + ' V in');
+					}
+					lines.push(bits.join(' | '));
+				});
 
-                    // Status
-                    if (upsStatus) {
-                        const statusUpper = upsStatus.toUpperCase();
-                        let statusText = 'Unknown';
-                        let statusColor = '#f0ad4e';
-
-                        if (statusUpper.includes('OL')) {
-                            statusText = 'Online';
-                            statusColor = null;
-                        } else if (statusUpper.includes('OB')) {
-                            statusText = 'On Battery';
-                            statusColor = '#d9534f';
-                        } else if (statusUpper.includes('LB')) {
-                            statusText = 'Low Battery';
-                            statusColor = '#d9534f';
-                        } else {
-                            statusText = upsStatus;
-                            statusColor = '#f0ad4e';
-                        }
-
-                        let statusStyle = statusColor ? ('color: ' + statusColor + ';') : '';
-                        statusLine += 'Status: <span style="' + statusStyle + '">' + statusText + '</span>';
-                    } else {
-                        statusLine += 'Status: <span>N/A</span>';
-                    }
-
-                    // Battery charge
-                    if (statusLine) statusLine += ' | ';
-                    if (batteryCharge) {
-                        const chargeColor = getPercentageColor(batteryCharge, false);
-                        let chargeStyle = chargeColor ? ('color: ' + chargeColor + ';') : '';
-                        statusLine += 'Battery: <span style="' + chargeStyle + '">' + batteryCharge + '%</span>';
-                    } else {
-                        statusLine += 'Battery: <span>N/A</span>';
-                    }
-
-                    // Load percentage
-                    if (statusLine) statusLine += ' | ';
-                    if (upsLoad) {
-                        const loadColor = getPercentageColor(upsLoad, true);
-                        let loadStyle = loadColor ? ('color: ' + loadColor + ';') : '';
-                        statusLine += 'Load: <span style="' + loadStyle + '">' + upsLoad + '%</span>';
-                    } else {
-                        statusLine += 'Load: <span>N/A</span>';
-                    }
-
-                    // Runtime
-                    if (statusLine) statusLine += ' | ';
-                    if (batteryRuntime) {
-                        const runtime = parseInt(batteryRuntime);
-                        const runtimeLowThreshold = batteryRuntimeLow ? parseInt(batteryRuntimeLow) : 600;
-                        let runtimeColor = null;
-                        if (runtime <= runtimeLowThreshold / 2) runtimeColor = '#d9534f';
-                        else if (runtime <= runtimeLowThreshold) runtimeColor = '#f0ad4e';
-                        let runtimeStyle = runtimeColor ? ('color: ' + runtimeColor + ';') : '';
-                        statusLine += 'Runtime: <span style="' + runtimeStyle + '">' + formatRuntime(runtime) + '</span>';
-                    } else {
-                        statusLine += 'Runtime: <span>N/A</span>';
-                    }
-
-                    // Input voltage
-                    if (statusLine) statusLine += ' | ';
-                    if (inputVoltage) {
-                        statusLine += 'Input: <span>' + parseFloat(inputVoltage).toFixed(0) + 'V</span>';
-                    } else {
-                        statusLine += 'Input: <span>N/A</span>';
-                    }
-
-                    // Calculate actual watt usage
-                    if (statusLine) statusLine += ' | ';
-                    let actualWattage = null;
-                    if (upsLoad && upsRealPowerNominal) {
-                        const load = parseFloat(upsLoad);
-                        const nominal = parseFloat(upsRealPowerNominal);
-                        if (!isNaN(load) && !isNaN(nominal)) {
-                            actualWattage = Math.round((load / 100) * nominal);
-                        }
-                    }
-
-                    // Real power (calculated watt usage)
-                    if (actualWattage !== null) {
-                        statusLine += 'Output: <span>' + actualWattage + 'W</span>';
-                    } else {
-                        statusLine += 'Output: <span>N/A</span>';
-                    }
-
-                    // Append battery MFD + last test to the same line (single-line UPS summary)
-                    statusLine += ' | Battery MFD: ' + (batteryMfrDate || 'N/A');
-                    if (testResult && !testResult.toLowerCase().includes('no test')) {
-                        const testColor = testResult.toLowerCase().includes('passed') ? null : '#d9534f';
-                        let testStyle = testColor ? ('color: ' + testColor + ';') : '';
-                        statusLine += ' | <span style="' + testStyle + '">Test: ' + testResult + '</span>';
-                    } else {
-                        statusLine += ' | Test: N/A';
-                    }
-                    
-                    // Build UPS display with model on left, details on right
-                    let upsHtml = '<tr>';
-                    upsHtml += '<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + (upsModel || upsKey) + '</td>';
-                    upsHtml += '<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">' + statusLine + '</td>';
-                    upsHtml += '</tr>';
-                    
-                    allDisplayItems.push(upsHtml);
-                });
-
-                // Format the final output for all UPS devices
-                return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + allDisplayItems.join('') + '</table></div>';
-            }
+				return lines.join('<br>');
+			}
 		},
         {
             xtype: 'box',
