@@ -509,7 +509,8 @@ sub _stop_child_collectors {
 sub _reap_orphaned_collectors {
     debug(__LINE__, "Scanning for orphaned collector processes from a previous worker");
 
-    unless (opendir(my $dh, '/proc')) {
+    my $dh;
+    unless (opendir($dh, '/proc')) {
         debug(__LINE__, "Failed to open /proc: $!");
         return;
     }
@@ -546,19 +547,22 @@ sub _reap_orphaned_collectors {
         debug(__LINE__, "Sent SIGTERM to orphaned collector PID $pid");
     }
 
+    # Orphans are already zombies as soon as init reaps them, and kill(0,...)
+    # keeps reporting a zombie's PID as present - use is_process_alive() so we
+    # don't spin the full timeout (or send a pointless KILL) on a dead PID.
     my $timeout = 2;
     my $start   = time();
     while (time() - $start < $timeout) {
         my $any_alive = 0;
         foreach my $pid (@orphans) {
-            if (kill(0, $pid)) { $any_alive = 1; last; }
+            if (is_process_alive($pid)) { $any_alive = 1; last; }
         }
         last unless $any_alive;
         select(undef, undef, undef, 0.1);
     }
 
     foreach my $pid (@orphans) {
-        if (kill(0, $pid)) {
+        if (is_process_alive($pid)) {
             debug(__LINE__, "Force killing orphaned collector process $pid");
             kill('KILL', $pid);
         }
