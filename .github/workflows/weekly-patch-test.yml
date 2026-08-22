@@ -145,8 +145,9 @@ jobs:
             --jq ".[] | select(.title==\"$TITLE\") | .number" | head -n1)
 
           if [[ -n "$EXISTING" ]]; then
+            gh issue edit "$EXISTING" --body-file issue-body.md
             gh issue comment "$EXISTING" --body-file issue-body.md
-            echo "Commented on existing issue #$EXISTING"
+            echo "Updated and commented on existing issue #$EXISTING"
           else
             gh issue create --title "$TITLE" --label patch-break --body-file issue-body.md
             echo "Opened new issue for mod $MOD"
