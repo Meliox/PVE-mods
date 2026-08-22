@@ -899,242 +899,297 @@ Ext.define('PVE.node.StatusView', {
             },
         },
         {
-			itemId: 'upsc',
-			colspan: 2,
-			title: gettext('UPS Status'),
-			iconCls: 'fa fa-fw fa-battery-three-quarters',
-			valueField: 'PveMod_upsInfo',
-			printBar: true,
-			warningThreshold: 1.1,
-			criticalThreshold: 1.2,
-			layout: {
-				type: 'vbox',
-				align: 'stretch',
-			},
-			items: [
-				{
-					xtype: 'component',
-					itemId: 'label',
-					data: {
-						title: '',
-						usage: '',
-						iconCls: undefined,
-					},
-					tpl: [
-						'<div class="left-aligned">',
-						'<tpl if="iconCls">',
-						'<i class="{iconCls}"></i> ',
-						'</tpl>',
-						'{title}</div>',
-					],
-				},
-				{
-					xtype: 'container',
-					layout: {
-						type: 'hbox',
-						align: 'middle',
-					},
-					items: [
-						{
-							xtype: 'component',
-							itemId: 'usageText',
-							flex: 1,
-							minWidth: 0,
-							margin: '0 16 0 0',
-						},
-						{
-							xtype: 'progressbar',
-							itemId: 'progress',
-							flex: 1,
-							minWidth: 0,
-							height: 5,
-							value: 0,
-							animate: true,
-						},
-					],
-				},
-			],
-			initComponent: function() {
-				var me = this;
-				if (!me.title) {
-					throw 'no title defined';
-				}
-				Ext.container.Container.prototype.initComponent.call(me);
-				var progress = me.down('#progress');
-				if (progress) {
-					progress.setVisible(!!me.printBar);
-				}
-				me.updateValue(me.text, me.value);
-				me.setIconCls(me.iconCls);
-			},
-			setPrintBar: function(enable) {
-				var me = this;
-				me.printBar = enable;
-				var progress = me.down('#progress');
-				if (progress) {
-					progress.setVisible(enable);
-				}
-			},
-			updateValue: function(text, usage) {
-				var me = this;
-				if (me.lastText === text && me.lastUsage === usage) {
-					return;
-				}
-				me.lastText = text;
-				me.lastUsage = usage;
+            itemId: 'upsc',
+            colspan: 2,
+            title: gettext('UPS Status'),
+            iconCls: 'fa fa-fw fa-battery-three-quarters',
+            valueField: 'PveMod_upsInfo',
+            printBar: true,
+            warningThreshold: 1.1,
+            criticalThreshold: 1.2,
+            layout: {
+                type: 'vbox',
+                align: 'stretch',
+            },
+            items: [
+                {
+                    xtype: 'component',
+                    itemId: 'label',
+                    data: {
+                        title: '',
+                        usage: '',
+                        iconCls: undefined,
+                    },
+                    tpl: [
+                        '<div class="left-aligned">',
+                        '<tpl if="iconCls">',
+                        '<i class="{iconCls}"></i> ',
+                        '</tpl>',
+                        '{title}</div>',
+                    ],
+                },
+                {
+                    xtype: 'container',
+                    layout: {
+                        type: 'hbox',
+                        align: 'middle',
+                    },
+                    items: [
+                        {
+                            xtype: 'component',
+                            itemId: 'usageText',
+                            flex: 1,
+                            minWidth: 0,
+                            margin: '0 16 0 0',
+                        },
+                        {
+                            xtype: 'container',
+                            flex: 1,
+                            minWidth: 0,
+                            layout: {
+                                type: 'vbox',
+                                align: 'stretch',
+                            },
+                            items: [
+                                {
+                                    xtype: 'component',
+                                    itemId: 'loadText',
+                                    margin: '0 0 2 0',
+                                },
+                                {
+                                    xtype: 'progressbar',
+                                    itemId: 'progress',
+                                    height: 5,
+                                    value: 0,
+                                    animate: true,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            initComponent: function() {
+                var me = this;
+                if (!me.title) {
+                    throw 'no title defined';
+                }
+                Ext.container.Container.prototype.initComponent.call(me);
+                var progress = me.down('#progress');
+                if (progress) {
+                    progress.setVisible(!!me.printBar);
+                }
+                me.updateValue(me.text, me.value);
+                me.setIconCls(me.iconCls);
+            },
+            setPrintBar: function(enable) {
+                var me = this;
+                me.printBar = enable;
+                var progress = me.down('#progress');
+                if (progress) {
+                    progress.setVisible(enable);
+                }
+            },
+            // Single source of truth for all DOM writes — called once per refresh
+            // cycle, right after renderer() returns. renderer() only computes data;
+            // it never touches the DOM, so there's no race/flash between the two.
+            updateValue: function(text, usage) {
+                var me = this;
+                var loadText = me._pendingLoadText || '';
 
-				var label = me.getComponent('label');
-				if (label) {
-					label.update(Ext.apply(label.data, { title: me.title, usage: '' }));
-				}
+                if (me.lastText === text && me.lastUsage === usage && me.lastLoadText === loadText) {
+                    return;
+                }
+                me.lastText = text;
+                me.lastUsage = usage;
+                me.lastLoadText = loadText;
 
-				var usageText = me.down('#usageText');
-				if (usageText) {
-					if (usageText.setHtml) {
-						usageText.setHtml(text || '');
-					} else {
-						usageText.update(text || '');
-					}
-				}
+                var label = me.getComponent('label');
+                if (label) {
+                    label.update(Ext.apply(label.data, { title: me.title, usage: '' }));
+                }
 
-				var progressBar = me.down('#progress');
-				if (usage !== undefined && me.printBar && Ext.isNumeric(usage) && usage >= 0 && progressBar) {
-					progressBar.updateProgress(usage, '');
-					if (usage > me.criticalThreshold) {
-						progressBar.removeCls('warning');
-						progressBar.addCls('critical');
-					} else if (usage > me.warningThreshold) {
-						progressBar.removeCls('critical');
-						progressBar.addCls('warning');
-					} else {
-						progressBar.removeCls('warning');
-						progressBar.removeCls('critical');
-					}
-				}
-			},
-			calculate: function(used) {
-				if (!used || used.disabled === true || typeof used !== 'object') {
-					return 0;
-				}
-				let charge = NaN;
-				Object.keys(used).forEach(function(k) {
-					const row = used[k];
-					if (row && typeof row === 'object' && row['battery.charge'] != null) {
-						charge = parseFloat(row['battery.charge']);
-					}
-				});
-				if (isNaN(charge)) {
-					return 0;
-				}
-				return Math.max(0, Math.min(1, charge / 100));
-			},
-			renderer: function(value) {
-				let objValue;
-				try {
-					objValue = value || {};
-				} catch (e) {
-					objValue = {};
-				}
+                var usageText = me.down('#usageText');
+                if (usageText) {
+                    if (usageText.setHtml) {
+                        usageText.setHtml(text || '');
+                    } else {
+                        usageText.update(text || '');
+                    }
+                }
 
-				if (objValue.disabled === true) {
-					this.hide();
-					this.setPrintBar(false);
-					return '';
-				}
+                var loadTextCmp = me.down('#loadText');
+                if (loadTextCmp) {
+                    if (loadTextCmp.setHtml) {
+                        loadTextCmp.setHtml(loadText);
+                    } else {
+                        loadTextCmp.update(loadText);
+                    }
+                }
 
-				const upsKeys = Object.keys(objValue).filter(function(k) {
-					return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
-				});
-				if (!upsKeys.length) {
-					this.hide();
-					this.setPrintBar(false);
-					return '';
-				}
-				this.show();
-				this.setPrintBar(true);
+                var progressBar = me.down('#progress');
+                if (usage !== undefined && me.printBar && Ext.isNumeric(usage) && usage >= 0 && progressBar) {
+                    progressBar.updateProgress(usage, '');
+                    if (usage > me.criticalThreshold) {
+                        progressBar.removeCls('warning');
+                        progressBar.addCls('critical');
+                    } else if (usage > me.warningThreshold) {
+                        progressBar.removeCls('critical');
+                        progressBar.addCls('warning');
+                    } else {
+                        progressBar.removeCls('warning');
+                        progressBar.removeCls('critical');
+                    }
+                }
+            },
+            // Drives the progress bar's fill — based on battery.charge.
+            calculate: function(used) {
+                if (!used || used.disabled === true || typeof used !== 'object') {
+                    return 0;
+                }
+                let charge = NaN;
+                Object.keys(used).forEach(function(k) {
+                    const row = used[k];
+                    if (row && typeof row === 'object' && row['battery.charge'] != null) {
+                        charge = parseFloat(row['battery.charge']);
+                    }
+                });
+                if (isNaN(charge)) {
+                    return 0;
+                }
+                return Math.max(0, Math.min(1, charge / 100));
+            },
+            // Pure computation — no DOM writes. Stashes the "Battery capacity ...
+            // X% (Runtime: ...)" line for updateValue to place above the bar, and
+            // returns a 30/70 table (model | other info incl. Load) wrapped in the
+            // standard indent div, matching the other widgets in this panel.
+            renderer: function(value) {
+                let objValue;
+                try {
+                    objValue = value || {};
+                } catch (e) {
+                    objValue = {};
+                }
 
-				function formatRuntime(seconds) {
-					const s = parseInt(seconds, 10);
-					if (!s || isNaN(s)) {
-						return null;
-					}
-					const h = Math.floor(s / 3600);
-					const m = Math.floor((s % 3600) / 60);
-					if (h > 0) {
-						return h + 'h ' + m + 'm';
-					}
-					return m + 'm';
-				}
+                if (objValue.disabled === true) {
+                    this.hide();
+                    this.setPrintBar(false);
+                    return '';
+                }
 
-				function statusText(upsStatus) {
-					const u = String(upsStatus || '').toUpperCase();
-					if (u.indexOf('LB') >= 0) {
-						return { text: 'Low Battery', color: '#d9534f' };
-					}
-					if (u.indexOf('OB') >= 0) {
-						return { text: 'On Battery', color: '#d9534f' };
-					}
-					if (u.indexOf('FSD') >= 0) {
-						return { text: 'Shutdown', color: '#d9534f' };
-					}
-					if (u.indexOf('OL') >= 0) {
-						return {
-							text: u.indexOf('CHRG') >= 0 ? 'Online, charging' : 'Online',
-							color: null,
-						};
-					}
-					return { text: upsStatus || 'Unknown', color: '#f0ad4e' };
-				}
+                const upsKeys = Object.keys(objValue).filter(function(k) {
+                    return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
+                });
+                if (!upsKeys.length) {
+                    this.hide();
+                    this.setPrintBar(false);
+                    return '';
+                }
+                this.show();
+                this.setPrintBar(true);
 
-				function colorize(label, color) {
-					if (!color) {
-						return label;
-					}
-					return '<span style="color:' + color + ';">' + label + '</span>';
-				}
+                function formatRuntime(seconds) {
+                    const s = parseInt(seconds, 10);
+                    if (!s || isNaN(s)) {
+                        return null;
+                    }
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    if (h > 0) {
+                        return h + 'h ' + m + 'm';
+                    }
+                    return m + 'm';
+                }
 
-				const rows = [];
-				upsKeys.forEach(function(upsKey) {
-					const upsData = objValue[upsKey] || {};
-					const charge = parseFloat(upsData['battery.charge']);
-					const runtime = formatRuntime(upsData['battery.runtime']);
-					const inputVoltage = parseFloat(upsData['input.voltage']);
-					const load = parseFloat(upsData['ups.load']);
-					const watts = parseFloat(upsData['ups.realpower']);
-					const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
-					const st = statusText(upsData['ups.status']);
-					const bits = [];
-					if (st.text) {
-						bits.push(colorize(st.text, st.color));
-					}
-					if (!isNaN(charge)) {
-						bits.push('Battery ' + Math.round(charge) + '%');
-					}
-					if (!isNaN(watts)) {
-						bits.push(Math.round(watts) + ' W');
-					}
-					if (!isNaN(load)) {
-						bits.push('Load ' + Math.round(load) + '%');
-					}
-					if (runtime) {
-						bits.push(runtime + ' left');
-					}
-					if (!isNaN(inputVoltage)) {
-						const places = inputVoltage >= 50 ? 0 : 1;
-						bits.push(inputVoltage.toFixed(places) + ' V in');
-					}
-					
-					rows.push(
-						'<tr>' +
-						'<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + '</td>' +
-						'<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">' + bits.join(' | ') + '</td>' +
-						'</tr>'
-					);
-				});
+                function statusText(upsStatus) {
+                    const u = String(upsStatus || '').toUpperCase();
+                    if (u.indexOf('LB') >= 0) {
+                        return { text: 'Low Battery', color: '#d9534f' };
+                    }
+                    if (u.indexOf('OB') >= 0) {
+                        return { text: 'On Battery', color: '#d9534f' };
+                    }
+                    if (u.indexOf('FSD') >= 0) {
+                        return { text: 'Shutdown', color: '#d9534f' };
+                    }
+                    if (u.indexOf('OL') >= 0) {
+                        return {
+                            text: u.indexOf('CHRG') >= 0 ? 'Online, charging' : 'Online',
+                            color: null,
+                        };
+                    }
+                    return { text: upsStatus || 'Unknown', color: '#f0ad4e' };
+                }
 
-				return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
-			}
-		},
+                function colorize(label, color) {
+                    if (!color) {
+                        return label;
+                    }
+                    return '<span style="color:' + color + ';">' + label + '</span>';
+                }
+
+                let aboveBarText = '';
+                const rows = [];
+
+                upsKeys.forEach(function(upsKey) {
+                    const upsData = objValue[upsKey] || {};
+                    const charge = parseFloat(upsData['battery.charge']);
+                    const runtime = formatRuntime(upsData['battery.runtime']);
+                    const inputVoltage = parseFloat(upsData['input.voltage']);
+                    const load = parseFloat(upsData['ups.load']);
+                    const watts = parseFloat(upsData['ups.realpower']);
+                    const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
+                    const st = statusText(upsData['ups.status']);
+                    const testResult = upsData['ups.test.result'];
+                    const manufacturingDate = upsData['battery.mfr.date'];
+
+                    // Above the bar: "Battery capacity" on the left, charge% (Runtime: ...) on the right.
+                    let rightSide = !isNaN(charge) ? (Math.round(charge) + '%') : '';
+                    if (runtime) {
+                        rightSide += (rightSide ? ' ' : '') + '(Runtime: ' + runtime + ' left)';
+                    }
+                    aboveBarText =
+                        '<div style="display: flex; justify-content: space-between; gap: 8px;">' +
+                        '<span>Battery capacity</span>' +
+                        '<span style="text-align: right;">' + rightSide + '</span>' +
+                        '</div>';
+
+                    // General information table: Status, Output, Input, Load, Test.
+                    const infoBits = [];
+                    if (st.text) {
+                        infoBits.push('Status: ' + colorize(st.text, st.color));
+                    }
+                    if (!isNaN(watts)) {
+                        infoBits.push('Output: ' + Math.round(watts) + 'W');
+                    }
+                    if (!isNaN(inputVoltage)) {
+                        const places = inputVoltage >= 50 ? 0 : 1;
+                        infoBits.push('Input: ' + inputVoltage.toFixed(places) + ' V');
+                    }
+                    if (!isNaN(load)) {
+                        infoBits.push('Load: ' + Math.round(load) + '%');
+                    }
+                    if (manufacturingDate) {
+                        infoBits.push('Manufacturing Date: ' + manufacturingDate);
+                    }
+                    if (testResult) {
+                        infoBits.push('Test: ' + testResult);
+                    }
+
+                    rows.push(
+                        '<tr>' +
+                        '<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + '</td>' +
+                        '<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">' + infoBits.join(' | ') + '</td>' +
+                        '</tr>'
+                    );
+                });
+
+                // Stash for updateValue to consume — no DOM writes here.
+                this._pendingLoadText = aboveBarText;
+
+                // Becomes the `text` argument passed to updateValue (left column table).
+                return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
+            }
+        },
         {
             xtype: 'box',
             colspan: 2,
