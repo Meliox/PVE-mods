@@ -1093,7 +1093,7 @@ Ext.define('PVE.node.StatusView', {
 					return '<span style="color:' + color + ';">' + label + '</span>';
 				}
 
-				const lines = [];
+				const rows = [];
 				upsKeys.forEach(function(upsKey) {
 					const upsData = objValue[upsKey] || {};
 					const charge = parseFloat(upsData['battery.charge']);
@@ -1104,9 +1104,6 @@ Ext.define('PVE.node.StatusView', {
 					const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
 					const st = statusText(upsData['ups.status']);
 					const bits = [];
-					if (model) {
-						bits.push(model);
-					}
 					if (st.text) {
 						bits.push(colorize(st.text, st.color));
 					}
@@ -1126,10 +1123,16 @@ Ext.define('PVE.node.StatusView', {
 						const places = inputVoltage >= 50 ? 0 : 1;
 						bits.push(inputVoltage.toFixed(places) + ' V in');
 					}
-					lines.push(bits.join(' | '));
+					
+					rows.push(
+						'<tr>' +
+						'<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + '</td>' +
+						'<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">' + bits.join(' | ') + '</td>' +
+						'</tr>'
+					);
 				});
 
-				return lines.join('<br>');
+				return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
 			}
 		},
         {
