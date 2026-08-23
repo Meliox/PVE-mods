@@ -1090,21 +1090,17 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 if (objValue.disabled === true) {
-                    this.hide();
                     this.setPrintBar(false);
                     return '';
                 }
-                this.show();
 
                 const upsKeys = Object.keys(objValue).filter(function(k) {
                     return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
                 });
                 if (!upsKeys.length) {
-                    this.hide();
                     this.setPrintBar(false);
                     return '';
                 }
-                this.show();
                 this.setPrintBar(true);
 
                 function formatRuntime(seconds) {
