@@ -335,9 +335,13 @@ sub _get_cpu_name {
                 my $pci_pattern = $pci_addr;
 
                 if ($pci_addr =~ /^([0-9a-f]{2})([0-9a-f]{2})$/i) {
-                    my ($bus, $dev_func) = ($1, $2);
+                    my ($bus, $devfn_hex) = ($1, $2);
+                    my $devfn = hex($devfn_hex);
+                    my $dev   = $devfn >> 3;
+                    my $func  = $devfn & 0x7;
+
                     $pci_pattern =
-                        sprintf("%04x:%02x:%02x", 0, hex($bus), hex($dev_func));
+                        sprintf("%04x:%02x:%02x.%x", 0, hex($bus), $dev, $func);
                     debug(__LINE__,
                         "Converted PCI address $pci_addr to pattern $pci_pattern");
                 }
