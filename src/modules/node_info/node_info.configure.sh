@@ -59,6 +59,24 @@ _check_nvidia_tool() {
     return 1
 }
 
+# Resolve the PCI vendor ID (lowercase, e.g. "8086") from either a
+# "vendor=XXXX" descriptor or a "DDDD:BB:DD.F" address looked up via sysfs.
+_get_pci_vendor_id() {
+    local path="$1" vendor=""
+    if [[ "$path" =~ vendor=([0-9a-fA-F]{4}) ]]; then
+        vendor="${BASH_REMATCH[1]}"
+    elif [[ "$path" =~ ^pci:([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9]+)$ ]]; then
+        local vfile="/sys/bus/pci/devices/${BASH_REMATCH[1]}/vendor"
+        [[ -f "$vfile" ]] && vendor=$(cat "$vfile")
+        vendor="${vendor#0x}"
+    fi
+    echo "${vendor,,}"
+}
+
+_is_intel_pci_device() {
+    [[ "$(_get_pci_vendor_id "$1")" == "8086" ]]
+}
+
 # --- standard API ------------------------------------------------------------
 
 node_info_defaults() {
@@ -340,7 +358,15 @@ node_info_configure() {
             warn "No Intel GPUs in debug file."
         fi
     elif _check_or_install_tool intel_gpu_top intel-gpu-tools "Intel GPU tools (intel-gpu-tools)"; then
-        intelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
+        local rawIntelCards
+        rawIntelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
+        # Filter out non-Intel devices (e.g. AMD cards misdetected when intel-gpu-tools is installed on non-Intel hardware)
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            if [[ "$line" =~ (pci:[^[:space:]]+) ]] && _is_intel_pci_device "${BASH_REMATCH[1]}"; then
+                intelCards+="${intelCards:+$'\n'}$line"
+            fi
+        done <<< "$rawIntelCards"
         if [[ -n "$intelCards" ]]; then
             info "Intel GPU(s) detected:"
             echo "$intelCards" | while IFS= read -r line; do echo "  $line"; done
@@ -365,7 +391,7 @@ node_info_configure() {
             echo "$json" > "$DEBUG_INTEL_FILE"
             info "Intel GPU device list saved to $DEBUG_INTEL_FILE"
         else
-            warn "No Intel GPUs detected by intel_gpu_top."
+            warn "No Intel GPUs detected by intel_gpu_top (or none had an Intel PCI vendor ID)."
         fi
     fi
     #endregion Intel GPU

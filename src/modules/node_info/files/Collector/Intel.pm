@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 
 use PVE::PVEMod::Config qw(%config $process_type $pve_mod_working_dir);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json);
+use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json read_sysfs);
 use PVE::PVEMod::Store  qw(update_intel_gpu_rrd);
 
 our @EXPORT_OK = qw(
@@ -13,9 +13,29 @@ our @EXPORT_OK = qw(
     collector_for_intel_device
 );
 
+use constant INTEL_VENDOR_ID => '8086';
+
 # ============================================================================
 # Intel GPU — device discovery
 # ============================================================================
+
+# Resolve the PCI vendor ID (lowercase, e.g. "8086") from either a
+# "vendor=XXXX" descriptor or a "DDDD:BB:DD.F" address looked up via sysfs.
+sub _get_pci_vendor_id {
+    my ($path) = @_;
+
+    if ($path =~ /vendor=([0-9a-fA-F]{4})/) {
+        return lc($1);
+    }
+
+    if ($path =~ m{^pci:([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.\d+)$}) {
+        my $vendor = read_sysfs("/sys/bus/pci/devices/$1/vendor");
+        $vendor =~ s/^0x//i;
+        return lc($vendor);
+    }
+
+    return undef;
+}
 
 sub get_intel_gpu_devices {
     my @devices = ();
@@ -43,6 +63,11 @@ sub get_intel_gpu_devices {
         chomp;
         if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
             my ($card, $name, $path) = ($1, $2, $3);
+            my $vendor = _get_pci_vendor_id($path);
+            if (!defined $vendor || $vendor ne INTEL_VENDOR_ID) {
+                debug(__LINE__, "Skipping non-Intel device: $card ($path) vendor=" . ($vendor // 'unknown'));
+                next;
+            }
             push @devices, {
                 card     => $card,
                 name     => $name,
