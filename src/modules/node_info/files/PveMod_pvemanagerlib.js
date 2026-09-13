@@ -1824,3 +1824,340 @@ Ext.define('PVE.node.Summary', {
         });
     },
 });
+
+// ============================================================================
+// Datacenter > Summary > Resources — GPU gauge
+// Hooks PVE.dc.Summary after it is defined (this file is loaded asynchronously)
+// and adds a fourth proxmoxGauge. Values come from the existing per-node
+// PveMod_graphicsInfo payload on GET /nodes/{node}/status.
+// ============================================================================
+
+Ext.define('PVE.mod.DcGpuGauge', {
+    singleton: true,
+
+    minRefreshMs: 3000,
+    _fetchGen: 0,
+
+    gaugeXtype: function() {
+        if (Ext.ClassManager.getByAlias('widget.proxmoxGauge')) {
+            return 'proxmoxGauge';
+        }
+        if (Ext.ClassManager.getByAlias('widget.pveGauge')) {
+            return 'pveGauge';
+        }
+        return 'proxmoxGauge';
+    },
+
+    toNumber: function(value) {
+        if (value === undefined || value === null || value === '') {
+            return null;
+        }
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? n : null;
+    },
+
+    deviceUtil: function(vendor, gpuData) {
+        const stats = gpuData && gpuData.stats;
+        if (!stats) {
+            return null;
+        }
+        if (vendor === 'NVIDIA') {
+            return this.toNumber(stats.utilization && stats.utilization.gpu);
+        }
+        if (stats.engines && stats.engines['Render/3D']) {
+            return this.toNumber(stats.engines['Render/3D'].busy);
+        }
+        if (stats.engines) {
+            let sum = 0;
+            let n = 0;
+            Ext.Object.each(stats.engines, function(_name, engine) {
+                const busy = PVE.mod.DcGpuGauge.toNumber(engine && engine.busy);
+                if (busy !== null) {
+                    sum += busy;
+                    n++;
+                }
+            });
+            return n ? sum / n : null;
+        }
+        return null;
+    },
+
+    accumulate: function(agg, vendor, gpuData) {
+        const stats = gpuData && gpuData.stats;
+        const util = this.deviceUtil(vendor, gpuData);
+        if (util !== null) {
+            agg.utilSum += util;
+        }
+        agg.count++;
+
+        if (stats && stats.memory) {
+            const used = this.toNumber(stats.memory.used);
+            const total = this.toNumber(stats.memory.total);
+            if (used !== null && total !== null && total > 0) {
+                agg.vramUsed += used * 1024 * 1024;
+                agg.vramTotal += total * 1024 * 1024;
+            }
+        }
+    },
+
+    parseGraphics: function(info, agg) {
+        if (!info || info.disabled === true || !info.Graphics) {
+            return;
+        }
+        const me = this;
+        Ext.Array.each(['NVIDIA', 'Intel', 'AMD'], function(vendor) {
+            const group = info.Graphics[vendor];
+            if (!group) {
+                return;
+            }
+            Ext.Object.each(group, function(_key, gpuData) {
+                if (gpuData && (gpuData.stats || gpuData.name)) {
+                    me.accumulate(agg, vendor, gpuData);
+                }
+            });
+        });
+    },
+
+    onlineNodes: function() {
+        const nodes = [];
+        const seen = {};
+        if (!PVE.data || !PVE.data.ResourceStore) {
+            return nodes;
+        }
+        PVE.data.ResourceStore.each(function(rec) {
+            if (rec.get('type') !== 'node') {
+                return;
+            }
+            const status = rec.get('status');
+            if (status === 'offline' || status === 'unknown') {
+                return;
+            }
+            let name = rec.get('node');
+            if (!name) {
+                const id = rec.get('id') || '';
+                name = id.indexOf('node/') === 0 ? id.slice(5) : id;
+            }
+            if (!name || seen[name]) {
+                return;
+            }
+            seen[name] = true;
+            nodes.push(name);
+        });
+        return nodes;
+    },
+
+    paintGauge: function(gauge, ratio, text) {
+        if (!gauge || gauge.isDestroyed || !Ext.isFunction(gauge.updateValue)) {
+            return;
+        }
+        gauge.updateValue(ratio, text);
+        // Polar chart can keep value 0 until after the first real layout.
+        Ext.defer(function() {
+            if (!gauge.isDestroyed) {
+                gauge.updateValue(ratio, text);
+            }
+        }, 50);
+    },
+
+    applyAggregate: function(gauge, agg) {
+        if (!gauge || gauge.isDestroyed) {
+            return;
+        }
+        if (!agg.count) {
+            if (!gauge.isHidden()) {
+                gauge.hide();
+                if (gauge.ownerCt) {
+                    gauge.ownerCt.updateLayout();
+                }
+            }
+            return;
+        }
+
+        let ratio;
+        let text;
+        if (agg.vramTotal > 0) {
+            // Match Memory/Storage: arc follows used/total, not compute util.
+            ratio = agg.vramUsed / agg.vramTotal;
+            text = Ext.String.format(
+                gettext('{0} of {1}'),
+                Proxmox.Utils.render_size(agg.vramUsed),
+                Proxmox.Utils.render_size(agg.vramTotal),
+            );
+        } else {
+            ratio = agg.utilSum / agg.count / 100;
+            text = Ext.String.format(gettext('of {0} GPU(s)'), agg.count);
+        }
+        if (!Number.isFinite(ratio) || ratio < 0) {
+            ratio = 0;
+        } else if (ratio > 1) {
+            ratio = 1;
+        }
+
+        const wasHidden = gauge.isHidden();
+        if (wasHidden) {
+            gauge.show();
+            if (gauge.ownerCt) {
+                gauge.ownerCt.updateLayout();
+            }
+        }
+        this.paintGauge(gauge, ratio, text);
+    },
+
+    refresh: function(summary, done) {
+        const me = this;
+        const finish = function() {
+            if (Ext.isFunction(done)) {
+                done();
+            }
+        };
+        if (!summary || summary.isDestroyed) {
+            finish();
+            return;
+        }
+        const gauge = summary.down('#pveModGpu');
+        if (!gauge) {
+            finish();
+            return;
+        }
+
+        const nodes = me.onlineNodes();
+        if (!nodes.length) {
+            me.applyAggregate(gauge, { count: 0, utilSum: 0, vramUsed: 0, vramTotal: 0 });
+            finish();
+            return;
+        }
+
+        const agg = { count: 0, utilSum: 0, vramUsed: 0, vramTotal: 0 };
+        let pending = nodes.length;
+        const gen = ++me._fetchGen;
+
+        Ext.Array.each(nodes, function(nodename) {
+            Proxmox.Utils.API2Request({
+                url: '/nodes/' + encodeURIComponent(nodename) + '/status',
+                method: 'GET',
+                success: function(response) {
+                    if (gen !== me._fetchGen) {
+                        return;
+                    }
+                    if (!summary || summary.isDestroyed) {
+                        finish();
+                        return;
+                    }
+                    const data = response.result && response.result.data;
+                    me.parseGraphics(data && data.PveMod_graphicsInfo, agg);
+                    pending--;
+                    if (pending === 0) {
+                        me.applyAggregate(gauge, agg);
+                        finish();
+                    }
+                },
+                failure: function() {
+                    if (gen !== me._fetchGen) {
+                        return;
+                    }
+                    if (!summary || summary.isDestroyed) {
+                        finish();
+                        return;
+                    }
+                    pending--;
+                    if (pending === 0) {
+                        me.applyAggregate(gauge, agg);
+                        finish();
+                    }
+                },
+            });
+        });
+    },
+
+    attach: function(summary) {
+        const me = this;
+        if (!summary || summary._pveModGpuAttached) {
+            return;
+        }
+
+        const cpu = summary.down('#cpu');
+        if (!cpu) {
+            return;
+        }
+        const resources = cpu.ownerCt;
+        if (!resources || resources.down('#pveModGpu')) {
+            return;
+        }
+
+        summary._pveModGpuAttached = true;
+        resources.add({
+            xtype: me.gaugeXtype(),
+            title: gettext('GPU'),
+            itemId: 'pveModGpu',
+            hidden: true,
+            flex: 1,
+        });
+
+        let inFlight = false;
+        let queued = false;
+        let lastFetch = 0;
+
+        const schedule = function() {
+            if (!summary || summary.isDestroyed) {
+                return;
+            }
+            if (inFlight) {
+                queued = true;
+                return;
+            }
+            const now = Date.now();
+            const wait = me.minRefreshMs - (now - lastFetch);
+            if (wait > 0) {
+                if (!queued) {
+                    queued = true;
+                    Ext.defer(function() {
+                        queued = false;
+                        schedule();
+                    }, wait);
+                }
+                return;
+            }
+            lastFetch = now;
+            inFlight = true;
+            me.refresh(summary, function() {
+                inFlight = false;
+                if (queued) {
+                    queued = false;
+                    schedule();
+                }
+            });
+        };
+
+        if (PVE.data && PVE.data.ResourceStore) {
+            summary.mon(PVE.data.ResourceStore, 'load', schedule);
+            if (PVE.data.ResourceStore.getCount()) {
+                schedule();
+            }
+        }
+    },
+});
+
+(function installPveModDcGpuGauge() {
+    const tryInstall = function() {
+        const cls = Ext.ClassManager.get('PVE.dc.Summary');
+        if (!cls) {
+            Ext.defer(tryInstall, 50);
+            return;
+        }
+        if (cls.prototype._pveModGpuGaugeHooked) {
+            return;
+        }
+        cls.prototype._pveModGpuGaugeHooked = true;
+        const original = cls.prototype.initComponent;
+        cls.prototype.initComponent = function() {
+            original.apply(this, arguments);
+            PVE.mod.DcGpuGauge.attach(this);
+        };
+    };
+
+    if (Ext.isReady) {
+        tryInstall();
+    } else {
+        Ext.onReady(tryInstall);
+    }
+})();
