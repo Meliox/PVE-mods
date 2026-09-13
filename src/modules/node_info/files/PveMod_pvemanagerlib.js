@@ -213,17 +213,15 @@ Ext.define('PVE.node.StatusView', {
                 try {
                     const parsed = value || {};
                     if (parsed.disabled === true) {
-                        this.hide();
                         return '';
-                    } else if (parsed.cpu !== true) {
-                        this.hide();
+                    }
+                    if (parsed.cpu !== true) {
                         return '';
                     }
                     objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
-                this.show();
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
                 const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(value.ignore_temp_below));
@@ -538,17 +536,15 @@ Ext.define('PVE.node.StatusView', {
 				try {
 					const parsed = value || {};
 					if (parsed.disabled === true) {
-						this.hide();
 						return '';
-					} else if (parsed.hdd !== true) {
-						this.hide();
+					}
+					if (parsed.hdd !== true) {
 						return '';
 					}
 					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -620,17 +616,15 @@ Ext.define('PVE.node.StatusView', {
 				try {
 					const parsed = value || {};
 					if (parsed.disabled === true) {
-						this.hide();
 						return '';
-					} else if (parsed.nvme !== true) {
-						this.hide();
+					}
+					if (parsed.nvme !== true) {
 						return '';
 					}
 					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
@@ -710,17 +704,15 @@ Ext.define('PVE.node.StatusView', {
 				try {
 					const parsed = value || {};
 					if (parsed.disabled === true) {
-						this.hide();
 						return '';
-					} else if (parsed.other !== true) {
-						this.hide();
+					}
+					if (parsed.other !== true) {
 						return '';
 					}
 					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 
@@ -812,17 +804,15 @@ Ext.define('PVE.node.StatusView', {
                 try {
                     const parsed = value || {};
                     if (parsed.disabled === true) {
-                        this.hide();
                         return '';
-                    } else if (parsed.fans !== true) {
-                        this.hide();
+                    }
+                    if (parsed.fans !== true) {
                         return '';
                     }
                     objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
-                this.show();
 
                 // Recursive function to find fan keys and values
                 function findFanKeys(obj, fanKeys, parentKey = null) {
@@ -1090,21 +1080,15 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 if (objValue.disabled === true) {
-                    this.hide();
-                    this.setPrintBar(false);
                     return '';
                 }
-                this.show();
 
                 const upsKeys = Object.keys(objValue).filter(function(k) {
                     return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
                 });
                 if (!upsKeys.length) {
-                    this.hide();
-                    this.setPrintBar(false);
                     return '';
                 }
-                this.show();
                 this.setPrintBar(true);
 
                 function formatRuntime(seconds) {
