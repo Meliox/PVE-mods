@@ -57,6 +57,10 @@ jobs:
       - name: Trust workspace for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
         
+      # ── Syntax Validation ───────────────────────────────────
+      - name: Validate source syntax
+        run: bash build/test/test-syntax.sh "${{ matrix.mod }}"
+
       # ── Build (mirrors test-release.yml) ───────────────────────────────────
       - name: Install build deps
         run: |
@@ -111,9 +115,6 @@ jobs:
         run: |
           set -o pipefail
           bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
-
-      - name: Validate source syntax
-        run: bash build/test/test-syntax.sh "${{ matrix.mod }}"
 
       - name: Report failure as issue
         if: failure()

@@ -17,6 +17,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Validate source syntax
+        run: bash build/test/test-syntax.sh all
+
       - name: Install build deps
         run: |
           sudo apt-get update -qq
