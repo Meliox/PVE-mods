@@ -34,14 +34,11 @@ curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/insta
 
 Install respective mod dependencies - see Mod table.
 
-Run `pve-mod-configure` to install/uninstall and configure mods.
+Run `pve-mod-configure` to activate/deactivate, or configure mods.
 
-#### Manual configuration changes
-Configuration files are located in `/etc/pve-mod/`. After any manual edits, restart `pveproxy` to apply the changes:
-
-```bash
-systemctl restart pveproxy
-```
+## Manual install and configuration
+Get the debian package under release and install it.
+Configurate plugins configs in `/etc/pve-mod/`. After any manual edits, execute `systemctl restart pveproxy` to apply the changes.
 
 ### Uninstall
 
