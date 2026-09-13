@@ -17,7 +17,7 @@ our @EXPORT_OK = qw(
 # Debug / Version
 # ============================================================================
 
-our $DEBUG_ENABLED = 1;
+our $DEBUG_ENABLED;  # derived from %config{debug}{mod_debug} after ini load, below
 our $VERSION       = 'version-placeholder';
 
 # ============================================================================
@@ -43,6 +43,7 @@ our %config = (
         gpu_history    => 0,
     },
     debug => {
+        mod_debug              => 0,
         log_enabled            => 0,
         log_file               => '/tmp/pve-mod-debug.log',
         lm_sensors_mode        => 0,
@@ -158,5 +159,7 @@ sub _load_ini_file {
 
 _load_ini_file($CONF_FILE);
 _load_ini_file($_) for glob("$CONFD_DIR/*.conf");
+
+$DEBUG_ENABLED = $config{debug}{mod_debug};
 
 1;

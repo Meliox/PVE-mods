@@ -78,6 +78,7 @@ node_info_defaults() {
     DEBUG_AMD=0;         DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
     DEBUG_UPS=0;         DEBUG_UPS_FILE="/tmp/ups-output.json"
     DEBUG_LOG=0;         DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
+    DEBUG_MOD=0
 }
 
 node_info_load_conf() {
@@ -124,6 +125,7 @@ node_info_load_conf() {
             debug.ups_output_file)          DEBUG_UPS_FILE="$val" ;;
             debug.log_enabled)              DEBUG_LOG="$val" ;;
             debug.log_file)                 DEBUG_LOG_FILE="$val" ;;
+            debug.mod_debug)                DEBUG_MOD="$val" ;;
         esac
     done < "$NODE_INFO_CONF"
 }
@@ -512,7 +514,11 @@ ignore_temp_below=${IGNORE_TEMP_BELOW}
 
 # Debug mode: when a collector's mode is 1, the real tool is not required.
 # Data is read from the file path instead. Useful for development/testing.
+# Note: debug settings are only read at pveproxy startup — restart pveproxy
+# after changing them. Debug output goes to the journal (journalctl -u pveproxy),
+# plus log_file if log_enabled=1.
 [debug]
+mod_debug=${DEBUG_MOD}
 lm_sensors_mode=${DEBUG_LM_SENSORS}
 lm_sensors_output_file=${DEBUG_LM_SENSORS_FILE}
 intel_mode=${DEBUG_INTEL}
