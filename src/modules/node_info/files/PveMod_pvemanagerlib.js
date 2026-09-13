@@ -590,12 +590,12 @@ Ext.define('PVE.node.StatusView', {
 				}
 
 				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
-				drvData.forEach((data) => {
-					let deviceName = data.model;
-                    deviceName += `&nbsp;(${data.serial})`;
+				drvData.forEach((data, index) => {
+					let deviceName = `${index + 1}. ${data.model}`;
+                    if (data.serial != "unknown") deviceName += `&nbsp;(${data.serial})`;
 					html += '<tr>';
-					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
-					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
+					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
+					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
 					html += '</tr>';
 				});
 				html += '</table>';
@@ -680,8 +680,8 @@ Ext.define('PVE.node.StatusView', {
 						deviceName += `&nbsp;(${data.serial})`;
 					}
 					html += '<tr>';
-                    html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
-                    html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
+                    html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
+                    html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
 					html += '</tr>';
 				});
 				html += '</table>';
@@ -783,8 +783,8 @@ Ext.define('PVE.node.StatusView', {
 				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
 				rows.forEach(row => {
 					html += '<tr>';
-					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${row.label}</td>`;
-					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${row.temps}</td>`;
+					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${row.label}</td>`;
+					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${row.temps}</td>`;
 					html += '</tr>';
 				});
 				html += '</table>';

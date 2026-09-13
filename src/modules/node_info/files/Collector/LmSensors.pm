@@ -164,12 +164,17 @@ sub _get_drive_names {
                 my $scsi_path = "/sys/class/scsi_disk/$host:$id:0:0/device/block";
 
                 if (opendir(my $sdh, $scsi_path)) {
-                    my @devs = grep { /^sd/ } readdir($sdh);
+                    my @devs = map { /^(sd[a-z]+)$/ ? $1 : () } readdir($sdh);
                     closedir($sdh);
                     if (@devs) {
                         $dev_path = "/dev/$devs[0]";
                         $model    = read_sysfs("/sys/class/block/$devs[0]/device/model");
-                        $serial   = read_sysfs("/sys/class/block/$devs[0]/device/serial");
+                        if (-e "/sys/class/block/$devs[0]/device/serial") {
+                            $serial = read_sysfs("/sys/class/block/$devs[0]/device/serial");
+                        } else {
+                            $serial = `lsblk -dno SERIAL $dev_path 2>/dev/null`;
+                            chomp $serial;
+                        }
                     }
                 }
 
