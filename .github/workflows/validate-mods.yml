@@ -36,6 +36,9 @@ jobs:
 
       - name: Install built package
         run: apt-get install -y ./deb/*.deb
-        
+
       - name: Test all mods
         run: bash build/test/test-patches.sh all
+
+      - name: Validate source syntax
+        run: bash build/test/test-syntax.sh all 

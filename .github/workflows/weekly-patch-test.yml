@@ -56,7 +56,7 @@ jobs:
 
       - name: Trust workspace for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
+        
       # ── Build (mirrors test-release.yml) ───────────────────────────────────
       - name: Install build deps
         run: |
@@ -107,13 +107,13 @@ jobs:
       - name: Install built package
         run: apt-get install -y ../pve-mod_*.deb
 
-      - name: Validate source syntax
-        run: bash build/test/test-syntax.sh "${{ matrix.mod }}"        
-
       - name: Test mod
         run: |
           set -o pipefail
           bash build/test/test-patches.sh "${{ matrix.mod }}" 2>&1 | tee test-output.log
+
+      - name: Validate source syntax
+        run: bash build/test/test-syntax.sh "${{ matrix.mod }}"
 
       - name: Report failure as issue
         if: failure()
