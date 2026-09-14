@@ -1187,7 +1187,7 @@ Ext.define('PVE.node.StatusView', {
                     }
                     aboveBarText =
                         '<div style="display: flex; justify-content: space-between; gap: 8px;">' +
-                        '<span>Battery capacity</span>' +
+                        '<span>Battery Capacity</span>' +
                         '<span style="text-align: right;">' + rightSide + '</span>' +
                         '</div>';
 
