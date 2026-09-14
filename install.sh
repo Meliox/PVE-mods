@@ -10,6 +10,23 @@ API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 #region helpers
 info() { echo -e "\e[0;32m[pve-mod] ${1}\e[0m"; }
 err()  { echo -e "\e[0;31m[pve-mod] ERROR: ${1}\e[0m" >&2; exit 1; }
+confirm_continue() {
+    local reason="${1}"
+    local response
+
+    echo -e "\e[0;33m[pve-mod] WARNING: ${reason}\e[0m" >&2
+    [[ -r /dev/tty ]] || err "Cannot ask for confirmation; aborting installation."
+    read -r -p "Continue without checksum verification? [y/N] " response </dev/tty
+    [[ "$response" =~ ^[Yy]([Ee][Ss])?$ ]] || err "Installation aborted."
+}
+confirm_install() {
+    local version="${1}"
+    local response
+
+    [[ -r /dev/tty ]] || err "Cannot ask for confirmation; aborting installation."
+    read -r -p "Install pve-mod ${version}? [Y/n] " response </dev/tty
+    [[ -z "$response" || "$response" =~ ^[Yy]([Ee][Ss])?$ ]] || err "Installation aborted."
+}
 #endregion helpers
 
 # ── Prerequisite checks ───────────────────────────────────────────────────────
@@ -57,22 +74,28 @@ trap 'rm -f "$TMP" "$SUMS_TMP"' EXIT
 curl -sL -o "$TMP" "$DEB_URL" || err "Failed to download package from $DEB_URL"
 
 if [[ -n "$SUMS_URL" ]]; then
-    curl -sL -o "$SUMS_TMP" "$SUMS_URL" || err "Failed to download SHA256SUMS from $SUMS_URL"
-
-    DEB_NAME=$(basename "$DEB_URL")
-    EXPECTED_SUM=$(grep "${DEB_NAME}" "$SUMS_TMP" | awk '{print $1}' | head -n1)
-    info "Verifying package checksum..."
-    [[ -n "$EXPECTED_SUM" ]] || err "Could not find checksum for ${DEB_NAME} in SHA256SUMS."
-
-    ACTUAL_SUM=$(sha256sum "$TMP" | awk '{print $1}')
-    [[ "$EXPECTED_SUM" == "$ACTUAL_SUM" ]] || \
-        err "Checksum verification failed for ${DEB_NAME}! Expected ${EXPECTED_SUM}, got ${ACTUAL_SUM}."
-
-    info "Checksum verified successfully."
+    if curl -sL -o "$SUMS_TMP" "$SUMS_URL"; then
+        DEB_NAME=$(basename "$DEB_URL")
+        EXPECTED_SUM=$(grep "${DEB_NAME}" "$SUMS_TMP" | awk '{print $1}' | head -n1)
+        if [[ -z "$EXPECTED_SUM" ]]; then
+            confirm_continue "Could not find checksum for ${DEB_NAME} in SHA256SUMS."
+        else
+            info "Verifying package checksum..."
+            ACTUAL_SUM=$(sha256sum "$TMP" | awk '{print $1}')
+            if [[ "$EXPECTED_SUM" != "$ACTUAL_SUM" ]]; then
+                confirm_continue "Checksum verification failed for ${DEB_NAME}! Expected ${EXPECTED_SUM}, got ${ACTUAL_SUM}."
+            else
+                info "Checksum verified successfully."
+            fi
+        fi
+    else
+        confirm_continue "Failed to download SHA256SUMS from $SUMS_URL."
+    fi
 else
-    info "No SHA256SUMS file found in release; skipping checksum verification."
+    confirm_continue "No SHA256SUMS file found in release; checksum verification will be skipped."
 fi
 
+confirm_install "$VERSION"
 info "Installing pve-mod ${VERSION}..."
 
 dpkg -i "$TMP" || {
