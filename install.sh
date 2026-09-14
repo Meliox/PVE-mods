@@ -47,7 +47,7 @@ VERSION=$(echo "$RELEASE_JSON" \
     | sed 's/.*"tag_name": "\([^"]*\)".*/\1/' \
     | head -n1)
 
-info "Installing pve-mod ${VERSION}..."
+info "Found version ${VERSION}..."
 
 # ── Download and install ───────────────────────────────────────────────────────
 TMP=$(mktemp /tmp/pve-mod-XXXXXX.deb)
@@ -57,11 +57,11 @@ trap 'rm -f "$TMP" "$SUMS_TMP"' EXIT
 curl -sL -o "$TMP" "$DEB_URL" || err "Failed to download package from $DEB_URL"
 
 if [[ -n "$SUMS_URL" ]]; then
-    info "Verifying package checksum..."
     curl -sL -o "$SUMS_TMP" "$SUMS_URL" || err "Failed to download SHA256SUMS from $SUMS_URL"
 
     DEB_NAME=$(basename "$DEB_URL")
-    EXPECTED_SUM=$(grep " ${DEB_NAME}\$" "$SUMS_TMP" | awk '{print $1}' | head -n1)
+    EXPECTED_SUM=$(grep "${DEB_NAME}" "$SUMS_TMP" | awk '{print $1}' | head -n1)
+    info "Verifying package checksum..."
     [[ -n "$EXPECTED_SUM" ]] || err "Could not find checksum for ${DEB_NAME} in SHA256SUMS."
 
     ACTUAL_SUM=$(sha256sum "$TMP" | awk '{print $1}')
@@ -72,6 +72,8 @@ if [[ -n "$SUMS_URL" ]]; then
 else
     info "No SHA256SUMS file found in release; skipping checksum verification."
 fi
+
+info "Installing pve-mod ${VERSION}..."
 
 dpkg -i "$TMP" || {
     info "Resolving missing dependencies..."
