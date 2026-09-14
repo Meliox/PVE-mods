@@ -1,38 +1,30 @@
 # Proxmox Virtual Environment mods and scripts
+Compatibility: PVE 9.0+
+
 A small collection of scripts and mods for Proxmox Virtual Environment (PVE)
 
 If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
 
 | Version | Description | Status |
 |---------|-------------|--------|
-| **v2** (current) | Debian package (`pve-mod`) with interactive `pve-mod-configure` wizard | Recommended |
+| **v2** (current) | Debian package with interactive `pve-mod-configure` wizard | Recommended (#PVE-mod) |
 | v1 (legacy) | Standalone bash scripts, manual install | Archived — see [Legacy section](#legacy-v1-shell-scripts) |
 
 ---
 
-## Version 2 (beta) — Debian package
-
-Compatibility: PVE 9.0+
-
-TBD PICTURE
-
-`pve-mod` is a Debian package that installs UI patches and an interactive configuration wizard.
-
-### Mods
+## Features
+The PVE-mod debian package comes with below mods that can be enabled and configured.
 
 | Mod | Description | Dependencies |
 |--------|-------------|--------------|
 | [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node summary panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `upsc`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
 | [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
 
-### How it works
+### Notes
 
-1. The `pve-mod` package installs the mods installation, patch files under `/usr/lib/pve-mod/`.
-2. The mods main configuration file and mods can be found under `/etc/pve-mod/`.
-2. Running `pve-mod-configure` prompts for which modules to enable and configuration of mods.
-3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
+Multiple node support requires application to be installed on all nodes with identical configuration. (untested)
 
-### Install
+## Install
 
 Commands and mod configuration must be run as `root`.
 
@@ -42,14 +34,11 @@ curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/insta
 
 Install respective mod dependencies - see Mod table.
 
-Run `pve-mod-configure` to install/uninstall and configure mods.
+Run `pve-mod-configure` to activate/deactivate, or configure mods.
 
-#### Manual configuration changes
-Configuration files are located in `/etc/pve-mod/`. After any manual edits, restart `pveproxy` to apply the changes:
-
-```bash
-systemctl restart pveproxy
-```
+## Manual install and configuration
+Get the debian package under release and install it.
+Configurate plugins configs in `/etc/pve-mod/`. After any manual edits, execute `systemctl restart pveproxy` to apply the changes.
 
 ### Uninstall
 
@@ -60,13 +49,16 @@ apt-get remove pve-mod
 ```
 And remove dependencies needed by respective mods.
 
-### Notes
+## How it works
 
-Multiple node support requires application to be installed on all nodes with identical configuration. (untested)
+1. The `pve-mod` package installs the mods installation, patch files under `/usr/lib/pve-mod/`.
+2. The mods main configuration file and mods can be found under `/etc/pve-mod/`.
+2. Running `pve-mod-configure` prompts for which modules to enable and configuration of mods.
+3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
 
 ---
 
-## Legacy / v1 (shell scripts)
+### Legacy / v1 (shell scripts)
 
 > **These scripts are archived.** For new installations, use the [v2 Debian package](#version-2--debian-package) above.
 
