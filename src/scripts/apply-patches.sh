@@ -166,6 +166,7 @@ for mod in "${_target_modules[@]}"; do
     if [[ "$preflight_ok" == "true" ]]; then
         for pf in "${active[@]}"; do
             if is_applied "$pf"; then
+                info "  already applied $(basename "$pf")"
                 continue
             elif can_apply "$pf"; then
                 to_apply+=("$pf")
