@@ -1,3 +1,13 @@
+pve-mod (1.0.8) stable; urgency=low
+
+  * 162d0f3 chore(patching): Log already-applied patches during preflight for visibility (#345) by @Meliox
+  * 773d3f0 fix(node_info): Decode AMD k10temp PCI devfn correctly (#330) by @ta3wook
+  * db13113 fix(node_info): Intel GPU detection misidentifying AMD GPUs when intel-gpu-tools is installed (#323) by @Meliox
+  * 57e57d3 feat(node_info): Improve disk temperature rendering (#326) by @vit9696
+  * fd88df6 feat(node_info): add configurable mod_debug toggle for live debug logging (#322) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Tue, 15 Sep 2026 07:05:31 +0000
+
 pve-mod (1.0.7) stable; urgency=low
 
   * 8d70194 fix(nag_screen): Patch typo (#318)
