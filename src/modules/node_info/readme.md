@@ -33,6 +33,23 @@ Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in
 | GPU power / package power | W |
 | Engine busy/semaphore/wait (Render, Blitter, Video, VideoEnhance) | % |
 
+#### Security: the `CAP_PERFMON` capability
+
+`intel_gpu_top` needs the `CAP_PERFMON` capability to read the GPU's performance-monitoring counters. `pveproxy` — and therefore this mod's collector processes, which it forks — runs as the unprivileged `www-data` user, not root. Without `CAP_PERFMON`, `intel_gpu_top` fails with `Permission denied` and the Intel GPU collector silently produces no data.
+
+To make Intel GPU monitoring work, `pve-mod-configure` checks whether `www-data` can already run `intel_gpu_top` and, **only with your explicit confirmation**, grants the capability directly to the binary:
+
+```sh
+setcap cap_perfmon+ep /usr/bin/intel_gpu_top
+```
+
+This is narrower than running as root or via `sudo`/setuid: it applies to this one binary only, and only grants the ability to read performance-monitoring counters — no write, filesystem, or other privileges are added. It is still a privilege increase for `www-data`, a network-facing service account, so weigh the trade-off before opting in:
+
+- Decline the prompt (or leave Intel GPU monitoring disabled) to keep `www-data` at its default privilege level; the collector simply reports no Intel GPU data.
+- The capability is removed automatically when the module is disabled or the package is uninstalled.
+
+**Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mod-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
+
 ### AMD GPU
 
 Placeholder — device discovery and collection are not yet implemented.
