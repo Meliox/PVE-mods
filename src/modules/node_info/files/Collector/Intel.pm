@@ -15,6 +15,9 @@ our @EXPORT_OK = qw(
 
 use constant INTEL_VENDOR_ID => '8086';
 
+# Matches the stderr output intel_gpu_top produces when it lacks CAP_PERFMON.
+my $PERMISSION_ERROR_RE = qr/Failed to initialize PMU|Permission denied/;
+
 # ============================================================================
 # Intel GPU — device discovery
 # ============================================================================
@@ -53,14 +56,16 @@ sub get_intel_gpu_devices {
         }
     } else {
         debug(__LINE__, "Getting Intel GPU devices");
-        unless (open $fh, '-|', 'intel_gpu_top -L') {
+        unless (open $fh, '-|', 'intel_gpu_top -L 2>&1') {
             debug(__LINE__, "Failed to run intel_gpu_top -L: $!");
             return @devices;
         }
     }
 
+    my @lines;
     while (<$fh>) {
         chomp;
+        push @lines, $_;
         if (/^(card\d+)\s+(.+?)\s+(pci:[^\s]+)/) {
             my ($card, $name, $path) = ($1, $2, $3);
             my $vendor = _get_pci_vendor_id($path);
@@ -78,6 +83,11 @@ sub get_intel_gpu_devices {
         }
     }
     close $fh;
+
+    if (!@devices && grep { /$PERMISSION_ERROR_RE/ } @lines) {
+        warn "[node_info] Intel GPU monitoring: www-data cannot read GPU performance counters "
+            . "(CAP_PERFMON missing on intel_gpu_top). Re-run pve-mod-configure to grant it.\n";
+    }
 
     return @devices;
 }
@@ -219,6 +229,12 @@ sub collector_for_intel_device {
         while (my $line = <$fh>) {
             last if $shutdown;
             chomp $line;
+
+            if ($line =~ /$PERMISSION_ERROR_RE/) {
+                warn "[node_info] Intel GPU monitoring: www-data cannot read GPU performance counters "
+                    . "for $device->{card} (CAP_PERFMON missing on intel_gpu_top). Re-run pve-mod-configure to grant it.\n";
+                last;
+            }
 
             next if $line =~ /MHz|IRQ|RC6|Power|RCS|BCS|VCS|VECS|req\s+act|^\s*$/;
 

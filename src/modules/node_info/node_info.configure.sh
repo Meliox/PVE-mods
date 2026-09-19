@@ -51,6 +51,67 @@ _check_or_install_tool() {
     esac
 }
 
+_check_setcap_available() {
+    command -v setcap &>/dev/null && return 0
+    warn "'setcap' is not installed (needed to grant intel_gpu_top permission to run as www-data)."
+    local choice
+    choice=$(ask "Install libcap2-bin now, or skip and continue? (Y/n)")
+    case "$choice" in
+        [nN])
+            return 1
+            ;;
+        *)
+            apt-get update -qq
+            apt-get install -y libcap2-bin
+            command -v setcap &>/dev/null && return 0 || \
+                { warn "libcap2-bin installation failed; cannot grant CAP_PERFMON."; return 1; }
+            ;;
+    esac
+}
+
+# Quick real-world check: can www-data actually read GPU perf counters via this binary?
+_www_data_can_run_intel_gpu_top() {
+    local bin="$1" out
+    out=$(runuser -u www-data -- timeout 3 "$bin" -J -s 500 -o - 2>&1) || true
+    [[ "$out" != *"Failed to initialize PMU"* && "$out" != *"Permission denied"* ]]
+}
+
+# Verifies (and if needed, requests to grant) the CAP_PERFMON capability that
+# intel_gpu_top needs to run as www-data. Returns 1 if Intel GPU monitoring
+# should stay disabled.
+_verify_intel_gpu_permission() {
+    local bin
+    bin=$(command -v intel_gpu_top) || { warn "intel_gpu_top not found on PATH."; return 1; }
+
+    if _www_data_can_run_intel_gpu_top "$bin"; then
+        info "www-data can already collect Intel GPU performance data."
+        return 0
+    fi
+
+    warn "www-data cannot read Intel GPU performance counters (intel_gpu_top requires CAP_PERFMON)."
+    warn "See the Intel GPU 'Security' notes in the node_info readme before proceeding."
+
+    _check_setcap_available || { warn "Skipping Intel GPU monitoring (cannot grant CAP_PERFMON)."; return 1; }
+
+    local choice
+    choice=$(ask "Grant CAP_PERFMON to $bin via setcap, so www-data can collect Intel GPU stats? (Y/n)")
+    case "$choice" in
+        [nN])
+            info "Skipping Intel GPU monitoring (permission not granted)."
+            return 1
+            ;;
+        *)
+            setcap cap_perfmon+ep "$bin"
+            if _www_data_can_run_intel_gpu_top "$bin"; then
+                info "CAP_PERFMON granted; www-data can now collect Intel GPU stats."
+                return 0
+            fi
+            warn "setcap did not resolve the permission problem; disabling Intel GPU monitoring."
+            return 1
+            ;;
+    esac
+}
+
 _check_nvidia_tool() {
     local description="NVIDIA driver (nvidia-smi)"
     if command -v nvidia-smi &>/dev/null; then
@@ -431,6 +492,8 @@ node_info_configure() {
             json+="]"
             echo "$json" > "$DEBUG_INTEL_FILE"
             info "Intel GPU device list saved to $DEBUG_INTEL_FILE"
+
+            _verify_intel_gpu_permission || ENABLE_INTEL_GPU_INFO=0
         else
             warn "No Intel GPUs detected by intel_gpu_top (or none had an Intel PCI vendor ID)."
         fi
