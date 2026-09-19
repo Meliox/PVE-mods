@@ -29,13 +29,14 @@ sanitize_sensors_output() {
 }
 
 _check_or_install_tool() {
-    local cmd="$1" pkg="$2" description="$3"
+    local cmd="$1" pkg="$2" description="$3" unmet_msg="${4:-$3 is not installed.}"
     if command -v "$cmd" &>/dev/null; then
         info "$description is installed."
         return 0
     fi
+    warn "$unmet_msg"
     local choice
-    choice=$(ask "$description is not installed. Install it now? (y/N)")
+    choice=$(ask "Install $description now, or skip and continue? (y/N)")
     case "$choice" in
         [yY])
             apt-get update -qq
@@ -51,12 +52,26 @@ _check_or_install_tool() {
 }
 
 _check_nvidia_tool() {
+    local description="NVIDIA driver (nvidia-smi)"
     if command -v nvidia-smi &>/dev/null; then
-        info "nvidia-smi is installed."
+        info "$description is installed."
         return 0
     fi
-    warn "nvidia-smi not found. NVIDIA monitoring requires NVIDIA drivers (not installable via apt)."
-    return 1
+    warn "$description is not installed; NVIDIA GPU information cannot be detected without it."
+    local choice
+    choice=$(ask "Install $description now, or skip and continue? (y/N)")
+    case "$choice" in
+        [yY])
+            apt-get update -qq
+            apt-get install -y nvidia-driver
+            command -v nvidia-smi &>/dev/null && { info "$description installed."; return 0; } || \
+                { warn "$description installation failed (it may also require a reboot to take effect). Section will be skipped."; return 1; }
+            ;;
+        *)
+            info "Skipping $description."
+            return 1
+            ;;
+    esac
 }
 
 # Resolve the PCI vendor ID (lowercase, e.g. "8086") from either a
@@ -339,8 +354,29 @@ node_info_configure() {
         #endregion Temperature unit
     fi
 
+    #region GPU hardware detection
+    msgb "\n=== Detecting GPU hardware ==="
+    local gpuPciInfo="" hasIntelGpu=false hasNvidiaGpu=false hasAmdGpu=false
+    if command -v lspci &>/dev/null; then
+        gpuPciInfo=$(lspci -nn 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)
+        if [[ -n "$gpuPciInfo" ]]; then
+            info "Detected GPU controller(s):"
+            echo "$gpuPciInfo" | while IFS= read -r line; do echo "  $line"; done
+            grep -qi '\[8086:' <<<"$gpuPciInfo" && hasIntelGpu=true
+            grep -qi '\[10de:' <<<"$gpuPciInfo" && hasNvidiaGpu=true
+            grep -qi '\[1002:' <<<"$gpuPciInfo" && hasAmdGpu=true
+        else
+            warn "No VGA/3D/Display GPU controllers found via lspci."
+        fi
+    else
+        warn "lspci not found; cannot detect GPU hardware by vendor. Every GPU vendor will be probed directly instead."
+        hasIntelGpu=true; hasNvidiaGpu=true; hasAmdGpu=true
+    fi
+    #endregion GPU hardware detection
+
     #region Intel GPU
-    msgb "\n=== Detecting Intel GPU ==="
+    msgb "\n=== Intel GPU ==="
+    ENABLE_INTEL_GPU_INFO=0
     local intelCards=""
     if [[ "$DEBUG_INTEL" -eq 1 && -f "$DEBUG_INTEL_FILE" ]]; then
         info "[debug] Using Intel GPU data from $DEBUG_INTEL_FILE"
@@ -357,7 +393,12 @@ node_info_configure() {
         else
             warn "No Intel GPUs in debug file."
         fi
-    elif _check_or_install_tool intel_gpu_top intel-gpu-tools "Intel GPU tools (intel-gpu-tools)"; then
+    elif [[ "$hasIntelGpu" != true ]]; then
+        info "No Intel GPU hardware detected. Skipping."
+    elif ! _check_or_install_tool intel_gpu_top intel-gpu-tools "Intel GPU tools (intel-gpu-tools)" \
+        "intel_gpu_top is not installed; Intel GPU information cannot be detected without it."; then
+        warn "Skipping Intel GPU monitoring."
+    else
         local rawIntelCards
         rawIntelCards=$(intel_gpu_top -L 2>/dev/null | grep -E '^card[0-9]+' || true)
         # Filter out non-Intel devices (e.g. AMD cards misdetected when intel-gpu-tools is installed on non-Intel hardware)
@@ -397,7 +438,8 @@ node_info_configure() {
     #endregion Intel GPU
 
     #region NVIDIA GPU
-    msgb "\n=== Detecting NVIDIA GPU ==="
+    msgb "\n=== NVIDIA GPU ==="
+    ENABLE_NVIDIA_GPU_INFO=0
     if [[ "$DEBUG_NVIDIA" -eq 1 && -f "$DEBUG_NVIDIA_DEVICES_FILE" ]]; then
         info "[debug] Using NVIDIA GPU data from $DEBUG_NVIDIA_DEVICES_FILE"
         local nvidiaCards
@@ -414,7 +456,11 @@ node_info_configure() {
         else
             warn "No NVIDIA GPUs in debug file."
         fi
-    elif _check_nvidia_tool; then
+    elif [[ "$hasNvidiaGpu" != true ]]; then
+        info "No NVIDIA GPU hardware detected. Skipping."
+    elif ! _check_nvidia_tool; then
+        : # already warned/asked inside _check_nvidia_tool
+    else
         local nvidiaCards
         nvidiaCards=$(nvidia-smi -L 2>/dev/null || true)
         if [[ -n "$nvidiaCards" ]]; then
@@ -427,8 +473,28 @@ node_info_configure() {
     fi
     #endregion NVIDIA GPU
 
-    #region AMD GPU (placeholder)
+    #region AMD GPU (disabled — data collection not yet implemented, see Collector/Amd.pm)
     ENABLE_AMD_GPU_INFO=0
+    # msgb "\n=== AMD GPU ==="
+    # if [[ "$DEBUG_AMD" -eq 1 && -f "$DEBUG_AMD_FILE" ]]; then
+    #     info "[debug] Using AMD GPU data from $DEBUG_AMD_FILE"
+    #     local amdCards
+    #     amdCards=$(cat "$DEBUG_AMD_FILE")
+    #     if [[ -n "$amdCards" ]]; then
+    #         info "AMD GPU(s) detected (debug):"
+    #         echo "$amdCards" | while IFS= read -r line; do echo "  $line"; done
+    #         ENABLE_AMD_GPU_INFO=1
+    #     else
+    #         warn "No AMD GPUs in debug file."
+    #     fi
+    # elif [[ "$hasAmdGpu" != true ]]; then
+    #     info "No AMD GPU hardware detected. Skipping."
+    # elif ! _check_or_install_tool rocm-smi rocm-smi "AMD GPU tools (rocm-smi)" \
+    #     "rocm-smi is not installed; AMD GPU information cannot be detected without it."; then
+    #     warn "Skipping AMD GPU monitoring."
+    # else
+    #     warn "AMD GPU hardware and rocm-smi were detected, but AMD GPU data collection is not yet implemented in this pve-mod release."
+    # fi
     #endregion AMD GPU
 
     #region GPU history
