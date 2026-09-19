@@ -48,6 +48,12 @@ This is narrower than running as root or via `sudo`/setuid: it applies to this o
 - Decline the prompt (or leave Intel GPU monitoring disabled) to keep `www-data` at its default privilege level; the collector simply reports no Intel GPU data.
 - The capability is removed automatically when the module is disabled or the package is uninstalled.
 
+To remove it manually at any other time (e.g. without disabling the module):
+
+```sh
+setcap -r /usr/bin/intel_gpu_top
+```
+
 **Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mod-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
 
 ### AMD GPU
