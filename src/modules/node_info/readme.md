@@ -33,9 +33,9 @@ Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in
 | GPU power / package power | W |
 | Engine busy/semaphore/wait (Render, Blitter, Video, VideoEnhance) | % |
 
-#### Security: the `CAP_PERFMON` capability
+#### Security concern: the `CAP_PERFMON` capability
 
-`intel_gpu_top` needs the `CAP_PERFMON` capability to read the GPU's performance-monitoring counters. `pveproxy` — and therefore this mod's collector processes, which it forks — runs as the unprivileged `www-data` user, not root. Without `CAP_PERFMON`, `intel_gpu_top` fails with `Permission denied` and the Intel GPU collector silently produces no data.
+`intel_gpu_top` needs the `CAP_PERFMON` capability to read the GPU's performance-monitoring counters. `pveproxy` — and therefore this mod's collector processes, which it forks — runs as the unprivileged `www-data` user, not root. Without `CAP_PERFMON`, `intel_gpu_top` fails with `Permission denied` and the Intel GPU collector produces no data.
 
 To make Intel GPU monitoring work, `pve-mod-configure` checks whether `www-data` can already run `intel_gpu_top` and, **only with your explicit confirmation**, grants the capability directly to the binary:
 

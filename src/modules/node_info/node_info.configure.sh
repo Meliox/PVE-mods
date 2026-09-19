@@ -89,7 +89,7 @@ _verify_intel_gpu_permission() {
     fi
 
     warn "www-data cannot read Intel GPU performance counters (intel_gpu_top requires CAP_PERFMON)."
-    warn "See the 'Security Considerations' section of the node_info readme before proceeding."
+    warn "See the Intel GPU 'Security' notes in the node_info readme before proceeding."
 
     _check_setcap_available || { warn "Skipping Intel GPU monitoring (cannot grant CAP_PERFMON)."; return 1; }
 
