@@ -570,12 +570,8 @@ Ext.define('PVE.node.StatusView', {
 							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 								tempStyle = 'color: red; font-weight: bold;';
 							}
-							dimmData.push({
-								slot: dimm['dimm_slot'] || dimmKey.replace('DIMM', ''),
-								temp: tempVal,
-								tempStyle: tempStyle,
-								unit: tempHelper.getUnit()
-							});
+							const slot = dimm['dimm_slot'] || dimmKey.replace('DIMM', '');
+							dimmData.push(`${slot}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
 						}
 					} catch(e) { /*_*/ }
 				});
@@ -584,15 +580,7 @@ Ext.define('PVE.node.StatusView', {
 					return 'N/A';
 				}
 
-				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
-				dimmData.forEach((data) => {
-					html += '<tr>';
-					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">DIMM ${data.slot}</td>`;
-					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
-					html += '</tr>';
-				});
-				html += '</table>';
-				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
+				return dimmData.join('&nbsp;| ');
 			}
 		},
         {
