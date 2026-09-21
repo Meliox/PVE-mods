@@ -8,6 +8,9 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
+- RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed
+  per-DIMM with its slot number.
+
 ### NVIDIA GPU
 
 Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics can be stored in RRD for historical graphing.

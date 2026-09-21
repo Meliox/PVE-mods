@@ -523,6 +523,79 @@ Ext.define('PVE.node.StatusView', {
             },
         },
         {
+			itemId: 'thermalRam',
+			colspan: 2,
+			printBar: false,
+			title: gettext('RAM Temperatures'),
+			iconCls: 'fa fa-fw fa-thermometer-half',
+			textField: 'PveMod_JsonSensorInfo',
+			renderer: function(value) {
+				// sensors configuration: RAM entries are normalized by LmSensors.pm into DIMM<slot> keys
+				const sensorName = "temp1";
+				// ---
+				let objValue;
+				try {
+					const parsed = value || {};
+					if (parsed.disabled === true) {
+						return '';
+					} else if (parsed.ram !== true) {
+						return '';
+					}
+					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+				} catch(e) {
+					objValue = {};
+				}
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
+				const dimmKeys = Object.keys(objValue).filter(item => /^DIMM\d+$/.test(item)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+				let dimmData = [];
+				dimmKeys.forEach((dimmKey) => {
+					try {
+						const dimm = objValue[dimmKey];
+						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
+						Object.keys(dimm[sensorName]).forEach((secondLevelKey) => {
+							if (secondLevelKey.endsWith('_input')) {
+								tempVal = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_max')) {
+								tempMax = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
+							} else if (secondLevelKey.endsWith('_crit')) {
+								tempCrit = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
+							}
+						});
+						if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
+							let tempStyle = '';
+							if (!isNaN(tempMax) && tempVal >= tempMax) {
+								tempStyle = 'color: #FFC300; font-weight: bold;';
+							}
+							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
+								tempStyle = 'color: red; font-weight: bold;';
+							}
+							dimmData.push({
+								slot: dimm['dimm_slot'] || dimmKey.replace('DIMM', ''),
+								temp: tempVal,
+								tempStyle: tempStyle,
+								unit: tempHelper.getUnit()
+							});
+						}
+					} catch(e) { /*_*/ }
+				});
+
+				if (dimmData.length === 0) {
+					return 'N/A';
+				}
+
+				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
+				dimmData.forEach((data) => {
+					html += '<tr>';
+					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">DIMM ${data.slot}</td>`;
+					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
+					html += '</tr>';
+				});
+				html += '</table>';
+				return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
+			}
+		},
+        {
 			itemId: 'thermalHdd',
 			colspan: 2,
 			printBar: false,
@@ -703,7 +776,7 @@ Ext.define('PVE.node.StatusView', {
 					'k10temp-pci-',
 					'cpu_thermal-virtual-',
 					'drivetemp-',
-					'spd5118-',
+					'DIMM',
 				];
 				// ---
 				let objValue;
