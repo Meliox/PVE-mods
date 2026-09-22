@@ -16,7 +16,7 @@ SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor t
 Note: This is an example and you must replace registers with your findings.
 
 1) Install the required package for investigation: ```apt-get install i2c-tools```
-2) Load the modules modprobe i2c-dev: ```modprobe spd5118; modprobe i2c-dev```
+2) Load the modprobe modules: ```modprobe spd5118; modprobe i2c-dev```
 3) Find the SMBus, by listing the available I²C/SMBus adapters: ```i2cdetect -l```
 4) Look for the motherboard's SMBus, for example: ```i2c-0 smbus SMBus I801 adapter at 0000:00:1f.4```. Note the busnumer ```0``` following "i2c-".
 5) Scan the corresponding SMBus ```i2cdetect -y 0``` and note all addresses:
