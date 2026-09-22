@@ -134,6 +134,28 @@ sub _sanitize_sensors {
 # into a single "DIMM<slot>" key scheme with a common layout
 # ============================================================================
 
+# Flattens a raw temperature feature into temp1_input/temp1_max/... regardless
+# of which sensors -j schema produced it: legacy flat (temp3_input => 34.0) or
+# the newer nested schema (input => {quantity, unit, value}).
+sub _flatten_temp_feature {
+    my ($raw) = @_;
+    my %flat;
+    return \%flat unless ref $raw eq 'HASH';
+
+    foreach my $key (keys %$raw) {
+        my $val = $raw->{$key};
+
+        if (ref $val eq 'HASH' && exists $val->{value}) {
+            next if exists $val->{quantity} && $val->{quantity} ne 'temperature';
+            $flat{"temp1_$key"} = $val->{value} + 0;
+        } elsif (!ref $val && $key =~ /^temp\d+_(.+)$/) {
+            $flat{"temp1_$1"} = $val + 0;
+        }
+    }
+
+    return \%flat;
+}
+
 sub _get_ram_info {
     my ($sensors_output) = @_;
 
@@ -146,7 +168,7 @@ sub _get_ram_info {
 
     my %dimms;
 
-    # ----- DDR5: spd5118-i2c-<bus>-<addr>, already nested under "temp1" -----
+    # ----- DDR5: spd5118-i2c-<bus>-<addr>, temperature nested under "temp1" -----
     foreach my $entry (grep { /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i } keys %{$sensors_data}) {
         my ($bus, $addr) = ($entry =~ /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i);
         # SPD EEPROM addresses 0x50-0x57 map to slots 1-8 (JEDEC convention).
@@ -157,7 +179,7 @@ sub _get_ram_info {
         }
 
         $dimms{$slot} = {
-            temp1     => $sensors_data->{$entry}->{temp1},
+            temp1     => _flatten_temp_feature($sensors_data->{$entry}->{temp1}),
             dimm_slot => $slot,
             bus       => $bus + 0,
             address   => $addr,
@@ -176,15 +198,8 @@ sub _get_ram_info {
             next;
         }
 
-        my %temp1;
-        foreach my $field (keys %{$sensors_data->{$entry}}) {
-            if ($field =~ /^temp\d+(_.+)$/) {
-                $temp1{"temp1$1"} = $sensors_data->{$entry}->{$field};
-            }
-        }
-
         $dimms{$slot} = {
-            temp1     => \%temp1,
+            temp1     => _flatten_temp_feature($sensors_data->{$entry}),
             dimm_slot => $slot + 0,
             source    => 'jc42',
         };
