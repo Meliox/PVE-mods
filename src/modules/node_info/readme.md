@@ -39,7 +39,8 @@ Note: This is an example and you must replace registers with your findings.
 spd5118-i2c-0-50 Adapter: SMBus I801 adapter at 0000:00:1f.4 temp1: +41.5°C (low = +0.0°C, high = +55.0°C) (crit low = +0.0°C, crit = +85.0°C)
 ```
 9) Make it persistent at boot:
-```cat > /etc/modules-load.d/spd5118.conf <<'EOF'
+```
+cat > /etc/modules-load.d/spd5118.conf <<'EOF'
 spd5118
 EOF
 ```
