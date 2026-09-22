@@ -9,7 +9,7 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
 
-### Memory
+#### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
 SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually.
 
