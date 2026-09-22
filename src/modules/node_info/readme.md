@@ -8,8 +8,46 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
-- RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed
-  per-DIMM with its slot number.
+
+### Memory
+RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
+SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually. (replace registers with your findings)
+
+1) Install the required package for investigation, i2c-tools
+2) Load the modules modprobe i2c-dev; modprobe spd5118
+3) Find the SMBus, by listing the available I²C/SMBus adapters ```i2cdetect -l```
+4) Look for the motherboard's SMBus, for example: ```i2c-0 smbus SMBus I801 adapter at 0000:00:1f.4```
+5) Scan the SMBus ```i2cdetect -y 0``` and look for addresses:
+```
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:                         08 -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+40: -- -- -- -- 44 -- -- -- 48 -- -- -- -- -- -- --
+50: 50 -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+70: -- -- -- -- -- -- -- --
+```
+6) Investigate the register from the corresponding addreses, 5x are typically used. ```i2cget -y 0 0x50 0x00 b```. This returns ```0x51```. 51 identifies DDR5 SDRAM.
+7) Manually instantiate the device: ```echo spd5118 0x50 > /sys/bus/i2c/devices/i2c-0/new_device```
+8) Verify temperatures in sensors: ```sensors```:
+```
+spd5118-i2c-0-50 Adapter: SMBus I801 adapter at 0000:00:1f.4 temp1: +41.5°C (low = +0.0°C, high = +55.0°C) (crit low = +0.0°C, crit = +85.0°C)
+```
+9) Make it persistent:
+```cat > /etc/modules-load.d/spd5118.conf <<'EOF'
+spd5118
+EOF
+```
+```
+cat > /etc/udev/rules.d/99-spd5118.rules <<'EOF'
+ACTION=="add", SUBSYSTEM=="i2c", KERNEL=="i2c-0", RUN+="/bin/sh -c 'echo spd5118 0x50 > /sys/bus/i2c/devices/i2c-0/new_device'"
+EOF
+```
+10) Remove apt-get remove i2c-dev
+
+To uninstall delete the module load and udev rule.
 
 ### NVIDIA GPU
 
