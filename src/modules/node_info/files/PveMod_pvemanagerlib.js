@@ -442,9 +442,9 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 // NVIDIA GPUs - Secondary details
-                if (gpuStats.Graphics.NVIDIA) {
-                    Object.keys(gpuStats.Graphics.NVIDIA).sort().forEach(key => {
-                        const gpuData = gpuStats.Graphics.NVIDIA[key];
+                if (gpuInfo.Graphics.NVIDIA) {
+                    Object.keys(gpuInfo.Graphics.NVIDIA).sort().forEach(key => {
+                        const gpuData = gpuInfo.Graphics.NVIDIA[key];
                         const stats = gpuData.stats;
                         
                         let details = [];
@@ -1116,7 +1116,6 @@ Ext.define('PVE.node.StatusView', {
             // returns a 30/70 table (model | other info incl. Load) wrapped in the
             // standard indent div, matching the other widgets in this panel.
             renderer: function(upsInfo) {
-                let objValue;
                 try {  
                     if (upsInfo.disabled === true) {
                         this.hide();
@@ -1180,7 +1179,7 @@ Ext.define('PVE.node.StatusView', {
                 const rows = [];
 
                 upsKeys.forEach(function(upsKey) {
-                    const upsData = objValue[upsKey] || {};
+                    const upsData = upsInfo[upsKey] || {};
                     const charge = parseFloat(upsData['battery.charge']);
                     const runtime = formatRuntime(upsData['battery.runtime']);
                     const inputVoltage = parseFloat(upsData['input.voltage']);
