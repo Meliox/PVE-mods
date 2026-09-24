@@ -922,7 +922,7 @@ Ext.define('PVE.node.StatusView', {
                     }
                     entries.sort((a, b) => String(a.name).localeCompare(String(b.name)));
                     html += '<div style="margin: 8px 0 2px;"><b>' + safe(section.title) + '</b></div>';
-                    html += '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
+                    html += '<table style="width: min(100%, 28vw); border-collapse: collapse; table-layout: fixed;">';
                     entries.forEach((sensor) => {
                         let reading = Number(sensor.value);
                         let unit = sensor.unit || '';
@@ -934,9 +934,9 @@ Ext.define('PVE.node.StatusView', {
                             : (section.category === 'fan' || section.category === 'power' ? 0 : 1);
                         const status = sensor.status && sensor.status !== 'ok'
                             ? ' (' + safe(sensor.status) + ')' : '';
-                        html += '<tr><td style="padding: 1px 10px 1px 0; width: 65%; vertical-align: top; ' +
+                        html += '<tr><td style="padding: 1px 4px 1px 0; width: 60%; vertical-align: top; ' +
                             'overflow-wrap: anywhere; word-break: break-word;">' + safe(sensor.name) +
-                            '</td><td style="width: 35%; text-align: right; vertical-align: top; ' +
+                            '</td><td style="width: 40%; text-align: right; vertical-align: top; ' +
                             'white-space: normal; overflow-wrap: anywhere; word-break: break-word;">' +
                             safe(reading.toFixed(digits)) + ' ' + safe(unit) + status + '</td></tr>';
                     });
