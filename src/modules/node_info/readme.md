@@ -8,6 +8,14 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
+### Local IPMI / BMC Sensors
+
+On servers with a local OpenIPMI device, `node_info` can display BMC temperature, fan, voltage, and power sensors, plus DCMI system power when available. It uses `ipmitool -I open`; no BMC network address or credentials are needed. `lm-sensors` remains available alongside IPMI, including its CPU CCD readings.
+
+IPMI monitoring is opt-in in `pve-mod-configure` and requires `ipmitool`. The package installs a `pve-mod-ipmi.timer` that runs a fixed, read-only collector roughly every 30 seconds only when IPMI is enabled. The collector writes an atomic snapshot under `/run/pve-mod-ipmi/`; the web API only reads that snapshot. This keeps `/dev/ipmi0` restricted to root instead of granting a network-facing web process raw BMC access. Snapshots older than 90 seconds are shown as stale.
+
+Sensors reporting `na` remain unavailable, not zero or failed. Numeric BMC readings and threshold values are preserved as reported; a BMC status of `ok` alone does not establish that a reading is calibrated. For example, some TYAN S8026 systems report `SYS_Air_Inlet=0°C` while other inlet readings are much higher. IPMI SEL, FRU, chassis status, and control actions are outside this initial sensor-monitoring feature.
+
 ### NVIDIA GPU
 
 Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics can be stored in RRD for historical graphing.
@@ -82,6 +90,7 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | Feature | Required tool |
 |---------|---------------|
 | Temperature sensors | `lm-sensors` (`sensors` binary) |
+| Local IPMI sensors | `ipmitool` and a working local OpenIPMI device |
 | NVIDIA GPU | `nvidia-smi` |
 | Intel GPU | `intel-gpu-tools` (`intel_gpu_top` binary) |
 | UPS | `nut-client` (`upsc` binary) |

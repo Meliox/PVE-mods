@@ -1,2 +1,4 @@
 # All files must use LF
 * text=auto eol=lf
+# Unified-diff context for a blank line is a single space.
+*.patch whitespace=-blank-at-eol

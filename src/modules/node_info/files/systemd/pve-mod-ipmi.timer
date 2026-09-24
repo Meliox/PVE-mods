@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll local IPMI sensors for PVE-mod
+
+[Timer]
+OnActiveSec=5s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+Unit=pve-mod-ipmi.service
+
+[Install]
+WantedBy=timers.target

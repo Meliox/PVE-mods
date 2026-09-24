@@ -7,3 +7,4 @@
 01-nodes-pm-sensors.patch
 02-nodes-pm-GPU-RRD-history.patch    gpu.gpu_history=1
 03-pvemanager-js-sensors.patch
+04-nodes-pm-ipmi.patch

@@ -118,5 +118,10 @@ case "$1" in
         ;;
 esac
 
+if [ "$1" = configure ] && [ -x /usr/lib/pve-mod/ipmi-service-sync ]; then
+    /usr/lib/pve-mod/ipmi-service-sync || \
+        echo "pve-mod: WARNING: Could not synchronize the IPMI timer." >&2
+fi
+
 #DEBHELPER#
 exit 0

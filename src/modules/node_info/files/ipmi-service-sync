@@ -1,0 +1,50 @@
+#!/bin/bash
+# Keep the IPMI timer in sync with the opt-in node_info configuration.
+set -e
+
+_read_ini_value() {
+    local file="$1" wanted_section="$2" wanted_key="$3"
+    local section="" line key value
+    [[ -f "$file" ]] || return 0
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -z "$line" ]] && continue
+        if [[ "$line" == \[*\] ]]; then
+            section="${line#[}"
+            section="${section%]}"
+            continue
+        fi
+        [[ "$section" == "$wanted_section" && "$line" == *=* ]] || continue
+        key="${line%%=*}"
+        value="${line#*=}"
+        key="${key%"${key##*[![:space:]]}"}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        if [[ "$key" == "$wanted_key" ]]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+    done < "$file"
+}
+
+command -v systemctl >/dev/null 2>&1 || exit 0
+systemctl daemon-reload
+
+module_enabled=$(_read_ini_value /etc/pve-mod/pve-mod.conf modules node_info)
+ipmi_enabled=$(_read_ini_value /etc/pve-mod/conf.d/node_info.conf ipmi enabled)
+
+if [[ "$module_enabled" == 1 && "$ipmi_enabled" == 1 ]]; then
+    if [[ ! -x /usr/bin/ipmitool ]]; then
+        echo 'pve-mod: IPMI is enabled but ipmitool is missing; timer not started.' >&2
+        systemctl disable --now pve-mod-ipmi.timer >/dev/null 2>&1 || true
+        rm -f /run/pve-mod-ipmi/snapshot.json
+        exit 0
+    fi
+    systemctl enable --now pve-mod-ipmi.timer
+else
+    systemctl disable --now pve-mod-ipmi.timer >/dev/null 2>&1 || true
+    systemctl stop pve-mod-ipmi.service >/dev/null 2>&1 || true
+    rm -f /run/pve-mod-ipmi/snapshot.json
+fi

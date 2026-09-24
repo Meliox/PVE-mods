@@ -9,6 +9,11 @@ _revert_patches() {
 
 case "$1" in
     remove|deconfigure)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl disable --now pve-mod-ipmi.timer >/dev/null 2>&1 || true
+            systemctl stop pve-mod-ipmi.service >/dev/null 2>&1 || true
+        fi
+        rm -f /run/pve-mod-ipmi/snapshot.json
         # 1. Revert patches before files are removed.
         _revert_patches
 

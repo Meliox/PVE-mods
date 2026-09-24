@@ -1,0 +1,10 @@
+--- a/usr/share/perl5/PVE/API2/Nodes.pm
++++ b/usr/share/perl5/PVE/API2/Nodes.pm
+@@ -545,6 +545,7 @@
+             free => $dinfo->{blocks} - $dinfo->{used},
+         };
+ 
++        $res->{PveMod_ipmiInfo} = PVE::API2::PVEMod_SensorInfo::get_ipmi_info();
+         return $res;
+     },
+ });

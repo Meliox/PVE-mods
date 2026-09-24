@@ -1,0 +1,18 @@
+[Unit]
+Description=PVE-mod local IPMI sensor snapshot
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/lib/pve-mod/ipmi-collect
+RuntimeDirectory=pve-mod-ipmi
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+TimeoutStartSec=30s
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/run/pve-mod-ipmi
+RestrictAddressFamilies=AF_UNIX

@@ -1,0 +1,10 @@
+CPU_Tctl_Value   | 71.000 | degrees C | ok | na | na | na | na | 95.000 | na
+SYS_Air_Inlet    | 0.000  | degrees C | ok | na | na | na | na | 40.000 | na
+DIMM_MOSFET_2    | 33.000 | degrees C | ok | na | na | na | na | 110.000 | na
+P0_D0_UMC0_CH_D  | 39.000 | degrees C | ok | na | na | na | na | 85.000 | na
+P0_D1_UMC0_CH_A  | na     | degrees C | na | na | na | na | na | 85.000 | na
+SYS_FAN_1        | 3900.000 | RPM | ok | na | 800.000 | na | na | na | na
+SYS_FAN_10       | na | RPM | na | na | 100.000 | na | na | na | na
+PSU0_PIN         | 104.000 | Watts | ok | na | na | na | na | na | na
+PSU1_Status      | na | discrete | na | na | na | na | na | na | na
+VCC12            | 12.090 | Volts | ok | na | na | na | na | na | na

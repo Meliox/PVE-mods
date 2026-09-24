@@ -870,6 +870,84 @@ Ext.define('PVE.node.StatusView', {
             }
         },
         {
+            itemId: 'ipmiSensors',
+            colspan: 2,
+            printBar: false,
+            title: gettext('BMC / IPMI Sensors'),
+            iconCls: 'fa fa-fw fa-server',
+            textField: 'PveMod_ipmiInfo',
+            renderer: function(value) {
+                if (!value || value.disabled === true) {
+                    this.hide();
+                    return '';
+                }
+                this.show();
+
+                if (value.available !== true) {
+                    const message = value.reason === 'stale'
+                        ? gettext('IPMI readings are stale')
+                        : gettext('Waiting for IPMI readings');
+                    return '<div style="padding-left: 20px;">' + Ext.htmlEncode(message) + '</div>';
+                }
+
+                const safe = (item) => Ext.htmlEncode(String(item ?? ''));
+                const tempHelper = Ext.create('PVE.mod.TempHelper', {
+                    srcUnit: PVE.mod.TempHelper.CELSIUS,
+                    dstUnit: value.temp_unit === 'F'
+                        ? PVE.mod.TempHelper.FAHRENHEIT
+                        : PVE.mod.TempHelper.CELSIUS,
+                });
+                const sensors = Array.isArray(value.sensors) ? value.sensors : [];
+                const sections = [
+                    { category: 'temperature', title: gettext('Temperatures') },
+                    { category: 'fan', title: gettext('Fans') },
+                    { category: 'power', title: gettext('Power') },
+                    { category: 'voltage', title: gettext('Voltages') },
+                ];
+                let html = '';
+
+                const dcmi = value.dcmi;
+                if (dcmi && dcmi.available === true && Number.isFinite(Number(dcmi.instantaneous_watts))) {
+                    html += '<div style="margin-bottom: 8px;"><b>' +
+                        safe(gettext('DCMI system power')) + ':</b> ' +
+                        safe(Number(dcmi.instantaneous_watts).toFixed(0)) + ' W</div>';
+                }
+
+                sections.forEach((section) => {
+                    const entries = sensors.filter((sensor) =>
+                        sensor && sensor.category === section.category &&
+                        sensor.available === true && Number.isFinite(Number(sensor.value)));
+                    if (entries.length === 0) {
+                        return;
+                    }
+                    entries.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+                    html += '<div style="margin: 8px 0 2px;"><b>' + safe(section.title) + '</b></div>';
+                    html += '<table style="width: min(100%, 28vw); border-collapse: collapse; table-layout: fixed;">';
+                    entries.forEach((sensor) => {
+                        let reading = Number(sensor.value);
+                        let unit = sensor.unit || '';
+                        if (section.category === 'temperature') {
+                            reading = tempHelper.getTemp(reading);
+                            unit = value.temp_unit === 'F' ? '°F' : '°C';
+                        }
+                        const digits = section.category === 'voltage' ? 3
+                            : (section.category === 'fan' || section.category === 'power' ? 0 : 1);
+                        const status = sensor.status && sensor.status !== 'ok'
+                            ? ' (' + safe(sensor.status) + ')' : '';
+                        html += '<tr><td style="padding: 1px 4px 1px 0; width: 60%; vertical-align: top; ' +
+                            'overflow-wrap: anywhere; word-break: break-word;">' + safe(sensor.name) +
+                            '</td><td style="width: 40%; text-align: right; vertical-align: top; ' +
+                            'white-space: normal; overflow-wrap: anywhere; word-break: break-word;">' +
+                            safe(reading.toFixed(digits)) + ' ' + safe(unit) + status + '</td></tr>';
+                    });
+                    html += '</table>';
+                });
+
+                return '<div style="padding-left: 20px; box-sizing: border-box;">' +
+                    (html || safe(gettext('No IPMI readings available'))) + '</div>';
+            },
+        },
+        {
             itemId: 'gpuFans',
             colspan: 2,
             printBar: false,
