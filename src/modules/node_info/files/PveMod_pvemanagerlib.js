@@ -212,18 +212,14 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     const parsed = value || {};
-                    if (parsed.disabled === true) {
-                        this.hide();
-                        return '';
-                    } else if (parsed.cpu !== true) {
-                        this.hide();
-                        return '';
-                    }
+                    if (parsed.disabled === true || parsed.cpu !== true) {
+						this.hide();
+						return '';
+					}
                     objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
-                this.show();
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
                 const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(value.ignore_temp_below));
@@ -389,12 +385,9 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (gpuStats && gpuStats.disabled === true) {
-                    this.hide();
-                    return '';
-                } else if (!gpuStats || !gpuStats.Graphics) {
-                    this.hide();
-                    return '';
+                if (gpuStats.enable_gpu !== 1) {
+						this.hide();
+						return '';
                 }
 
                 // Create temperature helper for GPU temperature conversion
@@ -515,10 +508,8 @@ Ext.define('PVE.node.StatusView', {
 
                 html += '</table>';
                 if (html.indexOf('<tr>') <= 0) {
-                    this.hide();
                     return '';
                 }
-                this.show();
                 return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
             },
         },
@@ -597,10 +588,7 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
 					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.hdd !== true) {
+                    if (parsed.disabled === true || parsed.hdd !== true) {
 						this.hide();
 						return '';
 					}
@@ -608,7 +596,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
+
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -679,10 +667,7 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
 					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.nvme !== true) {
+                    if (parsed.disabled === true || parsed.nvme !== true) {
 						this.hide();
 						return '';
 					}
@@ -690,7 +675,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
+
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
@@ -769,10 +754,7 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
 					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.other !== true) {
+                    if (parsed.disabled === true || parsed.other !== true) {
 						this.hide();
 						return '';
 					}
@@ -780,7 +762,7 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-				this.show();
+
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 
@@ -871,18 +853,14 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     const parsed = value || {};
-                    if (parsed.disabled === true) {
-                        this.hide();
-                        return '';
-                    } else if (parsed.fans !== true) {
-                        this.hide();
-                        return '';
-                    }
+                    if (parsed.disabled === true || parsed.fans !== true) {
+						this.hide();
+						return '';
+					}
                     objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
                 } catch(e) {
                     objValue = {};
                 }
-                this.show();
 
                 // Recursive function to find fan keys and values
                 function findFanKeys(obj, fanKeys, parentKey = null) {
@@ -937,42 +915,37 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-snowflake-o',
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (gpuStats && gpuStats.disabled === true) {
-                    this.hide();
-                    return '';
-                } else if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
+                if (gpuStats.enable_fans !== 1) {
                     this.hide();
                     return '';
                 }
 
                 let rows = [];
-                
-                // todo: handle intel, amd
 
-                Object.keys(gpuStats.Graphics.NVIDIA).sort().forEach(key => {
-                    const gpuData = gpuStats.Graphics.NVIDIA[key];
-                    const stats = gpuData?.stats;
-                    const fan = stats?.fan;
+                ['Intel', 'NVIDIA', 'AMD'].forEach(type => {
+                    Object.keys(gpuStats.Graphics[type] || {}).sort().forEach(key => {
+                        const gpuData = gpuStats.Graphics[type][key];
+                        const stats = gpuData?.stats;
+                        const fan = stats?.fan;
 
-                    if (!fan || fan.speed === undefined || fan.speed === null) {
-                        return;
-                    }
+                        if (!fan || fan.speed === undefined || fan.speed === null) {
+                            return;
+                        }
 
-                    const gpuName = stats?.name || key;
-                    const unit = fan.unit || '%';
-                    rows.push(
-                        '<tr>' +
-                        `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuName}</td>` +
-                        `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">Fan: ${fan.speed}${unit}</td>` +
-                        '</tr>',
-                    );
+                        const gpuName = stats?.name || key;
+                        const unit = fan.unit || '%';
+                        rows.push(
+                            '<tr>' +
+                            `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuName}</td>` +
+                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">Fan: ${fan.speed}${unit}</td>` +
+                            '</tr>',
+                        );
+                    });
                 });
                 
                 if (rows.length === 0) {
-                    this.hide();
                     return '';
                 }
-                this.show();
 
                 return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
             },
@@ -1154,7 +1127,6 @@ Ext.define('PVE.node.StatusView', {
                     this.setPrintBar(false);
                     return '';
                 }
-                this.show();
 
                 const upsKeys = Object.keys(objValue).filter(function(k) {
                     return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
@@ -1164,7 +1136,6 @@ Ext.define('PVE.node.StatusView', {
                     this.setPrintBar(false);
                     return '';
                 }
-                this.show();
                 this.setPrintBar(true);
 
                 function formatRuntime(seconds) {
@@ -1337,7 +1308,6 @@ Ext.define('PVE.node.StatusView', {
                     this.hide();
                     return '';
                 }
-                this.show();
 
                 const titleMap = {
                     manufacturer:  'Manufacturer',
