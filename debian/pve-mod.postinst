@@ -98,6 +98,17 @@ case "$1" in
         ;;
 
     triggered)
+        # Do not re-apply patches while a package manager is actively working on
+        # the same files. This prevents uninstall/reinstall or dependency repair
+        # from re-triggering a patch cycle and racing with dpkg/apt.
+        DPKG_LOCK_FRONTEND="${DPKG_LOCK_FRONTEND:-/var/lib/dpkg/lock-frontend}"
+        DPKG_LOCK="${DPKG_LOCK:-/var/lib/dpkg/lock}"
+        if pgrep -x apt-get >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1 || \
+           [ -e "$DPKG_LOCK_FRONTEND" ] || [ -e "$DPKG_LOCK" ]; then
+            echo "pve-mod: skipping trigger reapply while dpkg/apt is active"
+            exit 0
+        fi
+
         # Fired by dpkg when pve-manager is upgraded. Only re-apply patches
         # if the user has opted in via 'pve-mod-configure'.
         TRIGGER_ENABLED=$(awk -F= '/^\[pve_trigger\]/{s=1} s && /^enabled=/{print $2; exit}' \

@@ -96,6 +96,36 @@ run_hook() {
     return 0
 }
 
+# Disable a module in the main config file so a failed patch is remembered
+# and future trigger-driven runs skip it automatically.
+disable_main_module() {
+    local mod="$1"
+    local file="$MAIN_CONF"
+    [[ -f "$file" ]] || return 0
+
+    local tmp="$file.tmp"
+    if awk -F= -v sec="[modules]" -v k="$mod" '
+        /^\[/ { in_sec = ($0 == sec) }
+        in_sec && /^[[:space:]]*[^#[:space:]][^=]*=/ {
+            split($0, a, "=")
+            key = a[1]
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key == k) {
+                print k "=0"
+                found = 1
+                next
+            }
+        }
+        { print }
+        END { if (!found) print k "=0" }
+    ' "$file" > "$tmp"; then
+        mv "$tmp" "$file"
+        warn "Mod '$mod': disabled in $MAIN_CONF because it is not compatible with the current PVE version."
+    else
+        rm -f "$tmp"
+    fi
+}
+
 # ── main ──────────────────────────────────────────────────────────────────────
 if ! command -v patch >/dev/null 2>&1; then
     warn "'patch' command not found; cannot apply mods. Install the 'patch' package."
@@ -182,7 +212,7 @@ for mod in "${_target_modules[@]}"; do
     # If preflight failed, revert the whole mod back to a clean state so it is
     # never left half-applied.
     if [[ "$preflight_ok" != "true" ]]; then
-        warn "Mod '$mod': preflight failed - reverting mod to clean state."
+        warn "Mod '$mod': preflight failed - disabling mod as incompatible with the current PVE version."
         for (( i=${#active[@]}-1 ; i>=0 ; i-- )); do
             pf="${active[$i]}"
             if is_applied "$pf"; then
@@ -190,7 +220,7 @@ for mod in "${_target_modules[@]}"; do
             fi
         done
         run_hook "$mod_dir/post-revert.sh" "$mod_conf"
-        FAILED=true
+        disable_main_module "$mod"
         continue
     fi
 
@@ -218,6 +248,9 @@ for mod in "${_target_modules[@]}"; do
         continue
     fi
 done
+
+[[ "$FAILED" == "true" ]] && exit 1
+exit 0
 
 if [[ "$CHANGED" == "true" ]]; then
     info "Restarting pveproxy..."
