@@ -544,7 +544,6 @@ Ext.define('PVE.node.StatusView', {
 				} catch(e) {
 					objValue = {};
 				}
-
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
 				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
 				const dimmKeys = Object.keys(objValue).filter(item => /^DIMM\d+$/.test(item)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
