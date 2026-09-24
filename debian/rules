@@ -2,6 +2,9 @@
 %:
 	dh $@
 
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start pve-mod-ipmi.service pve-mod-ipmi.timer
+
 override_dh_install:
 	# ── Static section ─────────────────────────────────────────────────────
 	# Generic, mod-independent files that never change when mods are added.

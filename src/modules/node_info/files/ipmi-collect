@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use PVE::PVEMod::Config qw(%config);
+use PVE::PVEMod::Collector::Ipmi qw(collect_once write_snapshot);
+
+exit 0 unless $config{ipmi}{enabled};
+
+my $snapshot = '/run/pve-mod-ipmi/snapshot.json';
+write_snapshot($snapshot, collect_once());

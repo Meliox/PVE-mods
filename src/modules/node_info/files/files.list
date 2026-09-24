@@ -20,8 +20,15 @@ Collector/Intel.pm                      usr/share/perl5/PVE/PVEMod/Collector/Int
 Collector/Nvidia.pm                     usr/share/perl5/PVE/PVEMod/Collector/Nvidia.pm
 Collector/Amd.pm                        usr/share/perl5/PVE/PVEMod/Collector/Amd.pm
 Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMod/Collector/LmSensors.pm
+Collector/Ipmi.pm                       usr/share/perl5/PVE/PVEMod/Collector/Ipmi.pm
 Collector/Ups.pm                        usr/share/perl5/PVE/PVEMod/Collector/Ups.pm
 Collector/systemInformation.pm          usr/share/perl5/PVE/PVEMod/Collector/SystemInformation.pm
 
 # JS module (rename to match loader reference)
 PveMod_pvemanagerlib.js                 usr/share/pve-manager/js/PveMod_PveNodeStatusView.js
+
+# Local IPMI sampler, started only when explicitly enabled
+ipmi-collect                            usr/lib/pve-mod/ipmi-collect 755
+ipmi-service-sync                       usr/lib/pve-mod/ipmi-service-sync 755
+systemd/pve-mod-ipmi.service            usr/lib/systemd/system/pve-mod-ipmi.service
+systemd/pve-mod-ipmi.timer              usr/lib/systemd/system/pve-mod-ipmi.timer

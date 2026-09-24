@@ -8,7 +8,7 @@ our @EXPORT_OK = qw(
     %config
     $DEBUG_ENABLED $VERSION $process_type
     $pve_mod_working_dir $stats_dir $state_file
-    $sensors_state_file $ups_state_file
+    $sensors_state_file $ups_state_file $ipmi_state_file
     $pve_mod_worker_lock $startup_lock
     $RRD_SOCKET $RRD_BASE
 );
@@ -74,6 +74,10 @@ our %config = (
         enable_fan_speed      => 0,
         display_zero_speed_fans => 0,
     },
+    ipmi => {
+        enabled => 0,
+        max_age => 90,
+    },
     ups => {
         enabled     => 0,
         device_name => 'ups@localhost',
@@ -98,6 +102,7 @@ our $stats_dir           = $pve_mod_working_dir;
 our $state_file          = "$pve_mod_working_dir/stats.json";
 our $sensors_state_file  = "$pve_mod_working_dir/sensors.json";
 our $ups_state_file      = "$pve_mod_working_dir/ups.json";
+our $ipmi_state_file     = '/run/pve-mod-ipmi/snapshot.json';
 our $pve_mod_worker_lock = "$pve_mod_working_dir/pve_mod_worker.lock";
 our $startup_lock        = "$pve_mod_working_dir/startup.lock";
 
@@ -142,6 +147,9 @@ sub _load_ini_file {
             }
             elsif ($section eq 'lm_sensors' && exists $config{lm_sensors}{$key}) {
                 $config{lm_sensors}{$key} = $val;
+            }
+            elsif ($section eq 'ipmi' && exists $config{ipmi}{$key}) {
+                $config{ipmi}{$key} = $val;
             }
             elsif ($section eq 'ups' && exists $config{ups}{$key}) {
                 $config{ups}{$key} = $val;

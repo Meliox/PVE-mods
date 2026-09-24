@@ -157,6 +157,7 @@ _is_intel_pci_device() {
 
 node_info_defaults() {
     LM_SENSORS_ENABLED=0
+    IPMI_ENABLED=0; IPMI_MAX_AGE=90
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
@@ -199,6 +200,8 @@ node_info_load_conf() {
             lm_sensors.enable_other_temp)   ENABLE_OTHER_TEMP="$val" ;;
             lm_sensors.enable_fan_speed)    ENABLE_FAN_SPEED="$val" ;;
             lm_sensors.display_zero_speed_fans) DISPLAY_ZERO_SPEED_FANS="$val" ;;
+            ipmi.enabled)                   IPMI_ENABLED="$val" ;;
+            ipmi.max_age)                   IPMI_MAX_AGE="$val" ;;
             ups.enabled)                    ENABLE_UPS="$val" ;;
             ups.device_name)                UPS_DEVICE_NAME="$val" ;;
             system_info.enabled)            ENABLE_SYSTEM_INFO="$val" ;;
@@ -228,6 +231,7 @@ node_info_load_conf() {
 node_info_configure() {
     # Initialize all variables to off
     LM_SENSORS_ENABLED=0
+    IPMI_ENABLED=0
     ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
@@ -414,6 +418,26 @@ node_info_configure() {
         fi
         #endregion Temperature unit
     fi
+
+    #region Local IPMI
+    msgb "\n=== Local IPMI Sensors ==="
+    if [[ -e /dev/ipmi0 || -e /dev/ipmi/0 || -e /dev/ipmidev/0 ]]; then
+        if _check_or_install_tool ipmitool ipmitool "ipmitool"; then
+            if timeout 8s ipmitool -I open mc info >/dev/null 2>&1; then
+                local ipmi_choice
+                ipmi_choice=$(ask "Enable local IPMI sensor monitoring? (y/N)")
+                case "$ipmi_choice" in
+                    [yY]) IPMI_ENABLED=1; info "Local IPMI monitoring enabled." ;;
+                    *)    info "Local IPMI monitoring disabled." ;;
+                esac
+            else
+                warn "The local IPMI interface did not respond; IPMI monitoring will remain disabled."
+            fi
+        fi
+    else
+        info "No local OpenIPMI device found; skipping IPMI monitoring."
+    fi
+    #endregion Local IPMI
 
     #region GPU hardware detection
     msgb "\n=== Detecting GPU hardware ==="
@@ -656,6 +680,10 @@ enable_nvme_temp=${ENABLE_NVME_TEMP}
 enable_other_temp=${ENABLE_OTHER_TEMP}
 enable_fan_speed=${ENABLE_FAN_SPEED}
 display_zero_speed_fans=${DISPLAY_ZERO_SPEED_FANS}
+
+[ipmi]
+enabled=${IPMI_ENABLED}
+max_age=${IPMI_MAX_AGE}
 
 [ups]
 enabled=${ENABLE_UPS}

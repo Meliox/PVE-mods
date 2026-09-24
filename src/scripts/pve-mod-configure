@@ -124,9 +124,10 @@ main() {
     echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
     echo -e "  [3] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
     echo    "                    pve-manager is upgraded"
+    [[ "$MOD_NODE_INFO" == "1" ]] && echo "  [4] Reconfigure Node Info (including local IPMI)"
     echo    "  [n] None / cancel"
-    local modChoice selected_mod="" patching_needed=0
-    modChoice=$(ask "Select an option (1/2/3/n)")
+    local modChoice selected_mod="" patching_needed=0 config_reconfigured=0
+    modChoice=$(ask "Select an option (1/2/3/4/n)")
     case "$modChoice" in
         1)
             selected_mod="node_info"
@@ -160,6 +161,16 @@ main() {
             fi
             write_main_conf  # no patches for this option
             ;;
+        4)
+            if [[ "$MOD_NODE_INFO" != "1" ]]; then
+                warn "Node Info is not enabled. Select option 1 first."
+                exit 0
+            fi
+            selected_mod="node_info"; patching_needed=1; config_reconfigured=1
+            msgb "\n=== Node Info Configuration ==="
+            node_info_configure
+            write_main_conf; node_info_write_conf
+            ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
     esac
@@ -176,6 +187,13 @@ main() {
         if ! "$REVERT_PATCHES" "$selected_mod"; then
             err "Could not revert all patches for $selected_mod."
         fi
+    fi
+
+    if [[ -x /usr/lib/pve-mod/ipmi-service-sync ]]; then
+        /usr/lib/pve-mod/ipmi-service-sync
+    fi
+    if [[ "$config_reconfigured" == "1" ]]; then
+        systemctl restart pveproxy
     fi
 
     msgb "\n=== Done ==="

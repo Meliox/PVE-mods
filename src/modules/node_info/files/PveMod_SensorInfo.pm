@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use PVE::PVEMod::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file);
+use PVE::PVEMod::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file $ipmi_state_file);
 use PVE::PVEMod::Utils          qw(debug safe_read_json);
 use PVE::PVEMod::ProcessManager qw(pve_mod_starter notify_pve_mod_worker);
 use PVE::PVEMod::Collector::SystemInformation qw(get_system_information_data);
@@ -185,6 +185,27 @@ sub get_sensors_info {
     notify_pve_mod_worker();
 
     return $data;
+}
+
+sub get_ipmi_info {
+    return { disabled => \1 } unless $config{ipmi}{enabled};
+
+    my $data = safe_read_json($ipmi_state_file, 0);
+    return { available => \0, reason => 'waiting' }
+        unless ref($data) eq 'HASH' && ref($data->{sensors}) eq 'ARRAY';
+
+    my $sampled_at = $data->{sampled_at};
+    my $max_age = $config{ipmi}{max_age};
+    $max_age = 90 unless defined($max_age) && $max_age =~ /^\d+$/ && $max_age > 0;
+    return { available => \0, reason => 'stale', sampled_at => $sampled_at }
+        unless defined($sampled_at) && $sampled_at =~ /^\d+$/
+            && $sampled_at <= time() + 10 && time() - $sampled_at <= $max_age;
+
+    return {
+        %$data,
+        available => \1,
+        temp_unit => $config{system_info}{temp_unit},
+    };
 }
 
 sub get_ups_info {
