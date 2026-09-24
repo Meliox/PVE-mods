@@ -67,6 +67,8 @@ sub _merge_graphics_files {
     my ($filepaths) = @_;
 
     my $merged = {
+        enable_gpu => \1,
+        enable_fans => \0,
         Graphics => {
             Intel     => {},
             NVIDIA    => {},
@@ -92,6 +94,10 @@ sub _merge_graphics_files {
 
         foreach my $node_name (keys %$device_data) {
             $merged->{Graphics}->{$device_type}->{$node_name} = $device_data->{$node_name};
+            my $stats = $device_data->{$node_name}{stats};
+            if (ref($stats) eq 'HASH' && ref($stats->{fan}) eq 'HASH' && defined $stats->{fan}{speed}) {
+                $merged->{enable_fans} = \1;
+            }
             debug(__LINE__, "Merged $device_type node '$node_name' from $file");
         }
     }
@@ -136,7 +142,7 @@ sub _load_graphics_data {
         \@filepaths,
         $graphics_cache,
         \&_merge_graphics_files,
-        { Graphics => { Intel => {}, NVIDIA => {}, AMD => {}, temp_unit => $config{system_info}{temp_unit}, ignore_temp_below => $config{system_info}{ignore_temp_below} + 0 } }
+        { enable_gpu => \1, enable_fans => \0, Graphics => { Intel => {}, NVIDIA => {}, AMD => {}, temp_unit => $config{system_info}{temp_unit}, ignore_temp_below => $config{system_info}{ignore_temp_below} + 0 } }
     );
 
     my $intel_count  = scalar(keys %{$data->{Graphics}{Intel}  // {}});
@@ -153,9 +159,9 @@ sub _load_graphics_data {
 
 sub get_graphics_info {
     debug(__LINE__, "get_graphics_info called");
-    if (!($config{gpu}{intel_enabled} || !$config{gpu}{nvidia_enabled} || !$config{gpu}{amd_enabled})) {
+    if (!($config{gpu}{intel_enabled} || $config{gpu}{nvidia_enabled} || $config{gpu}{amd_enabled})) {
         debug(__LINE__, "GPU information collection is disabled");
-        return { disabled => \1 };
+        return { enable_gpu => \0, enable_fans => \0 };
     }
 
     # Start PVE Mod

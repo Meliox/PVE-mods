@@ -205,34 +205,29 @@ Ext.define('PVE.node.StatusView', {
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
             textField: 'PveMod_JsonSensorInfo',
-            renderer: function(value){
+            renderer: function(cpuInfo){
                 // display configuration
                 const itemsPerRow = 0;
                 // ---
                 let objValue;
                 try {
-                    const parsed = value || {};
-                    if (parsed.disabled === true) {
-                        this.hide();
-                        return '';
-                    } else if (parsed.cpu !== true) {
+                    if (cpuInfo.disabled === true) {
                         this.hide();
                         return '';
                     }
-                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+                    objValue = (cpuInfo.data && cpuInfo.data[Object.keys(cpuInfo.data)[0]]) || {};
                 } catch(e) {
-                    objValue = {};
+                    return '';
                 }
-                this.show();
                 // sensors configuration
-                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-                const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(value.ignore_temp_below));
+                const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: cpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+                const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(cpuInfo.ignore_temp_below));
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
                 const bINTEL = cpuKeysI.length > 0 ? true : false;
-                const INTELPackagePrefix = value.cpu_temp_target == 'Core' ? 'Core ' : 'Package id';
-                const INTELPackageCaption = value.cpu_temp_target == 'Core' ? 'Core' : 'Package';
+                const INTELPackagePrefix = cpuInfo.cpu_temp_target == 'Core' ? 'Core ' : 'Package id';
+                const INTELPackageCaption = cpuInfo.cpu_temp_target == 'Core' ? 'Core' : 'Package';
                 let AMDPackagePrefix = 'Tccd';
                 let AMDPackageCaption = 'CCD';
                 
@@ -388,27 +383,28 @@ Ext.define('PVE.node.StatusView', {
             title: gettext('GPU Details'),
             printBar: false,
             textField: 'PveMod_graphicsInfo',
-            renderer: function(gpuStats) {
-                if (gpuStats && gpuStats.disabled === true) {
-                    this.hide();
-                    return '';
-                } else if (!gpuStats || !gpuStats.Graphics) {
-                    this.hide();
+            renderer: function(gpuInfo) {
+                try {
+                    if (gpuInfo.enable_gpu !== true) {
+                        this.hide();
+                        return '';
+                    }
+                } catch (e) {
                     return '';
                 }
 
                 // Create temperature helper for GPU temperature conversion
                 const gpuTempHelper = Ext.create('PVE.mod.TempHelper', {
                     srcUnit: PVE.mod.TempHelper.CELSIUS,
-                    dstUnit: gpuStats.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS
+                    dstUnit: gpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS
                 });
 
                 let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
 
                 // Intel GPUs - Secondary details
-                if (gpuStats.Graphics.Intel) {
-                    Object.keys(gpuStats.Graphics.Intel).sort().forEach(key => {
-                        const gpuData = gpuStats.Graphics.Intel[key];
+                if (gpuInfo.Graphics.Intel) {
+                    Object.keys(gpuInfo.Graphics.Intel).sort().forEach(key => {
+                        const gpuData = gpuInfo.Graphics.Intel[key];
                         
                         let details = [];
                         
@@ -446,9 +442,9 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 // NVIDIA GPUs - Secondary details
-                if (gpuStats.Graphics.NVIDIA) {
-                    Object.keys(gpuStats.Graphics.NVIDIA).sort().forEach(key => {
-                        const gpuData = gpuStats.Graphics.NVIDIA[key];
+                if (gpuInfo.Graphics.NVIDIA) {
+                    Object.keys(gpuInfo.Graphics.NVIDIA).sort().forEach(key => {
+                        const gpuData = gpuInfo.Graphics.NVIDIA[key];
                         const stats = gpuData.stats;
                         
                         let details = [];
@@ -515,10 +511,8 @@ Ext.define('PVE.node.StatusView', {
 
                 html += '</table>';
                 if (html.indexOf('<tr>') <= 0) {
-                    this.hide();
                     return '';
                 }
-                this.show();
                 return '<div style="padding-left: 20px; box-sizing: border-box;">' + html + '</div>';
             },
         },
@@ -529,23 +523,22 @@ Ext.define('PVE.node.StatusView', {
 			title: gettext('RAM Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
 			textField: 'PveMod_JsonSensorInfo',
-			renderer: function(value) {
+			renderer: function(ramInfo) {
 				// sensors configuration: RAM entries are normalized by LmSensors.pm into DIMM<slot> keys
 				const sensorName = "temp1";
 				// ---
 				let objValue;
 				try {
-					const parsed = value || {};
-					if (parsed.ram !== true) {
+                    if (ramInfo.disabled === true) {
                         this.hide();
-						return '';
-					}
-					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+                        return '';
+                    }
+					objValue = (ramInfo.data && ramInfo.data[Object.keys(ramInfo.data)[0]]) || {};
 				} catch(e) {
-					objValue = {};
+                    return '';
 				}
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: ramInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(ramInfo.ignore_temp_below));
 				const dimmKeys = Object.keys(objValue).filter(item => /^DIMM\d+$/.test(item)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let dimmData = [];
 				dimmKeys.forEach((dimmKey) => {
@@ -589,28 +582,24 @@ Ext.define('PVE.node.StatusView', {
 			title: gettext('HDD/SSD Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
 			textField: 'PveMod_JsonSensorInfo',
-			renderer: function(value) {
+			renderer: function(hddInfo) {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
 				const sensorName = "temp1";
 				// ---
 				let objValue;
 				try {
-					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.hdd !== true) {
-						this.hide();
+                    if (hddInfo.hdd !== true) {
+                        this.hide();
 						return '';
 					}
-					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+					objValue = (hddInfo.data && hddInfo.data[Object.keys(hddInfo.data)[0]]) || {};
 				} catch(e) {
-					objValue = {};
+                    return '';
 				}
-				this.show();
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
+
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: hddInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(hddInfo.ignore_temp_below));
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
@@ -669,7 +658,7 @@ Ext.define('PVE.node.StatusView', {
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
 			textField: 'PveMod_JsonSensorInfo',
-			renderer: function(value) {
+			renderer: function(nvmeInfo) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
 				const sensorName = "Composite";
@@ -678,21 +667,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.nvme !== true) {
-						this.hide();
+                    if (nvmeInfo.nvme !== true) {
+                        this.hide();
 						return '';
 					}
-					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+					objValue = (nvmeInfo.data && nvmeInfo.data[Object.keys(nvmeInfo.data)[0]]) || {};
 				} catch(e) {
-					objValue = {};
+                    return '';
 				}
-				this.show();
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
+
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: nvmeInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(nvmeInfo.ignore_temp_below));
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
@@ -755,7 +740,7 @@ Ext.define('PVE.node.StatusView', {
 			title: gettext('Other Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
 			textField: 'PveMod_JsonSensorInfo',
-			renderer: function(value) {
+			renderer: function(otherInfo) {
 				// Prefixes belonging to other known categories (excluded from this view)
 				const excludePrefixes = [
 					'nvme-pci-',
@@ -768,21 +753,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-					const parsed = value || {};
-					if (parsed.disabled === true) {
-						this.hide();
-						return '';
-					} else if (parsed.other !== true) {
-						this.hide();
+                    if (otherInfo.other !== true) {
+                        this.hide();
 						return '';
 					}
-					objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+					objValue = (otherInfo.data && otherInfo.data[Object.keys(otherInfo.data)[0]]) || {};
 				} catch(e) {
-					objValue = {};
+                    return '';
 				}
-				this.show();
-				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: value.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(value.ignore_temp_below));
+
+				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: otherInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
+				const ignoreThreshold = tempHelper.getTemp(parseFloat(otherInfo.ignore_temp_below));
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
@@ -866,23 +847,17 @@ Ext.define('PVE.node.StatusView', {
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
             textField: 'PveMod_JsonSensorInfo',
-            renderer: function(value) {
+            renderer: function(fansInfo) {
                 // ---
                 let objValue;
                 try {
-                    const parsed = value || {};
-                    if (parsed.disabled === true) {
-                        this.hide();
-                        return '';
-                    } else if (parsed.fans !== true) {
-                        this.hide();
-                        return '';
-                    }
-                    objValue = (parsed.data && parsed.data[Object.keys(parsed.data)[0]]) || {};
+                    if (fansInfo.fans !== true) {
+						return '';
+					}
+                    objValue = (fansInfo.data && fansInfo.data[Object.keys(fansInfo.data)[0]]) || {};
                 } catch(e) {
-                    objValue = {};
+                    return '';
                 }
-                this.show();
 
                 // Recursive function to find fan keys and values
                 function findFanKeys(obj, fanKeys, parentKey = null) {
@@ -937,42 +912,41 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-snowflake-o',
             textField: 'PveMod_graphicsInfo',
             renderer: function(gpuStats) {
-                if (gpuStats && gpuStats.disabled === true) {
-                    this.hide();
-                    return '';
-                } else if (!gpuStats || !gpuStats.Graphics || !gpuStats.Graphics.NVIDIA) {
-                    this.hide();
+                try {
+                    if ((gpuStats.enable_gpu !== true || gpuStats.enable_fans !== true)) {
+                        this.hide();
+                        return '';
+                    }
+                } catch (e) {
                     return '';
                 }
 
                 let rows = [];
-                
-                // todo: handle intel, amd
 
-                Object.keys(gpuStats.Graphics.NVIDIA).sort().forEach(key => {
-                    const gpuData = gpuStats.Graphics.NVIDIA[key];
-                    const stats = gpuData?.stats;
-                    const fan = stats?.fan;
+                ['Intel', 'NVIDIA', 'AMD'].forEach(type => {
+                    Object.keys(gpuStats.Graphics[type] || {}).sort().forEach(key => {
+                        const gpuData = gpuStats.Graphics[type][key];
+                        const stats = gpuData?.stats;
+                        const fan = stats?.fan;
 
-                    if (!fan || fan.speed === undefined || fan.speed === null) {
-                        return;
-                    }
+                        if (!fan || fan.speed === undefined || fan.speed === null) {
+                            return;
+                        }
 
-                    const gpuName = stats?.name || key;
-                    const unit = fan.unit || '%';
-                    rows.push(
-                        '<tr>' +
-                        `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuName}</td>` +
-                        `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">Fan: ${fan.speed}${unit}</td>` +
-                        '</tr>',
-                    );
+                        const gpuName = stats?.name || key;
+                        const unit = fan.unit || '%';
+                        rows.push(
+                            '<tr>' +
+                            `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuName}</td>` +
+                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">Fan: ${fan.speed}${unit}</td>` +
+                            '</tr>',
+                        );
+                    });
                 });
                 
                 if (rows.length === 0) {
-                    this.hide();
                     return '';
                 }
-                this.show();
 
                 return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
             },
@@ -1141,30 +1115,24 @@ Ext.define('PVE.node.StatusView', {
             // X% (Runtime: ...)" line for updateValue to place above the bar, and
             // returns a 30/70 table (model | other info incl. Load) wrapped in the
             // standard indent div, matching the other widgets in this panel.
-            renderer: function(value) {
-                let objValue;
-                try {
-                    objValue = value || {};
+            renderer: function(upsInfo) {
+                try {  
+                    if (upsInfo.disabled === true) {
+                        this.hide();
+                        this.setPrintBar(false);
+                        return '';
+                    }
                 } catch (e) {
-                    objValue = {};
-                }
-
-                if (objValue.disabled === true) {
-                    this.hide();
-                    this.setPrintBar(false);
                     return '';
                 }
-                this.show();
 
-                const upsKeys = Object.keys(objValue).filter(function(k) {
-                    return objValue[k] && typeof objValue[k] === 'object' && !Array.isArray(objValue[k]);
+                const upsKeys = Object.keys(upsInfo).filter(function(k) {
+                    return upsInfo[k] && typeof upsInfo[k] === 'object' && !Array.isArray(upsInfo[k]);
                 });
                 if (!upsKeys.length) {
-                    this.hide();
                     this.setPrintBar(false);
                     return '';
                 }
-                this.show();
                 this.setPrintBar(true);
 
                 function formatRuntime(seconds) {
@@ -1211,7 +1179,7 @@ Ext.define('PVE.node.StatusView', {
                 const rows = [];
 
                 upsKeys.forEach(function(upsKey) {
-                    const upsData = objValue[upsKey] || {};
+                    const upsData = upsInfo[upsKey] || {};
                     const charge = parseFloat(upsData['battery.charge']);
                     const runtime = formatRuntime(upsData['battery.runtime']);
                     const inputVoltage = parseFloat(upsData['input.voltage']);
@@ -1330,14 +1298,15 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('Information'),
 			textField: 'PveMod_systemInfo',
-            renderer: function(value) {
-                if (value === null || value === undefined) {
-                    return '';
-                } else if (value.disabled === true) {
-                    this.hide();
+            renderer: function(sysInfo) {
+                try {
+                    if (sysInfo.disabled === true) {
+                        this.hide();
+                        return '';
+                    }
+                } catch (e) {
                     return '';
                 }
-                this.show();
 
                 const titleMap = {
                     manufacturer:  'Manufacturer',
@@ -1347,8 +1316,8 @@ Ext.define('PVE.node.StatusView', {
 
                 let parts = [];
                 ['manufacturer', 'product_name', 'serial_number'].forEach(function(key) {
-                    if (value[key] !== undefined && value[key] !== null) {
-                        parts.push(titleMap[key] + ': ' + value[key]);
+                    if (sysInfo[key] !== undefined && sysInfo[key] !== null) {
+                        parts.push(titleMap[key] + ': ' + sysInfo[key]);
                     }
                 });
 
