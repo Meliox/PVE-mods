@@ -316,7 +316,7 @@ node_info_configure() {
         #region RAM
         msgb "\n=== Detecting RAM temperature sensors ==="
         local ramCount
-        ramCount=$(grep -c '"SODIMM[^"]*"' <<<"$sanitisedSensorsOutput" || true)
+        ramCount=$(grep -Ec '"(SODIMM[0-9]*|spd5118-)[^"]*"' <<<"$sanitisedSensorsOutput" || true)
         if [[ "$ramCount" -gt 0 ]]; then
             info "Detected $ramCount RAM sensor(s)."
             ENABLE_RAM_TEMP=1; sensors_detected=true

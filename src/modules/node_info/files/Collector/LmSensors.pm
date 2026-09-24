@@ -83,6 +83,9 @@ sub _get_temperature_sensors {
     $data = _get_cpu_name($data, $cache_ref);
     debug(__LINE__, "Translated CPU names in lm-sensors output");
 
+    $data = _get_ram_info($data);
+    debug(__LINE__, "Normalized RAM/DIMM sensor entries in lm-sensors output");
+
     # Wrap in top-level key
     my $sensors_json;
     eval { $sensors_json = decode_json($data); };
@@ -93,6 +96,7 @@ sub _get_temperature_sensors {
 
     $data = JSON->new->pretty->encode({
         cpu   => $config{lm_sensors}{enable_cpu}        ? \1 : \0,
+        ram   => $config{lm_sensors}{enable_ram_temp}   ? \1 : \0,
         nvme  => $config{lm_sensors}{enable_nvme_temp}  ? \1 : \0,
         fans  => $config{lm_sensors}{enable_fan_speed}  ? \1 : \0,
         hdd   => $config{lm_sensors}{enable_hdd_temp}   ? \1 : \0,
@@ -123,6 +127,85 @@ sub _sanitize_sensors {
         s/\"SODIMM\":\{\"temp(\d+)_input\"/\"SODIMM$1\":\{\"temp$1_input\"/g;
 
     return $sensors_output;
+}
+
+# ============================================================================
+# Normalize RAM/DIMM temperature entries (DDR5 spd5118 + DDR3/4 SODIMM)
+# into a single "DIMM<slot>" key scheme with a common layout
+# ============================================================================
+
+# Flattens the legacy lm-sensors temperature format into temp1_input/temp1_max/...
+# so the UI can consume a single, common RAM layout.
+sub _flatten_temp_feature {
+    my ($raw) = @_;
+    my %flat;
+    return \%flat unless ref $raw eq 'HASH';
+
+    foreach my $key (keys %$raw) {
+        my $val = $raw->{$key};
+        next unless !ref $val && $key =~ /^temp\d+_(.+)$/;
+        $flat{"temp1_$1"} = $val + 0;
+    }
+
+    return \%flat;
+}
+
+sub _get_ram_info {
+    my ($sensors_output) = @_;
+
+    my $sensors_data;
+    eval { $sensors_data = decode_json($sensors_output); };
+    if ($@) {
+        debug(__LINE__, "Failed to parse sensors JSON: $@");
+        return $sensors_output;
+    }
+
+    my %dimms;
+
+    # ----- DDR5: spd5118-i2c-<bus>-<addr>, temperature nested under "temp1" -----
+    foreach my $entry (grep { /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i } keys %{$sensors_data}) {
+        my ($bus, $addr) = ($entry =~ /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i);
+        # SPD EEPROM addresses 0x50-0x57 map to slots 1-8 (JEDEC convention).
+        my $slot = (hex($addr) & 0x07) + 1;
+
+        if (exists $dimms{$slot}) {
+            debug(__LINE__, "DIMM slot $slot already assigned; keeping spd5118 over SODIMM");
+        }
+
+        $dimms{$slot} = {
+            temp1     => _flatten_temp_feature($sensors_data->{$entry}->{temp1}),
+            dimm_slot => $slot,
+            bus       => $bus + 0,
+            address   => $addr,
+            source    => 'spd5118',
+        };
+        delete $sensors_data->{$entry};
+    }
+
+    # ----- DDR3/4: SODIMM<N>, flat temp<N>_* fields, no bus/address -----
+    foreach my $entry (grep { /^SODIMM(\d+)$/ } keys %{$sensors_data}) {
+        my ($slot) = ($entry =~ /^SODIMM(\d+)$/);
+
+        if (exists $dimms{$slot}) {
+            debug(__LINE__, "DIMM slot $slot already assigned; skipping SODIMM entry $entry");
+            delete $sensors_data->{$entry};
+            next;
+        }
+
+        $dimms{$slot} = {
+            temp1     => _flatten_temp_feature($sensors_data->{$entry}),
+            dimm_slot => $slot + 0,
+            source    => 'jc42',
+        };
+        delete $sensors_data->{$entry};
+    }
+
+    foreach my $slot (keys %dimms) {
+        $sensors_data->{"DIMM$slot"} = $dimms{$slot};
+        debug(__LINE__, "Normalized DIMM$slot (source: $dimms{$slot}->{source})");
+    }
+
+    return JSON->new->pretty->canonical->encode($sensors_data);
 }
 
 # ============================================================================
