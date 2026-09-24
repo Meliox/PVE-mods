@@ -134,9 +134,8 @@ sub _sanitize_sensors {
 # into a single "DIMM<slot>" key scheme with a common layout
 # ============================================================================
 
-# Flattens a raw temperature feature into temp1_input/temp1_max/... regardless
-# of which sensors -j schema produced it: legacy flat (temp3_input => 34.0) or
-# the newer nested schema (input => {quantity, unit, value}).
+# Flattens the legacy lm-sensors temperature format into temp1_input/temp1_max/...
+# so the UI can consume a single, common RAM layout.
 sub _flatten_temp_feature {
     my ($raw) = @_;
     my %flat;
@@ -144,13 +143,8 @@ sub _flatten_temp_feature {
 
     foreach my $key (keys %$raw) {
         my $val = $raw->{$key};
-
-        if (ref $val eq 'HASH' && exists $val->{value}) {
-            next if exists $val->{quantity} && $val->{quantity} ne 'temperature';
-            $flat{"temp1_$key"} = $val->{value} + 0;
-        } elsif (!ref $val && $key =~ /^temp\d+_(.+)$/) {
-            $flat{"temp1_$1"} = $val + 0;
-        }
+        next unless !ref $val && $key =~ /^temp\d+_(.+)$/;
+        $flat{"temp1_$1"} = $val + 0;
     }
 
     return \%flat;
