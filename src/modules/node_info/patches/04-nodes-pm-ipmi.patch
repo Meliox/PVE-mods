@@ -1,7 +1,10 @@
 --- a/usr/share/perl5/PVE/API2/Nodes.pm
 +++ b/usr/share/perl5/PVE/API2/Nodes.pm
-@@ -539,3 +539,4 @@
-         my $dinfo = df('/', 1); # output is bytes
-+        $res->{PveMod_ipmiInfo} = PVE::API2::PVEMod_SensorInfo::get_ipmi_info();
+@@ -545,6 +545,7 @@
+             free => $dinfo->{blocks} - $dinfo->{used},
+         };
  
-         $res->{rootfs} = {
++        $res->{PveMod_ipmiInfo} = PVE::API2::PVEMod_SensorInfo::get_ipmi_info();
+         return $res;
+     },
+ });
