@@ -44,7 +44,7 @@ jobs:
         run: bash build/test/test-syntax.sh all 
 
       - name: Test IPMI sensor parser
-        run: prove -v t/ipmi.t
+        run: prove -v t/ipmi*.t
 
       - name: Validate IPMI service entry points
         run: |
