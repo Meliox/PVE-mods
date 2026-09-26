@@ -133,7 +133,7 @@ jobs:
           # Base on main's changelog so reruns always replace the previous bot entry cleanly
           MAIN_CHANGELOG=$(git show origin/main:debian/changelog)
           {
-            echo "pve-mod ($NEW_VERSION) stable; urgency=low"
+            echo "pve-mods ($NEW_VERSION) stable; urgency=low"
             echo ""
             while IFS= read -r line; do
               [[ -n "$line" ]] && echo "  * $line"

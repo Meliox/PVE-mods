@@ -1,7 +1,7 @@
 name: Test Patches - Weekly
 
-# Weekly regression test of pve-mod against the latest upstream Proxmox VE files.
-# Mods are auto-discovered from the [modules] section of src/pve-mod.conf and
+# Weekly regression test of pve-mods against the latest upstream Proxmox VE files.
+# Mods are auto-discovered from the [modules] section of src/pve-mods.conf and
 # tested in parallel - adding a mod needs no change here. If a mod fails, an
 # issue is opened (or updated) per failed mod explaining why.
 
@@ -29,7 +29,7 @@ jobs:
             /^\[/ { in_sec = ($0 == "[modules]") }
             in_sec && /^[^#=]+=/ {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1); print $1
-            }' src/pve-mod.conf | jq -R . | jq -cs .)
+            }' src/pve-mods.conf | jq -R . | jq -cs .)
           echo "Discovered mods: $MODS"
           echo "mods=$MODS" >> "$GITHUB_OUTPUT"
 
@@ -105,7 +105,7 @@ jobs:
           echo "proxmox-widget-toolkit: ${PWT_VERSION}"
 
       - name: Install built package
-        run: apt-get install -y ../pve-mod_*.deb
+        run: apt-get install -y ../pve-mods_*.deb
 
       - name: Test mod
         run: |
@@ -142,7 +142,7 @@ jobs:
 
           # Ensure the label exists (no-op if it already does).
           gh label create patch-break --color B60205 \
-            --description "pve-mod patch failed against upstream Proxmox" 2>/dev/null || true
+            --description "pve-mods patch failed against upstream Proxmox" 2>/dev/null || true
 
           EXISTING=$(gh issue list --state open --label patch-break \
             --search "$TITLE in:title" --json number,title \

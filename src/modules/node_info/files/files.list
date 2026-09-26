@@ -1,4 +1,4 @@
-# pve-mod :: node_info file manifest
+# pve-mods :: node_info file manifest
 # Maps files in this directory to their installation destinations.
 # Format: <source> <destination> [permission]
 #   source      - path relative to this files/ directory
@@ -7,21 +7,21 @@
 # Read by build/gen-rules.sh to generate the per-module debian install rules.
 
 # PVE API2 facade
-PveMod_SensorInfo.pm                    usr/share/perl5/PVE/API2/PVEMod_SensorInfo.pm
+PveMods_SensorInfo.pm                    usr/share/perl5/PVE/API2/PVEMods_SensorInfo.pm
 
-# PVEMod core modules
-Config.pm                               usr/share/perl5/PVE/PVEMod/Config.pm
-Utils.pm                                usr/share/perl5/PVE/PVEMod/Utils.pm
-Store.pm                                usr/share/perl5/PVE/PVEMod/Store.pm
-ProcessManager.pm                       usr/share/perl5/PVE/PVEMod/ProcessManager.pm
+# PVEMods core modules
+Config.pm                               usr/share/perl5/PVE/PVEMods/Config.pm
+Utils.pm                                usr/share/perl5/PVE/PVEMods/Utils.pm
+Store.pm                                usr/share/perl5/PVE/PVEMods/Store.pm
+ProcessManager.pm                       usr/share/perl5/PVE/PVEMods/ProcessManager.pm
 
 # Collector plugins
-Collector/Intel.pm                      usr/share/perl5/PVE/PVEMod/Collector/Intel.pm
-Collector/Nvidia.pm                     usr/share/perl5/PVE/PVEMod/Collector/Nvidia.pm
-Collector/Amd.pm                        usr/share/perl5/PVE/PVEMod/Collector/Amd.pm
-Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMod/Collector/LmSensors.pm
-Collector/Ups.pm                        usr/share/perl5/PVE/PVEMod/Collector/Ups.pm
-Collector/systemInformation.pm          usr/share/perl5/PVE/PVEMod/Collector/SystemInformation.pm
+Collector/Intel.pm                      usr/share/perl5/PVE/PVEMods/Collector/Intel.pm
+Collector/Nvidia.pm                     usr/share/perl5/PVE/PVEMods/Collector/Nvidia.pm
+Collector/Amd.pm                        usr/share/perl5/PVE/PVEMods/Collector/Amd.pm
+Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMods/Collector/LmSensors.pm
+Collector/Ups.pm                        usr/share/perl5/PVE/PVEMods/Collector/Ups.pm
+Collector/systemInformation.pm          usr/share/perl5/PVE/PVEMods/Collector/SystemInformation.pm
 
 # JS module (rename to match loader reference)
-PveMod_pvemanagerlib.js                 usr/share/pve-manager/js/PveMod_PveNodeStatusView.js
+PveMods_pvemanagerlib.js                 usr/share/pve-manager/js/PveMods_PveNodeStatusView.js

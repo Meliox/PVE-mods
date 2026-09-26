@@ -1,12 +1,12 @@
-﻿package PVE::API2::PVEMod_SensorInfo;
+﻿package PVE::API2::PVEMods_SensorInfo;
 
 use strict;
 use warnings;
 
-use PVE::PVEMod::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file);
-use PVE::PVEMod::Utils          qw(debug safe_read_json);
-use PVE::PVEMod::ProcessManager qw(pve_mod_starter notify_pve_mod_worker);
-use PVE::PVEMod::Collector::SystemInformation qw(get_system_information_data);
+use PVE::PVEMods::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file);
+use PVE::PVEMods::Utils          qw(debug safe_read_json);
+use PVE::PVEMods::ProcessManager qw(pve_mods_starter notify_pve_mods_worker);
+use PVE::PVEMods::Collector::SystemInformation qw(get_system_information_data);
 
 # Per-endpoint state caches (module-level, reset on worker restart)
 my $graphics_cache     = { data => {},        mtime => 0 };
@@ -165,12 +165,12 @@ sub get_graphics_info {
     }
 
     # Start PVE Mod
-    pve_mod_starter();
+    pve_mods_starter();
 
     my $data = _load_graphics_data();
 
-    # Notify pve_mod_worker of activity
-    notify_pve_mod_worker();
+    # Notify pve_mods_worker of activity
+    notify_pve_mods_worker();
 
     return $data;
 }
@@ -183,12 +183,12 @@ sub get_sensors_info {
     }
 
     # Start PVE Mod
-    pve_mod_starter();
+    pve_mods_starter();
 
     my $data = _read_state_file_cached($sensors_state_file, $sensors_cache, 0, {});
 
-    # Notify pve_mod_worker of activity
-    notify_pve_mod_worker();
+    # Notify pve_mods_worker of activity
+    notify_pve_mods_worker();
 
     return $data;
 }
@@ -201,21 +201,21 @@ sub get_ups_info {
     }
 
     # Start PVE Mod
-    pve_mod_starter();
+    pve_mods_starter();
 
     my $data = _read_state_file_cached($ups_state_file, $ups_cache, 0, {});
 
-    # Notify pve_mod_worker of activity
-    notify_pve_mod_worker();
+    # Notify pve_mods_worker of activity
+    notify_pve_mods_worker();
 
     return $data;
 }
 
-sub get_pve_mod_version {
-    debug(__LINE__, "get_pve_mod_version called");
+sub get_pve_mods_version {
+    debug(__LINE__, "get_pve_mods_version called");
     
-    # Notify pve_mod_worker of activity
-    notify_pve_mod_worker();
+    # Notify pve_mods_worker of activity
+    notify_pve_mods_worker();
     
     debug(__LINE__, "Returning version: $VERSION");
 

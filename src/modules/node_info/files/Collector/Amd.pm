@@ -1,11 +1,11 @@
-﻿package PVE::PVEMod::Collector::Amd;
+﻿package PVE::PVEMods::Collector::Amd;
 
 use strict;
 use warnings;
 use Exporter 'import';
 
-use PVE::PVEMod::Config qw($process_type);
-use PVE::PVEMod::Utils  qw(debug);
+use PVE::PVEMods::Config qw($process_type);
+use PVE::PVEMods::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
     get_amd_gpu_devices

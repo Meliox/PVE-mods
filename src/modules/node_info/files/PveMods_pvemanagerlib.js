@@ -204,7 +204,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
-            textField: 'PveMod_JsonSensorInfo',
+            textField: 'PveMods_JsonSensorInfo',
             renderer: function(cpuInfo){
                 // display configuration
                 const itemsPerRow = 0;
@@ -382,7 +382,7 @@ Ext.define('PVE.node.StatusView', {
             iconCls: 'fa fa-fw fa-desktop',
             title: gettext('GPU Details'),
             printBar: false,
-            textField: 'PveMod_graphicsInfo',
+            textField: 'PveMods_graphicsInfo',
             renderer: function(gpuInfo) {
                 try {
                     if (gpuInfo.enable_gpu !== true) {
@@ -522,7 +522,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('RAM Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMod_JsonSensorInfo',
+			textField: 'PveMods_JsonSensorInfo',
 			renderer: function(ramInfo) {
 				// sensors configuration: RAM entries are normalized by LmSensors.pm into DIMM<slot> keys
 				const sensorName = "temp1";
@@ -581,7 +581,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('HDD/SSD Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMod_JsonSensorInfo',
+			textField: 'PveMods_JsonSensorInfo',
 			renderer: function(hddInfo) {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
@@ -657,7 +657,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMod_JsonSensorInfo',
+			textField: 'PveMods_JsonSensorInfo',
 			renderer: function(nvmeInfo) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
@@ -739,7 +739,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('Other Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMod_JsonSensorInfo',
+			textField: 'PveMods_JsonSensorInfo',
 			renderer: function(otherInfo) {
 				// Prefixes belonging to other known categories (excluded from this view)
 				const excludePrefixes = [
@@ -846,7 +846,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'PveMod_JsonSensorInfo',
+            textField: 'PveMods_JsonSensorInfo',
             renderer: function(fansInfo) {
                 // ---
                 let objValue;
@@ -910,7 +910,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('GPU Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'PveMod_graphicsInfo',
+            textField: 'PveMods_graphicsInfo',
             renderer: function(gpuStats) {
                 try {
                     if ((gpuStats.enable_gpu !== true || gpuStats.enable_fans !== true)) {
@@ -956,7 +956,7 @@ Ext.define('PVE.node.StatusView', {
             colspan: 2,
             title: gettext('UPS Status'),
             iconCls: 'fa fa-fw fa-battery-three-quarters',
-            valueField: 'PveMod_upsInfo',
+            valueField: 'PveMods_upsInfo',
             printBar: true,
             warningThreshold: 1.1,
             criticalThreshold: 1.2,
@@ -1285,11 +1285,11 @@ Ext.define('PVE.node.StatusView', {
             value: '',
         },
         {
-            itemId: 'pve_mod_version',
+            itemId: 'pve_mods_version',
             colspan: 2,
             printBar: false,
             title: gettext('Sensor Mod Version'),
-            textField: 'PveMod_Version',
+            textField: 'PveMods_Version',
             value: '',
         },
         {
@@ -1297,7 +1297,7 @@ Ext.define('PVE.node.StatusView', {
 			colspan: 2,
 			printBar: false,
 			title: gettext('Information'),
-			textField: 'PveMod_systemInfo',
+			textField: 'PveMods_systemInfo',
             renderer: function(sysInfo) {
                 try {
                     if (sysInfo.disabled === true) {

@@ -1,12 +1,12 @@
-﻿package PVE::PVEMod::Collector::Nvidia;
+﻿package PVE::PVEMods::Collector::Nvidia;
 
 use strict;
 use warnings;
 use Exporter 'import';
 
-use PVE::PVEMod::Config qw(%config $process_type $pve_mod_working_dir);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json parse_csv_line);
-use PVE::PVEMod::Store  qw(update_nvidia_gpu_rrd);
+use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
+use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json parse_csv_line);
+use PVE::PVEMods::Store  qw(update_nvidia_gpu_rrd);
 
 our @EXPORT_OK = qw(
     get_nvidia_gpu_devices
@@ -157,7 +157,7 @@ sub _get_and_write_nvidia_stats {
         $device_index = $1;  # untainted
 
         my $node_name         = "gpu$device_index";
-        my $device_state_file = "$pve_mod_working_dir/stats-nvidia$device_index.json";
+        my $device_state_file = "$pve_mods_working_dir/stats-nvidia$device_index.json";
 
         my $device_name = $stats->{name};
         foreach my $dev (@$devices) {

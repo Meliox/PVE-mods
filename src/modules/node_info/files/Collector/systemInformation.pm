@@ -1,11 +1,11 @@
-package PVE::PVEMod::Collector::SystemInformation;
+package PVE::PVEMods::Collector::SystemInformation;
 
 use strict;
 use warnings;
 use Exporter 'import';
 
-use PVE::PVEMod::Config qw(%config);
-use PVE::PVEMod::Utils  qw(debug);
+use PVE::PVEMods::Config qw(%config);
+use PVE::PVEMods::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
     get_system_information_data
@@ -44,7 +44,7 @@ sub get_system_information_data {
 sub _get_system_info {
     my ($type) = @_;
 
-    my $cache_file = "/var/lib/pve-mod/dmidecode-type${type}.txt";
+    my $cache_file = "/var/lib/pve-mods/dmidecode-type${type}.txt";
     my $output;
     if (open(my $fh, '<', $cache_file)) {
         local $/;
@@ -53,7 +53,7 @@ sub _get_system_info {
     }
 
     unless (defined $output && length($output) > 0) {
-        debug(__LINE__, "No cached DMI data at $cache_file - re-run pve-mod-configure as root to refresh");
+        debug(__LINE__, "No cached DMI data at $cache_file - re-run pve-mods-configure as root to refresh");
         return {};
     }
 

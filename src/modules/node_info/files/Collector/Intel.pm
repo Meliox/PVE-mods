@@ -1,12 +1,12 @@
-﻿package PVE::PVEMod::Collector::Intel;
+﻿package PVE::PVEMods::Collector::Intel;
 
 use strict;
 use warnings;
 use Exporter 'import';
 
-use PVE::PVEMod::Config qw(%config $process_type $pve_mod_working_dir);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals safe_write_json read_sysfs);
-use PVE::PVEMod::Store  qw(update_intel_gpu_rrd);
+use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
+use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json read_sysfs);
+use PVE::PVEMods::Store  qw(update_intel_gpu_rrd);
 
 our @EXPORT_OK = qw(
     get_intel_gpu_devices
@@ -86,7 +86,7 @@ sub get_intel_gpu_devices {
 
     if (!@devices && grep { /$PERMISSION_ERROR_RE/ } @lines) {
         warn "[node_info] Intel GPU monitoring: www-data cannot read GPU performance counters "
-            . "(CAP_PERFMON missing on intel_gpu_top). Re-run pve-mod-configure to grant it.\n";
+            . "(CAP_PERFMON missing on intel_gpu_top). Re-run pve-mods-configure to grant it.\n";
     }
 
     return @devices;
@@ -169,7 +169,7 @@ sub collector_for_intel_device {
 
     my $drm_dev          = "drm:/dev/dri/$device->{card}";
     my $intel_gpu_top_pid = undef;
-    my $device_state_file = "$pve_mod_working_dir/stats-$device->{card}.json";
+    my $device_state_file = "$pve_mods_working_dir/stats-$device->{card}.json";
 
     debug(__LINE__, "Collector started for device: $drm_dev, writing to $device_state_file");
 
@@ -232,7 +232,7 @@ sub collector_for_intel_device {
 
             if ($line =~ /$PERMISSION_ERROR_RE/) {
                 warn "[node_info] Intel GPU monitoring: www-data cannot read GPU performance counters "
-                    . "for $device->{card} (CAP_PERFMON missing on intel_gpu_top). Re-run pve-mod-configure to grant it.\n";
+                    . "for $device->{card} (CAP_PERFMON missing on intel_gpu_top). Re-run pve-mods-configure to grant it.\n";
                 last;
             }
 

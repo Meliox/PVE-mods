@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# pve-mod-configure - Interactive configuration tool for pve-mod
+# pve-mods-configure - Interactive configuration tool for pve-mods
 # Detects hardware, asks the user which features to enable, writes
-# /etc/pve-mod/pve-mod.conf, and applies patches to PVE system files.
+# /etc/pve-mods/pve-mods.conf, and applies patches to PVE system files.
 #
-# Module-specific logic lives in /usr/lib/pve-mod/configure.d/<mod>.sh,
+# Module-specific logic lives in /usr/lib/pve-mods/configure.d/<mod>.sh,
 # sourced at startup. Each module file provides the standard four-function
 # API: <mod>_defaults, <mod>_load_conf, <mod>_configure, <mod>_write_conf.
 
 set -euo pipefail
 
-CONF_FILE="/etc/pve-mod/pve-mod.conf"
-CONFD_DIR="/etc/pve-mod/conf.d"
-APPLY_PATCHES="/usr/lib/pve-mod/apply-patches.sh"
-REVERT_PATCHES="/usr/lib/pve-mod/revert-patches.sh"
+CONF_FILE="/etc/pve-mods/pve-mods.conf"
+CONFD_DIR="/etc/pve-mods/conf.d"
+APPLY_PATCHES="/usr/lib/pve-mods/apply-patches.sh"
+REVERT_PATCHES="/usr/lib/pve-mods/revert-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 #region helpers
@@ -34,7 +34,7 @@ mod_status() {
 #endregion helpers
 
 # Source all module configure scripts. Override CONFIGURE_D_DIR for testing.
-CONFIGURE_D_DIR="${PVE_MOD_CONFIGURE_D:-/usr/lib/pve-mod/configure.d}"
+CONFIGURE_D_DIR="${PVE_MODs_CONFIGURE_D:-/usr/lib/pve-mods/configure.d}"
 for _f in "${CONFIGURE_D_DIR}"/*.sh; do
     [[ -f "$_f" ]] || continue
     # shellcheck source=/dev/null
@@ -62,8 +62,8 @@ _load_main_conf() {
 write_main_conf() {
     mkdir -p "$(dirname "$CONF_FILE")" "$CONFD_DIR"
     cat > "$CONF_FILE" <<EOF
-# pve-mod main configuration file
-# Managed by pve-mod-configure. Re-run to update.
+# pve-mods main configuration file
+# Managed by pve-mods-configure. Re-run to update.
 #
 # This file only declares which mods are enabled. Each mod keeps its own
 # settings in ${CONFD_DIR}/<mod>.conf
@@ -81,7 +81,7 @@ EOF
 main() {
     # ── Welcome banner ────────────────────────────────────────────────────────
     local _version
-    _version=$(dpkg-query -W -f='${Version}' pve-mod 2>/dev/null || echo "unknown")
+    _version=$(dpkg-query -W -f='${Version}' pve-mods 2>/dev/null || echo "unknown")
     echo -e "\e[1;34m"
     echo "  ██████╗ ██╗   ██╗███████╗    ███╗   ███╗ ██████╗ ██████╗ ███████╗"
     echo "  ██╔══██╗██║   ██║██╔════╝    ████╗ ████║██╔═══██╗██╔══██╗██╔════╝"
@@ -98,13 +98,13 @@ main() {
 
     # ── Prerequisite check ────────────────────────────────────────────────────
     if [[ ! -x "$APPLY_PATCHES" ]]; then
-        err "pve-mod is not installed (cannot find $APPLY_PATCHES).\nInstall it first: dpkg -i pve-mod_*.deb"
+        err "pve-mods is not installed (cannot find $APPLY_PATCHES).\nInstall it first: dpkg -i pve-mods_*.deb"
     fi
 
     # ── Legacy installation check ─────────────────────────────────────────────
     if grep -qF '$res->{sensorsJSONOutput}' "$NODES_PM" 2>/dev/null || \
        grep -qF '$res->{systemInfo}' "$NODES_PM" 2>/dev/null; then
-        err "A legacy pve-mod bash-script installation was detected in Nodes.pm.\nRemove it first:\n  bash /path/to/pve-mod-gui-sensors.sh uninstall"
+        err "A legacy pve-mods bash-script installation was detected in Nodes.pm.\nRemove it first:\n  bash /path/to/pve-mods-gui-sensors.sh uninstall"
     fi
 
     # ── Initialize all config variables with safe defaults ────────────────────
@@ -118,7 +118,7 @@ main() {
     # ── Module / feature selection ────────────────────────────────────────────
     # Existing settings are loaded above; the user picks ONE option to (re)configure
     # this run, and all other options retain their previously saved values.
-    msgb "\n=== pve-mod Module Selection ==="
+    msgb "\n=== pve-mods Module Selection ==="
     echo "Available options (select one):"
     echo -e "  [1] Node Info   $(mod_status "$MOD_NODE_INFO") — sensor readings, GPU stats, UPS, system information"
     echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
@@ -179,7 +179,7 @@ main() {
     fi
 
     msgb "\n=== Done ==="
-    info "pve-mod is configured and active."
+    info "pve-mods is configured and active."
     info "Clear your browser cache to see the changes."
 }
 

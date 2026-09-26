@@ -1,4 +1,4 @@
-﻿package PVE::PVEMod::ProcessManager;
+﻿package PVE::PVEMods::ProcessManager;
 
 use strict;
 use warnings;
@@ -7,26 +7,26 @@ use Exporter 'import';
 use POSIX qw(WNOHANG setsid);
 use File::Path qw(remove_tree);
 
-use PVE::PVEMod::Config qw(
+use PVE::PVEMods::Config qw(
     %config $process_type
-    $pve_mod_working_dir $state_file
-    $pve_mod_worker_lock $startup_lock
+    $pve_mods_working_dir $state_file
+    $pve_mods_worker_lock $startup_lock
 );
-use PVE::PVEMod::Utils qw(
+use PVE::PVEMods::Utils qw(
     debug is_process_alive get_process_ppid read_lock_pid
-    acquire_exclusive_lock ensure_pve_mod_directory_exists
+    acquire_exclusive_lock ensure_pve_mods_directory_exists
     check_executable startup_message
 );
 
-use PVE::PVEMod::Collector::Intel   qw(get_intel_gpu_devices  collector_for_intel_device);
-use PVE::PVEMod::Collector::Nvidia  qw(get_nvidia_gpu_devices  collector_for_nvidia_devices);
-use PVE::PVEMod::Collector::Amd     qw(get_amd_gpu_devices    collector_for_amd_device);
-use PVE::PVEMod::Collector::LmSensors qw(collector_for_temperature_sensors);
-use PVE::PVEMod::Collector::Ups     qw(collector_for_ups);
+use PVE::PVEMods::Collector::Intel   qw(get_intel_gpu_devices  collector_for_intel_device);
+use PVE::PVEMods::Collector::Nvidia  qw(get_nvidia_gpu_devices  collector_for_nvidia_devices);
+use PVE::PVEMods::Collector::Amd     qw(get_amd_gpu_devices    collector_for_amd_device);
+use PVE::PVEMods::Collector::LmSensors qw(collector_for_temperature_sensors);
+use PVE::PVEMods::Collector::Ups     qw(collector_for_ups);
 
 our @EXPORT_OK = qw(
-    pve_mod_starter
-    notify_pve_mod_worker
+    pve_mods_starter
+    notify_pve_mods_worker
 );
 
 # Collector registry — only populated inside the worker process.
@@ -38,16 +38,16 @@ my %collectors = ();
 # ============================================================================
 
 # Ensures the worker is running.  Starts it if necessary (double-checked locking).
-sub pve_mod_starter {
-    debug(__LINE__, "Checking if pve_mod_worker is already running");
+sub pve_mods_starter {
+    debug(__LINE__, "Checking if pve_mods_worker is already running");
     if (_worker_lock_file_exists()) {
-        debug(__LINE__, "pve_mod_worker process already running, system is already started");
-        return "pve_mod_worker process already running, system is already started";
+        debug(__LINE__, "pve_mods_worker process already running, system is already started");
+        return "pve_mods_worker process already running, system is already started";
     }
     debug(__LINE__, "PVE mod worker is not running. PVE Mod will be started.");
 
     startup_message();
-    ensure_pve_mod_directory_exists();
+    ensure_pve_mods_directory_exists();
 
     debug(__LINE__, "Trying to acquire startup lock: $startup_lock");
     my $startup_fh = acquire_exclusive_lock($startup_lock, 'startup lock');
@@ -65,23 +65,23 @@ sub pve_mod_starter {
     $startup_fh->flush();
     debug(__LINE__, "Wrote PID $$ to startup lock");
 
-    _pve_mod_worker();
+    _pve_mods_worker();
 
     unlink($startup_lock);
     debug(__LINE__, "Released startup lock");
-    debug(__LINE__, "pve_mod_worker started successfully, returning");
+    debug(__LINE__, "pve_mods_worker started successfully, returning");
 }
 
 # Sends SIGUSR1 to the worker to reset the inactivity timer.
-sub notify_pve_mod_worker {
-    debug(__LINE__, "notify_pve_mod_worker called");
-    unless (-f $pve_mod_worker_lock) {
-        debug(__LINE__, "pve_mod_worker lock file does not exist");
+sub notify_pve_mods_worker {
+    debug(__LINE__, "notify_pve_mods_worker called");
+    unless (-f $pve_mods_worker_lock) {
+        debug(__LINE__, "pve_mods_worker lock file does not exist");
         return;
     }
 
-    debug(__LINE__, "pve_mod_worker lock file exists, reading PID");
-    if (open my $fh, '<', $pve_mod_worker_lock) {
+    debug(__LINE__, "pve_mods_worker lock file exists, reading PID");
+    if (open my $fh, '<', $pve_mods_worker_lock) {
         my $pid = <$fh>;
         close $fh;
         chomp $pid if defined $pid;
@@ -89,21 +89,21 @@ sub notify_pve_mod_worker {
             my $clean_pid = $1;
 
             if (is_process_alive($clean_pid)) {
-                debug(__LINE__, "Sending USR1 signal to pve_mod_worker PID $clean_pid");
+                debug(__LINE__, "Sending USR1 signal to pve_mods_worker PID $clean_pid");
                 my $result = kill('USR1', $clean_pid);
                 debug(__LINE__, "Signal result: $result");
             } else {
                 debug(__LINE__,
-                    "pve_mod_worker process $clean_pid is not alive, removing stale lock");
-                unlink($pve_mod_worker_lock);
+                    "pve_mods_worker process $clean_pid is not alive, removing stale lock");
+                unlink($pve_mods_worker_lock);
             }
         } else {
             debug(__LINE__,
-                "pve_mod_worker lock is stale (PID: " . ($pid // 'undefined') . "), removing");
-            unlink($pve_mod_worker_lock);
+                "pve_mods_worker lock is stale (PID: " . ($pid // 'undefined') . "), removing");
+            unlink($pve_mods_worker_lock);
         }
     } else {
-        debug(__LINE__, "Failed to open pve_mod_worker lock file: $!");
+        debug(__LINE__, "Failed to open pve_mods_worker lock file: $!");
     }
 }
 
@@ -112,12 +112,12 @@ sub notify_pve_mod_worker {
 # ============================================================================
 
 sub _worker_lock_file_exists {
-    return 0 unless -f $pve_mod_worker_lock;
+    return 0 unless -f $pve_mods_worker_lock;
 
-    my $pid = read_lock_pid($pve_mod_worker_lock);
+    my $pid = read_lock_pid($pve_mods_worker_lock);
     if (!defined $pid || $pid !~ /^(\d+)$/) {
         debug(__LINE__, "Worker lock is invalid (PID: " . ($pid // 'undefined') . "), removing");
-        unlink($pve_mod_worker_lock);
+        unlink($pve_mods_worker_lock);
         return 0;
     }
     my $worker_pid = $1;
@@ -137,27 +137,27 @@ sub _worker_lock_file_exists {
         debug(__LINE__, "waitpid on PID $worker_pid returned $reaped_pid: $!");
     }
 
-    unlink($pve_mod_worker_lock);
+    unlink($pve_mods_worker_lock);
     return 0;
 }
 
 # Double-forks so the worker is reparented to init (PID 1) instead of the
 # caller; init reaps it on exit, so it never lingers as a <defunct> zombie.
-sub _pve_mod_worker {
-    debug(__LINE__, "_pve_mod_worker called");
+sub _pve_mods_worker {
+    debug(__LINE__, "_pve_mods_worker called");
 
-    my $pve_mod_worker_fh =
-        acquire_exclusive_lock($pve_mod_worker_lock, 'pve_mod_worker lock');
-    return unless $pve_mod_worker_fh;
-    print $pve_mod_worker_fh "$$\n";
-    close($pve_mod_worker_fh);
+    my $pve_mods_worker_fh =
+        acquire_exclusive_lock($pve_mods_worker_lock, 'pve_mods_worker lock');
+    return unless $pve_mods_worker_fh;
+    print $pve_mods_worker_fh "$$\n";
+    close($pve_mods_worker_fh);
 
-    debug(__LINE__, "Forking intermediate process for pve_mod_worker");
+    debug(__LINE__, "Forking intermediate process for pve_mods_worker");
     my $intermediate_pid = fork();
 
     unless (defined $intermediate_pid) {
-        debug(__LINE__, "Failed to fork intermediate pve_mod_worker process: $!");
-        unlink($pve_mod_worker_lock);
+        debug(__LINE__, "Failed to fork intermediate pve_mods_worker process: $!");
+        unlink($pve_mods_worker_lock);
         return;
     }
 
@@ -168,23 +168,23 @@ sub _pve_mod_worker {
 
         my $worker_pid = fork();
         unless (defined $worker_pid) {
-            debug(__LINE__, "Failed to fork pve_mod_worker process: $!");
-            unlink($pve_mod_worker_lock);
+            debug(__LINE__, "Failed to fork pve_mods_worker process: $!");
+            unlink($pve_mods_worker_lock);
             POSIX::_exit(1);
         }
 
         if ($worker_pid == 0) {
             # Grandchild — the actual worker
-            $0 = "pve_mod_worker_controller";
-            if (open my $fh, '>', $pve_mod_worker_lock) {
+            $0 = "pve_mods_worker_controller";
+            if (open my $fh, '>', $pve_mods_worker_lock) {
                 print $fh "$$\n";
                 close $fh;
-                debug(__LINE__, "Wrote pve_mod_worker PID to lock file: $pve_mod_worker_lock");
+                debug(__LINE__, "Wrote pve_mods_worker PID to lock file: $pve_mods_worker_lock");
             } else {
-                debug(__LINE__, "Failed to write pve_mod_worker lock file: $!");
+                debug(__LINE__, "Failed to write pve_mods_worker lock file: $!");
             }
-            debug(__LINE__, "Worker process forked, calling _pve_mod_keep_alive");
-            _pve_mod_keep_alive();
+            debug(__LINE__, "Worker process forked, calling _pve_mods_keep_alive");
+            _pve_mods_keep_alive();
             exit(0);
         }
 
@@ -199,9 +199,9 @@ sub _pve_mod_worker {
     waitpid($intermediate_pid, 0);
     my $status = $? >> 8;
     if ($status == 0) {
-        debug(__LINE__, "pve_mod_worker process started successfully");
+        debug(__LINE__, "pve_mods_worker process started successfully");
     } else {
-        debug(__LINE__, "Intermediate pve_mod_worker process exited with status $status");
+        debug(__LINE__, "Intermediate pve_mods_worker process exited with status $status");
     }
 }
 
@@ -209,9 +209,9 @@ sub _pve_mod_worker {
 # Worker keep-alive loop
 # ============================================================================
 
-sub _pve_mod_keep_alive {
+sub _pve_mods_keep_alive {
     $process_type = 'worker';
-    debug(__LINE__, "pve_mod_worker process started with PID $$");
+    debug(__LINE__, "pve_mods_worker process started with PID $$");
 
     my $last_activity = time();
 
@@ -237,15 +237,15 @@ sub _pve_mod_keep_alive {
     };
 
     $SIG{TERM} = sub {
-        debug(__LINE__, "pve_mod_worker received SIGTERM, shutting down");
+        debug(__LINE__, "pve_mods_worker received SIGTERM, shutting down");
         _stop_child_collectors();
-        unlink($pve_mod_worker_lock) if -f $pve_mod_worker_lock;
+        unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
         exit(0);
     };
     $SIG{INT} = sub {
-        debug(__LINE__, "pve_mod_worker received SIGINT, shutting down");
+        debug(__LINE__, "pve_mods_worker received SIGINT, shutting down");
         _stop_child_collectors();
-        unlink($pve_mod_worker_lock) if -f $pve_mod_worker_lock;
+        unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
         exit(0);
     };
 
@@ -258,27 +258,27 @@ sub _pve_mod_keep_alive {
     debug(__LINE__, "All collectors started by worker");
 
     debug(__LINE__,
-        "Entering pve_mod_worker loop, timeout=$config{intervals}{collector_timeout}s");
+        "Entering pve_mods_worker loop, timeout=$config{intervals}{collector_timeout}s");
 
     while (1) {
-        debug(__LINE__, "pve_mod_worker loop start: checking activity");
+        debug(__LINE__, "pve_mods_worker loop start: checking activity");
 
         my $idle_time = time() - $last_activity;
         debug(__LINE__,
-            "pve_mod_worker loop: idle_time=${idle_time}s, "
+            "pve_mods_worker loop: idle_time=${idle_time}s, "
             . "timeout=$config{intervals}{collector_timeout}s");
 
         if ($idle_time > $config{intervals}{collector_timeout}) {
             debug(__LINE__, "Timeout reached, stopping collectors");
             _stop_child_collectors();
-            debug(__LINE__, "Collectors stopped, exiting pve_mod_worker");
-            unlink($pve_mod_worker_lock) if -f $pve_mod_worker_lock;
+            debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
+            unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
             exit(0);
         }
         sleep(1);
     }
 
-    debug(__LINE__, "pve_mod_worker loop exited unexpectedly!");
+    debug(__LINE__, "pve_mods_worker loop exited unexpectedly!");
 }
 
 # ============================================================================
@@ -495,8 +495,8 @@ sub _stop_child_collectors {
         unlink $state_file or debug(__LINE__, "Failed to remove $state_file: $!");
     }
 
-    if (-d $pve_mod_working_dir) {
-        remove_tree($pve_mod_working_dir, { error => \my $err });
+    if (-d $pve_mods_working_dir) {
+        remove_tree($pve_mods_working_dir, { error => \my $err });
         debug(__LINE__, "Cleanup errors: @$err") if @$err;
     }
 

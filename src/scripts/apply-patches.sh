@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# /usr/lib/pve-mod/apply-patches.sh
+# /usr/lib/pve-mods/apply-patches.sh
 #
-# Generic patch applier for pve-mod.
+# Generic patch applier for pve-mods.
 #
-# Reads /etc/pve-mod/pve-mod.conf [modules] to learn which mods are enabled,
-# then applies each enabled mod's patches from /usr/lib/pve-mod/patches/<mod>/.
+# Reads /etc/pve-mods/pve-mods.conf [modules] to learn which mods are enabled,
+# then applies each enabled mod's patches from /usr/lib/pve-mods/patches/<mod>/.
 #
 # Patch convention: every .patch uses a/<path> b/<path> headers and is applied
 # with `patch -p1 -F0 -d /` (zero fuzz: line offsets tolerated, fuzzy context
@@ -26,16 +26,16 @@
 set -u
 
 # Root paths (overridable via environment, mainly for testing).
-PVE_MOD_ROOT="${PVE_MOD_ROOT:-/}"
-MAIN_CONF="${PVE_MOD_MAIN_CONF:-/etc/pve-mod/pve-mod.conf}"
-CONFD_DIR="${PVE_MOD_CONFD_DIR:-/etc/pve-mod/conf.d}"
-PATCHES_DIR="${PVE_MOD_PATCHES_DIR:-/usr/lib/pve-mod/patches}"
+PVE_MODs_ROOT="${PVE_MODs_ROOT:-/}"
+MAIN_CONF="${PVE_MODs_MAIN_CONF:-/etc/pve-mods/pve-mods.conf}"
+CONFD_DIR="${PVE_MODs_CONFD_DIR:-/etc/pve-mods/conf.d}"
+PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
 # Storage for non-patch replaced files (e.g. nag-screen's minified proxmoxlib).
 # Patched text files need no backups - `patch -R` reverts them.
-STASH_DIR="${PVE_MOD_STASH_DIR:-/var/lib/pve-mod/backup}"
+STASH_DIR="${PVE_MODs_STASH_DIR:-/var/lib/pve-mods/backup}"
 
-info() { echo "[pve-mod] $*"; }
-warn() { echo "[pve-mod] WARNING: $*" >&2; }
+info() { echo "[pve-mods] $*"; }
+warn() { echo "[pve-mods] WARNING: $*" >&2; }
 
 # read_conf <file> <section> <key> [default]
 # Prints one value from an INI file, or the default if absent.
@@ -72,12 +72,12 @@ list_modules() {
 }
 
 # Patch-state helpers (all use zero fuzz for deterministic detection).
-_dry_forward() { patch -p1 -F0 -f --dry-run -s -d "$PVE_MOD_ROOT" < "$1" >/dev/null 2>&1; }
-_dry_reverse() { patch -R -p1 -F0 -f --dry-run -s -d "$PVE_MOD_ROOT" < "$1" >/dev/null 2>&1; }
+_dry_forward() { patch -p1 -F0 -f --dry-run -s -d "$PVE_MODs_ROOT" < "$1" >/dev/null 2>&1; }
+_dry_reverse() { patch -R -p1 -F0 -f --dry-run -s -d "$PVE_MODs_ROOT" < "$1" >/dev/null 2>&1; }
 is_applied()   { _dry_reverse "$1"; }
 can_apply()    { _dry_forward "$1"; }
-do_apply()     { patch -p1 -F0 -f -s -d "$PVE_MOD_ROOT" < "$1"; }
-do_revert()    { patch -R -p1 -F0 -f -s -d "$PVE_MOD_ROOT" < "$1"; }
+do_apply()     { patch -p1 -F0 -f -s -d "$PVE_MODs_ROOT" < "$1"; }
+do_revert()    { patch -R -p1 -F0 -f -s -d "$PVE_MODs_ROOT" < "$1"; }
 
 CHANGED=false
 FAILED=false
@@ -172,7 +172,7 @@ for mod in "${_target_modules[@]}"; do
                 to_apply+=("$pf")
             else
                 warn "  $(basename "$pf") does not apply cleanly"
-                patch -p1 -F0 -f --dry-run --verbose -d "$PVE_MOD_ROOT" < "$pf" >&2 || true
+                patch -p1 -F0 -f --dry-run --verbose -d "$PVE_MODs_ROOT" < "$pf" >&2 || true
                 preflight_ok=false
                 break
             fi

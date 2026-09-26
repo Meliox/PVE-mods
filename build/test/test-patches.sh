@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build/test/test-patches.sh
 #
-# Exercises pve-mod's patch engine against the installed Proxmox files.
+# Exercises pve-mods's patch engine against the installed Proxmox files.
 #
 # Usage: test-mods.sh <mod> | all
 #
@@ -19,15 +19,15 @@
 # Failure detection relies on the apply exit code: the patch engine performs an
 # atomic preflight dry-run and exits non-zero if any mod cannot apply cleanly.
 #
-# Must run as root (it edits /etc/pve-mod and the patched system files).
+# Must run as root (it edits /etc/pve-mods and the patched system files).
 
 set -u
 
-MAIN_CONF="${PVE_MOD_MAIN_CONF:-/etc/pve-mod/pve-mod.conf}"
-CONFD_DIR="${PVE_MOD_CONFD_DIR:-/etc/pve-mod/conf.d}"
-PATCHES_DIR="${PVE_MOD_PATCHES_DIR:-/usr/lib/pve-mod/patches}"
-APPLY="${PVE_MOD_APPLY:-/usr/lib/pve-mod/apply-patches.sh}"
-REVERT="${PVE_MOD_REVERT:-/usr/lib/pve-mod/revert-patches.sh}"
+MAIN_CONF="${PVE_MODs_MAIN_CONF:-/etc/pve-mods/pve-mods.conf}"
+CONFD_DIR="${PVE_MODs_CONFD_DIR:-/etc/pve-mods/conf.d}"
+PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
+APPLY="${PVE_MODs_APPLY:-/usr/lib/pve-mods/apply-patches.sh}"
+REVERT="${PVE_MODs_REVERT:-/usr/lib/pve-mods/revert-patches.sh}"
 
 info() { echo "[test] $*"; }
 warn() { echo "[test] WARNING: $*" >&2; }

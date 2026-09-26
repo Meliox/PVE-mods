@@ -58,7 +58,7 @@
 +        my $card = $param->{card};
 +        die "invalid card name\n" unless $card =~ /^[a-zA-Z0-9]+$/;
 +        return PVE::RRD::create_rrd_data(
-+            "pve-mod-gpu/$nodename/$card", $param->{timeframe}, $param->{cf},
++            "pve-mods-gpu/$nodename/$card", $param->{timeframe}, $param->{cf},
 +        );
 +    },
 +});

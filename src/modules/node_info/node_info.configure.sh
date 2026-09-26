@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# node_info.configure.sh - Configure module for pve-mod node_info
+# node_info.configure.sh - Configure module for pve-mods node_info
 #
-# Sourced by pve-mod-configure. Requires CONFD_DIR and the helper functions
+# Sourced by pve-mods-configure. Requires CONFD_DIR and the helper functions
 # (info, warn, err, ask, msgb) to be defined in the calling script before
 # this file is sourced.
 #
 # Provides the standard four-function module API:
 #   node_info_defaults    — set all variables to safe defaults
-#   node_info_load_conf   — parse /etc/pve-mod/conf.d/node_info.conf
+#   node_info_load_conf   — parse /etc/pve-mods/conf.d/node_info.conf
 #   node_info_configure   — interactive hardware-detection wizard
-#   node_info_write_conf  — write /etc/pve-mod/conf.d/node_info.conf
+#   node_info_write_conf  — write /etc/pve-mods/conf.d/node_info.conf
 
 NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
 KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-" "cpu_thermal-virtual-")
@@ -171,7 +171,7 @@ node_info_defaults() {
                          DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"
     DEBUG_AMD=0;         DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
     DEBUG_UPS=0;         DEBUG_UPS_FILE="/tmp/ups-output.json"
-    DEBUG_LOG=0;         DEBUG_LOG_FILE="/tmp/pve-mod-debug.log"
+    DEBUG_LOG=0;         DEBUG_LOG_FILE="/tmp/pve-mods-debug.log"
     DEBUG_MOD=0
 }
 
@@ -556,7 +556,7 @@ node_info_configure() {
     #     "rocm-smi is not installed; AMD GPU information cannot be detected without it."; then
     #     warn "Skipping AMD GPU monitoring."
     # else
-    #     warn "AMD GPU hardware and rocm-smi were detected, but AMD GPU data collection is not yet implemented in this pve-mod release."
+    #     warn "AMD GPU hardware and rocm-smi were detected, but AMD GPU data collection is not yet implemented in this pve-mods release."
     # fi
     #endregion AMD GPU
 
@@ -625,7 +625,7 @@ node_info_configure() {
     esac
 
     if [[ "$ENABLE_SYSTEM_INFO" -eq 1 ]]; then
-        local cache_dir="/var/lib/pve-mod"
+        local cache_dir="/var/lib/pve-mods"
         mkdir -p "$cache_dir"
         local cache_file="${cache_dir}/dmidecode-type${SYSTEM_INFO_TYPE}.txt"
         dmidecode -t "$SYSTEM_INFO_TYPE" > "$cache_file" 2>/dev/null || true
@@ -638,8 +638,8 @@ node_info_configure() {
 
 node_info_write_conf() {
     cat > "$NODE_INFO_CONF" <<EOF
-# pve-mod :: node_info mod configuration
-# Managed by pve-mod-configure. Re-run to update.
+# pve-mods :: node_info mod configuration
+# Managed by pve-mods-configure. Re-run to update.
 
 [gpu]
 intel_enabled=${ENABLE_INTEL_GPU_INFO}
