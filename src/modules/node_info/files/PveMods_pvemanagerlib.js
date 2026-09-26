@@ -481,7 +481,7 @@ Ext.define('PVE.node.StatusView', {
                         // Temperature
                         if (stats.temperature) {
                             const gpuTemp = gpuTempHelper.getTemp(parseFloat(stats.temperature.gpu));
-                            const gpuIgnoreThreshold = gpuTempHelper.getTemp(parseFloat(gpuStats.ignore_temp_below));
+                            const gpuIgnoreThreshold = gpuTempHelper.getTemp(parseFloat(gpuInfo.ignore_temp_below));
                             if (gpuTemp >= gpuIgnoreThreshold) {
                                 const tempUnit = gpuTempHelper.getUnit();
                                 // Convert thresholds to target unit for comparison
@@ -1053,12 +1053,14 @@ Ext.define('PVE.node.StatusView', {
             updateValue: function(text, usage) {
                 var me = this;
                 var infoText = me._pendingInfoText || '';
+                var loadText = me._pendingLoadText || '';
 
                 if (me.lastText === text && me.lastUsage === usage && me.lastLoadText === loadText && me.lastInfoText === infoText) {
                     return;
                 }
                 me.lastText = text;
                 me.lastUsage = usage;
+                me.lastLoadText = loadText;
                 me.lastInfoText = infoText;
 
                 var label = me.getComponent('label');
