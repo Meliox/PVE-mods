@@ -985,7 +985,7 @@ Ext.define('PVE.node.StatusView', {
                     xtype: 'container',
                     layout: {
                         type: 'hbox',
-                        align: 'middle',
+                        align: 'top',
                     },
                     items: [
                         {
@@ -1015,6 +1015,11 @@ Ext.define('PVE.node.StatusView', {
                                     height: 5,
                                     value: 0,
                                     animate: true,
+                                },
+                                {
+                                    xtype: 'component',
+                                    itemId: 'infoText',
+                                    margin: '4 0 0 0',
                                 },
                             ],
                         },
@@ -1047,14 +1052,14 @@ Ext.define('PVE.node.StatusView', {
             // it never touches the DOM, so there's no race/flash between the two.
             updateValue: function(text, usage) {
                 var me = this;
-                var loadText = me._pendingLoadText || '';
+                var infoText = me._pendingInfoText || '';
 
-                if (me.lastText === text && me.lastUsage === usage && me.lastLoadText === loadText) {
+                if (me.lastText === text && me.lastUsage === usage && me.lastLoadText === loadText && me.lastInfoText === infoText) {
                     return;
                 }
                 me.lastText = text;
                 me.lastUsage = usage;
-                me.lastLoadText = loadText;
+                me.lastInfoText = infoText;
 
                 var label = me.getComponent('label');
                 if (label) {
@@ -1076,6 +1081,15 @@ Ext.define('PVE.node.StatusView', {
                         loadTextCmp.setHtml(loadText);
                     } else {
                         loadTextCmp.update(loadText);
+                    }
+                }
+
+               var infoTextCmp = me.down('#infoText');
+                if (infoTextCmp) {
+                    if (infoTextCmp.setHtml) {
+                        infoTextCmp.setHtml(infoText);
+                    } else {
+                        infoTextCmp.update(infoText);
                     }
                 }
 
@@ -1113,8 +1127,7 @@ Ext.define('PVE.node.StatusView', {
             },
             // Pure computation — no DOM writes. Stashes the "Battery capacity ...
             // X% (Runtime: ...)" line for updateValue to place above the bar, and
-            // returns a 30/70 table (model | other info incl. Load) wrapped in the
-            // standard indent div, matching the other widgets in this panel.
+            // returns a model/serial column wrapped in the
             renderer: function(upsInfo) {
                 try {  
                     if (upsInfo.disabled === true) {
@@ -1176,6 +1189,7 @@ Ext.define('PVE.node.StatusView', {
                 }
 
                 let aboveBarText = '';
+                let infoText = '';
                 const rows = [];
 
                 upsKeys.forEach(function(upsKey) {
@@ -1186,6 +1200,7 @@ Ext.define('PVE.node.StatusView', {
                     const load = parseFloat(upsData['ups.load']);
                     const watts = parseFloat(upsData['ups.realpower']);
                     const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
+                    const serial = upsData['ups.serial'] || upsData['device.serial'] || '';
                     const st = statusText(upsData['ups.status']);
                     const testResult = upsData['ups.test.result'];
                     const manufacturingDate = upsData['battery.mfr.date'];
@@ -1197,11 +1212,11 @@ Ext.define('PVE.node.StatusView', {
                     }
                     aboveBarText =
                         '<div style="display: flex; justify-content: space-between; gap: 8px;">' +
-                        '<span>Battery capacity</span>' +
+                        '<span>Battery Capacity</span>' +
                         '<span style="text-align: right;">' + rightSide + '</span>' +
                         '</div>';
 
-                    // General information table: Status, Output, Input, Load, Test.
+                    // Detailed information shown below the battery capacity bar.
                     const infoBits = [];
                     if (st.text) {
                         infoBits.push('Status: ' + colorize(st.text, st.color));
@@ -1222,19 +1237,20 @@ Ext.define('PVE.node.StatusView', {
                     if (testResult) {
                         infoBits.push('Test: ' + testResult);
                     }
+                    infoText = infoBits.join(' | ');
 
                     rows.push(
                         '<tr>' +
-                        '<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + '</td>' +
-                        '<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">' + infoBits.join(' | ') + '</td>' +
+                        '<td style="padding: 2px 10px 2px 0; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + ' (' + serial + ')</td>' +
                         '</tr>'
                     );
                 });
 
                 // Stash for updateValue to consume — no DOM writes here.
                 this._pendingLoadText = aboveBarText;
+                this._pendingInfoText = infoText;
 
-                // Becomes the `text` argument passed to updateValue (left column table).
+                // Becomes the `text` argument passed to updateValue (model and serial column).
                 return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
             }
         },
