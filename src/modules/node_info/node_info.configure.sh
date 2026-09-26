@@ -560,16 +560,17 @@ node_info_configure() {
     # fi
     #endregion AMD GPU
 
-    #region GPU history
-    if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
-        msgb "\n=== GPU Historical Data ==="
-        local choice
-        choice=$(ask "Store historical GPU data for graphs? (y/N)")
-        case "$choice" in
-            [yY]) ENABLE_GPU_HISTORY=1; info "Historical GPU data will be stored." ;;
-            *)    info "Historical GPU data disabled." ;;
-        esac
-    fi
+    # GPU historical data and graphs are disabled until the feature is complete.
+    #region GPU history (disabled)
+    # if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
+    #     msgb "\n=== GPU Historical Data ==="
+    #     local choice
+    #     choice=$(ask "Store historical GPU data for graphs? (y/N)")
+    #     case "$choice" in
+    #         [yY]) ENABLE_GPU_HISTORY=1; info "Historical GPU data will be stored." ;;
+    #         *)    info "Historical GPU data disabled." ;;
+    #     esac
+    # fi
     #endregion GPU history
 
     #region UPS
