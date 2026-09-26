@@ -1207,22 +1207,19 @@ Ext.define('PVE.node.StatusView', {
                     const testResult = upsData['ups.test.result'];
                     const manufacturingDate = upsData['battery.mfr.date'];
 
-                    // Above the bar: "Battery capacity" on the left, charge% (Runtime: ...) on the right.
-                    let rightSide = !isNaN(charge) ? (Math.round(charge) + '%') : '';
+                    // Above the bar: Status and "Battery Capacity: X% (Runtime: ...)" on one line.
+                    let capacityLine = 'Battery Capacity: ' + (!isNaN(charge) ? (Math.round(charge) + '%') : '');
                     if (runtime) {
-                        rightSide += (rightSide ? ' ' : '') + '(Runtime: ' + runtime + ' left)';
+                        capacityLine += ' (' + runtime + ' left)';
                     }
                     aboveBarText =
                         '<div style="display: flex; justify-content: space-between; gap: 8px;">' +
-                        '<span>Battery Capacity</span>' +
-                        '<span style="text-align: right;">' + rightSide + '</span>' +
+                        '<span>' + (st.text ? 'Status: ' + colorize(st.text, st.color) : '') + '</span>' +
+                        '<span style="text-align: right;">' + capacityLine + '</span>' +
                         '</div>';
 
                     // Detailed information shown below the battery capacity bar.
                     const infoBits = [];
-                    if (st.text) {
-                        infoBits.push('Status: ' + colorize(st.text, st.color));
-                    }
                     if (!isNaN(watts)) {
                         infoBits.push('Output: ' + Math.round(watts) + 'W');
                     }
@@ -1239,7 +1236,7 @@ Ext.define('PVE.node.StatusView', {
                     if (testResult) {
                         infoBits.push('Test: ' + testResult);
                     }
-                    infoText = infoBits.join(' | ');
+                    infoText = '<div style="text-align: right;">' + infoBits.join(' | ') + '</div>';
 
                     rows.push(
                         '<tr>' +
