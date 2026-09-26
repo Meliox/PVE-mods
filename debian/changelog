@@ -1,3 +1,22 @@
+pve-mods (2.0.0) stable; urgency=low
+
+  * 0d8ceea fix(node_info): debug messages logged as journal warnings (#365) by @Meliox
+  * 164899a chore(node_info): Ups design changes (#362) by @Meliox
+  * c1b1067 fix(node_info): gpustats regression from #357 (#363) by @Meliox
+  * cd8d20e chore(project): Rename all traces of pve-mod to pve-mods (#361) by @Meliox
+  * 5f1a810 fix(node_info): Disable gpu store and ui graphs until fully implemented (#360) by @Meliox
+  * 4a74e07 fix(node_info): fix js exception when enable rendering of disabled widget (#357) by @Meliox
+  * 9c0e6bb feat(node_info): Add SODIMM temperature support and add DDR5 (spd5118) temperature support (#354) by @Meliox
+  * 7b49946 fix(node_info): verify and manage CAP_PERFMON permission for Intel GPU monitoring (#351) by @Meliox
+  * 015d26d refactor(node_info): unify GPU vendor detection with hardware-first, ask-to-install flow (#347) by @Meliox
+  * 162d0f3 chore(patching): Log already-applied patches during preflight for visibility (#345) by @Meliox
+  * 773d3f0 fix(node_info): Decode AMD k10temp PCI devfn correctly (#330) by @ta3wook
+  * db13113 fix(node_info): Intel GPU detection misidentifying AMD GPUs when intel-gpu-tools is installed (#323) by @Meliox
+  * 57e57d3 feat(node_info): Improve disk temperature rendering (#326) by @vit9696
+  * fd88df6 feat(node_info): add configurable mod_debug toggle for live debug logging (#322) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sat, 26 Sep 2026 09:07:08 +0000
+
 pve-mods (1.0.7) stable; urgency=low
 
   * 8d70194 fix(nag_screen): Patch typo (#318)
