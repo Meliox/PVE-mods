@@ -1354,6 +1354,7 @@ Ext.define('PVE.node.StatusView', {
     },
 });
 
+/* GPU historical graphs are disabled until the feature is complete.
 Ext.define('pve-rrd-gpu', {
     extend: 'Ext.data.Model',
     fields: [
@@ -1491,6 +1492,7 @@ Ext.define('PVE.node.GpuRRD', {
 	me.on('destroy', function() { store.stopUpdate(); });
     },
 });
+*/
 
 Ext.define('PVE.node.Summary', {
     extend: 'Ext.panel.Panel',
@@ -1627,10 +1629,11 @@ Ext.define('PVE.node.Summary', {
             model: 'pve-rrd-node',
         });
 
-        var gpurrdstore = Ext.create('PVE.data.GpuRRDStore', {
-            rrdurl: '/api2/json/nodes/' + nodename + '/gpurrddata',
-            card: 'card0',
-        });
+        // GPU historical graph store is disabled until the feature is complete.
+        // var gpurrdstore = Ext.create('PVE.data.GpuRRDStore', {
+        //     rrdurl: '/api2/json/nodes/' + nodename + '/gpurrddata',
+        //     card: 'card0',
+        // });
 
         let nodeStatus = Ext.create('PVE.node.StatusView', {
             xtype: 'pveNodeStatus',
@@ -1787,6 +1790,7 @@ Ext.define('PVE.node.Summary', {
                             store: rrdstore,
                             unit: 'percent',
                         },
+                        /* GPU historical graphs are disabled until the feature is complete.
                         {
                             xtype: 'proxmoxRRDChart',
                             title: gettext('GPU Frequency (MHz)'),
@@ -1817,6 +1821,7 @@ Ext.define('PVE.node.Summary', {
                             unit: 'percent',
                             store: gpurrdstore,
                         },
+                        */
                     ],
                     listeners: {
                         resize: function (panel) {
@@ -1830,12 +1835,12 @@ Ext.define('PVE.node.Summary', {
                     rstore.setInterval(1000);
                     rstore.startUpdate();
                     rrdstore.startUpdate();
-                    gpurrdstore.startUpdate();
+                    // gpurrdstore.startUpdate();
                 },
                 destroy: function () {
                     rstore.setInterval(5000);
                     rrdstore.stopUpdate();
-                    gpurrdstore.stopUpdate();
+                    // gpurrdstore.stopUpdate();
                 },
             },
         });
