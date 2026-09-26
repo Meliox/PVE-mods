@@ -6,10 +6,13 @@ use Exporter 'import';
 
 use JSON;
 use Fcntl qw(O_CREAT O_EXCL O_WRONLY);
+use Sys::Syslog qw(openlog syslog LOG_DEBUG);
 
 use PVE::PVEMods::Config qw($DEBUG_ENABLED $VERSION $pve_mods_working_dir %config);
 
 my $debug_log_fh;
+
+openlog('pve-mods', 'pid', 'user');
 
 our @EXPORT_OK = qw(
     debug
@@ -54,7 +57,7 @@ sub debug {
         $output = "[$sub1:$line] $message\n";
     }
 
-    warn $output;
+    syslog(LOG_DEBUG, '%s', $output);
 
     if ($config{debug}{log_enabled} && !defined $debug_log_fh) {
         if (open(my $fh, '>>', $config{debug}{log_file})) {
