@@ -1,4 +1,4 @@
-Source: pve-mod
+Source: pve-mods
 Section: misc
 Priority: optional
 Maintainer: Meliox <meliox@users.noreply.github.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.6.2
 Homepage: https://github.com/Meliox/PVE-mods
 
-Package: pve-mod
+Package: pve-mods
 Architecture: all
 Depends: ${misc:Depends}, perl, librrds-perl, patch
 Recommends:
@@ -14,4 +14,4 @@ Suggests: intel-gpu-tools, lm-sensors, upsc, nvidia-smi
 Description: Proxmox VE UI modifications
  Extends the Proxmox VE web interface with various information.
  See respective mods for more information
- After installation, run: pve-mod-configure
+ After installation, run: pve-mods-configure

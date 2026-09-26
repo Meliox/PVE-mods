@@ -7,8 +7,8 @@
 #
 # A module is any directory under src/modules/ that contains a files/ and/or
 # patches/ subdirectory. The module's directory name is its canonical mod key
-# (matches the [modules] keys in pve-mod.conf and the install path
-# usr/lib/pve-mod/patches/<mod>/).
+# (matches the [modules] keys in pve-mods.conf and the install path
+# usr/lib/pve-mods/patches/<mod>/).
 #
 # Usage:
 #   gen-rules.sh    Emit dpkg install lines (tab-indented, no header).
@@ -25,11 +25,11 @@
 #   2. patches/*         -> every file under patches/ recursively, including
 #                           patches.list and hook scripts. Shell scripts (.sh)
 #                           get mode 755, everything else 644. Installed under
-#                           usr/lib/pve-mod/patches/<mod>/<relative-path>.
+#                           usr/lib/pve-mods/patches/<mod>/<relative-path>.
 #   3. <mod>.conf        -> if present in the module root, installed as a
-#                           conffile at etc/pve-mod/conf.d/<mod>.conf (644) plus
+#                           conffile at etc/pve-mods/conf.d/<mod>.conf (644) plus
 #                           a reference copy at
-#                           usr/share/pve-mod/conf.d/<mod>.conf.default (644).
+#                           usr/share/pve-mods/conf.d/<mod>.conf.default (644).
 
 set -euo pipefail
 
@@ -38,7 +38,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SRC_DIR="$REPO_ROOT/src/modules"
-PKG_DIR="debian/pve-mod"
+PKG_DIR="debian/pve-mods"
 
 # Print the list of module directory names (basenames), sorted, that contain a
 # files/ or patches/ subdirectory.
@@ -89,21 +89,21 @@ emit_install_rules() {
             else
                 perm=644
             fi
-            emit_install "$perm" "$rel_mod/patches/$rel" "usr/lib/pve-mod/patches/$mod/$rel"
+            emit_install "$perm" "$rel_mod/patches/$rel" "usr/lib/pve-mods/patches/$mod/$rel"
         done < <(find "$patches_dir" -type f | sort)
     fi
 
     # 3. Per-module config: conffile + reference default copy.
     local conf="$mod_dir/$mod.conf"
     if [[ -f "$conf" ]]; then
-        emit_install 644 "$rel_mod/$mod.conf" "etc/pve-mod/conf.d/$mod.conf"
-        emit_install 644 "$rel_mod/$mod.conf" "usr/share/pve-mod/conf.d/$mod.conf.default"
+        emit_install 644 "$rel_mod/$mod.conf" "etc/pve-mods/conf.d/$mod.conf"
+        emit_install 644 "$rel_mod/$mod.conf" "usr/share/pve-mods/conf.d/$mod.conf.default"
     fi
 
     # 4. Per-module configure script.
     local configure_script="$mod_dir/$mod.configure.sh"
     if [[ -f "$configure_script" ]]; then
-        emit_install 755 "$rel_mod/$mod.configure.sh" "usr/lib/pve-mod/configure.d/$mod.sh"
+        emit_install 755 "$rel_mod/$mod.configure.sh" "usr/lib/pve-mods/configure.d/$mod.sh"
     fi
 }
 

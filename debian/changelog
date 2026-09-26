@@ -1,9 +1,9 @@
-pve-mod (1.0.7) stable; urgency=low
+pve-mods (1.0.7) stable; urgency=low
 
   * 8d70194 fix(nag_screen): Patch typo (#318)
   * 2a122ef feat(node_info) Add configurable minimum-temperature ignore threshold (#316)
   * 0476410 fix(node_info): re-show sensor widgets when data becomes valid again after being hidden (#312)
-  * 972c9ae fix(node_info): reap zombie pve_mod_worker and orphaned collector processes (#307)
+  * 972c9ae fix(node_info): reap zombie pve_mods_worker and orphaned collector processes (#307)
   * 69e2d78 feat(node_info): UPS widget: redesign status panel with battery-charge progress bar (#310)
   * bdb3f9f fix(node_info): normalize UPS data — derive ups.realpower fallback and clean invalid battery.mfr.date (#309)
   * c768eac fix(nag_screen): Fix nag screen patch webui line offsets (#315)
@@ -15,49 +15,49 @@ pve-mod (1.0.7) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sat, 22 Aug 2026 23:24:00 +0000
 
-pve-mod (1.0.6) stable; urgency=low
+pve-mods (1.0.6) stable; urgency=low
 
   * c21b973 remove buildtest file (#288)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 12:21:45 +0000
 
-pve-mod (1.0.5) stable; urgency=low
+pve-mods (1.0.5) stable; urgency=low
 
   * f3db7e7 buildtest10 (#285)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 12:05:37 +0000
 
-pve-mod (1.0.4) stable; urgency=low
+pve-mods (1.0.4) stable; urgency=low
 
   * 0bdf5a3 buildtest9 (#281)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:59:48 +0000
 
-pve-mod (1.0.3) stable; urgency=low
+pve-mods (1.0.3) stable; urgency=low
 
   * e34ae96 buildtest8 (#278)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:44:25 +0000
 
-pve-mod (1.0.2) stable; urgency=low
+pve-mods (1.0.2) stable; urgency=low
 
   * 32d308f buildtest7 (#273)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:21:38 +0000
 
-pve-mod (1.0.2) stable; urgency=low
+pve-mods (1.0.2) stable; urgency=low
 
   * 32d308f buildtest7 (#273)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:21:05 +0000
 
-pve-mod (1.0.1) stable; urgency=low
+pve-mods (1.0.1) stable; urgency=low
 
   * 94a4355 buildtest6 (#270)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:14:06 +0000
 
-pve-mod (1.0.0) stable; urgency=low
+pve-mods (1.0.0) stable; urgency=low
 
   * aab6568 test 5 (#268)
   * 3eaf040 build test 4 (#265)
@@ -80,7 +80,7 @@ pve-mod (1.0.0) stable; urgency=low
   * 0855a19 add rpi cpu temp support (#226)
   * 96b8a12 refactor mod configurator (#222)
   * 9805ce4 Add readmes to each mod (#223)
-  * 5df83ec fix collectors, modular apply/unapply patches, correct config loading in pve-mod-configure (#208)
+  * 5df83ec fix collectors, modular apply/unapply patches, correct config loading in pve-mods-configure (#208)
   * 8547e33 fix(workflow): More deps for test mod 3 (#215)
   * 15c0a45 fix(workflow): More deps for test mod 2 (#214)
   * 1655551 fix(workflow): More deps for test mod (#213)
@@ -99,20 +99,20 @@ pve-mod (1.0.0) stable; urgency=low
   * f91125e Workflow: automatic testing of patches (#191)
   * 0c25030 Migrate file patching from sed/python into generic patching scheme (#181)
   * 0642e77 fix pve-manager triggering mechanism (#187)
-  * e157336 pve-mod-configure: fix validate the sensors -j output before proceeding (#188)
+  * e157336 pve-mods-configure: fix validate the sensors -j output before proceeding (#188)
   * 84f2f07 fix: use intel-gpu-tools instead of intel-igt-tools (#189)
   * 3f4f3cd Move old scripts to legacy folder (#184)
   * 4c1a948 Readme update of test (#176)
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 09 Aug 2026 11:01:00 +0000
 
-pve-mod (0.1.5) stable; urgency=low
+pve-mods (0.1.5) stable; urgency=low
 
   * cfeccc2 align with main
   * 463dd66 fix startup_message
   * a6b2560 ..
-  * a7d8c3b add debug to pve-mod-configure
-  * 342a5b5 add debug mode to pve-mod-configure and config
+  * a7d8c3b add debug to pve-mods-configure
+  * 342a5b5 add debug mode to pve-mods-configure and config
   * 54dd209 test again
   * a7cef62 rework hook implementation to work on dpkg triggered
   * d9ff050 first draft for testing
@@ -121,12 +121,12 @@ pve-mod (0.1.5) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 14:12:32 +0000
 
-pve-mod (0.1.4) stable; urgency=low
+pve-mods (0.1.4) stable; urgency=low
 
   * 463dd66 fix startup_message
   * a6b2560 ..
-  * a7d8c3b add debug to pve-mod-configure
-  * 342a5b5 add debug mode to pve-mod-configure and config
+  * a7d8c3b add debug to pve-mods-configure
+  * 342a5b5 add debug mode to pve-mods-configure and config
   * 54dd209 test again
   * a7cef62 rework hook implementation to work on dpkg triggered
   * d9ff050 first draft for testing
@@ -135,11 +135,11 @@ pve-mod (0.1.4) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 14:05:47 +0000
 
-pve-mod (0.1.3) stable; urgency=low
+pve-mods (0.1.3) stable; urgency=low
 
   * a6b2560 ..
-  * a7d8c3b add debug to pve-mod-configure
-  * 342a5b5 add debug mode to pve-mod-configure and config
+  * a7d8c3b add debug to pve-mods-configure
+  * 342a5b5 add debug mode to pve-mods-configure and config
   * 54dd209 test again
   * a7cef62 rework hook implementation to work on dpkg triggered
   * d9ff050 first draft for testing
@@ -148,10 +148,10 @@ pve-mod (0.1.3) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:51:51 +0000
 
-pve-mod (0.1.2) stable; urgency=low
+pve-mods (0.1.2) stable; urgency=low
 
-  * a7d8c3b add debug to pve-mod-configure
-  * 342a5b5 add debug mode to pve-mod-configure and config
+  * a7d8c3b add debug to pve-mods-configure
+  * 342a5b5 add debug mode to pve-mods-configure and config
   * 54dd209 test again
   * a7cef62 rework hook implementation to work on dpkg triggered
   * d9ff050 first draft for testing
@@ -160,9 +160,9 @@ pve-mod (0.1.2) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:48:24 +0000
 
-pve-mod (0.1.1) stable; urgency=low
+pve-mods (0.1.1) stable; urgency=low
 
-  * 342a5b5 add debug mode to pve-mod-configure and config
+  * 342a5b5 add debug mode to pve-mods-configure and config
   * 54dd209 test again
   * a7cef62 rework hook implementation to work on dpkg triggered
   * d9ff050 first draft for testing
@@ -171,7 +171,7 @@ pve-mod (0.1.1) stable; urgency=low
 
  -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 07 Jun 2026 13:04:56 +0000
 
-pve-mod (0.1.0) beta; urgency=low
+pve-mods (0.1.0) beta; urgency=low
 
   * Initial release.
 

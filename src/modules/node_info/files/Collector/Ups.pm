@@ -1,4 +1,4 @@
-﻿package PVE::PVEMod::Collector::Ups;
+﻿package PVE::PVEMods::Collector::Ups;
 
 use strict;
 use warnings;
@@ -6,8 +6,8 @@ use Exporter 'import';
 
 use JSON;
 
-use PVE::PVEMod::Config qw(%config $process_type $ups_state_file);
-use PVE::PVEMod::Utils  qw(debug setup_collector_signals);
+use PVE::PVEMods::Config qw(%config $process_type $ups_state_file);
+use PVE::PVEMods::Utils  qw(debug setup_collector_signals);
 
 our @EXPORT_OK = qw(
     collector_for_ups

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Bootstrap installer for pve-mod
+# install.sh — Bootstrap installer for pve-mods
 # Usage: curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
 
 set -euo pipefail
@@ -8,13 +8,13 @@ REPO="Meliox/PVE-mods"
 API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 
 #region helpers
-info() { echo -e "\e[0;32m[pve-mod] ${1}\e[0m"; }
-err()  { echo -e "\e[0;31m[pve-mod] ERROR: ${1}\e[0m" >&2; exit 1; }
+info() { echo -e "\e[0;32m[pve-mods] ${1}\e[0m"; }
+err()  { echo -e "\e[0;31m[pve-mods] ERROR: ${1}\e[0m" >&2; exit 1; }
 confirm_continue() {
     local reason="${1}"
     local response
 
-    echo -e "\e[0;33m[pve-mod] WARNING: ${reason}\e[0m" >&2
+    echo -e "\e[0;33m[pve-mods] WARNING: ${reason}\e[0m" >&2
     [[ -r /dev/tty ]] || err "Cannot ask for confirmation; aborting installation."
     read -r -p "Continue without checksum verification? [y/N] " response </dev/tty
     [[ "$response" =~ ^[Yy]([Ee][Ss])?$ ]] || err "Installation aborted."
@@ -24,7 +24,7 @@ confirm_install() {
     local response
 
     [[ -r /dev/tty ]] || err "Cannot ask for confirmation; aborting installation."
-    read -r -p "Install pve-mod ${version}? [Y/n] " response </dev/tty
+    read -r -p "Install pve-mods ${version}? [Y/n] " response </dev/tty
     [[ -z "$response" || "$response" =~ ^[Yy]([Ee][Ss])?$ ]] || err "Installation aborted."
 }
 #endregion helpers
@@ -67,8 +67,8 @@ VERSION=$(echo "$RELEASE_JSON" \
 info "Found version ${VERSION}..."
 
 # ── Download and install ───────────────────────────────────────────────────────
-TMP=$(mktemp /tmp/pve-mod-XXXXXX.deb)
-SUMS_TMP=$(mktemp /tmp/pve-mod-XXXXXX.sums)
+TMP=$(mktemp /tmp/pve-mods-XXXXXX.deb)
+SUMS_TMP=$(mktemp /tmp/pve-mods-XXXXXX.sums)
 trap 'rm -f "$TMP" "$SUMS_TMP"' EXIT
 
 curl -sL -o "$TMP" "$DEB_URL" || err "Failed to download package from $DEB_URL"
@@ -96,7 +96,7 @@ else
 fi
 
 confirm_install "$VERSION"
-info "Installing pve-mod ${VERSION}..."
+info "Installing pve-mods ${VERSION}..."
 
 dpkg -i "$TMP" || {
     info "Resolving missing dependencies..."
@@ -106,6 +106,6 @@ dpkg -i "$TMP" || {
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
-info "pve-mod ${VERSION} installed successfully."
-info "Run 'pve-mod-configure' to enable and configure modules."
+info "pve-mods ${VERSION} installed successfully."
+info "Run 'pve-mods-configure' to enable and configure modules."
 echo ""

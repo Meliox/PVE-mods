@@ -1,4 +1,4 @@
-﻿package PVE::PVEMod::Collector::LmSensors;
+﻿package PVE::PVEMods::Collector::LmSensors;
 
 use strict;
 use warnings;
@@ -6,8 +6,8 @@ use Exporter 'import';
 
 use JSON;
 
-use PVE::PVEMod::Config qw(%config $process_type $sensors_state_file);
-use PVE::PVEMod::Utils  qw(debug check_executable setup_collector_signals read_sysfs);
+use PVE::PVEMods::Config qw(%config $process_type $sensors_state_file);
+use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals read_sysfs);
 
 our @EXPORT_OK = qw(
     collector_for_temperature_sensors

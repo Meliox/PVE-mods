@@ -65,13 +65,13 @@ jobs:
       - name: Build deb package
         run: |
           dpkg-buildpackage -us -uc -b
-          ls -lh ../pve-mod_*.deb
+          ls -lh ../pve-mods_*.deb
 
       - name: Sign deb package
         env:
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
-          DEB=$(ls ../pve-mod_*.deb)
+          DEB=$(ls ../pve-mods_*.deb)
           gpg --batch --armor --detach-sign --local-user "$GPG_KEY_ID" -o "${DEB}.asc" "$DEB"
           gpg --verify "${DEB}.asc" "$DEB"
 
@@ -79,7 +79,7 @@ jobs:
         env:
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
-          DEB=$(ls ../pve-mod_*.deb)
+          DEB=$(ls ../pve-mods_*.deb)
           sha256sum "$DEB" > /tmp/SHA256SUMS
           gpg --batch --armor --detach-sign --local-user "$GPG_KEY_ID" \
             -o /tmp/SHA256SUMS.asc /tmp/SHA256SUMS
@@ -88,7 +88,7 @@ jobs:
         id: notes
         run: |
           awk '
-            /^pve-mod \(/ { if (found) exit; found=1; next }
+            /^pve-mods \(/ { if (found) exit; found=1; next }
             found && /^ --/ { exit }
             found { print }
           ' debian/changelog | grep '^\s*\*' | sed 's/^\s*\* /- /' > /tmp/notes.md
@@ -97,7 +97,7 @@ jobs:
       - name: Collect release assets
         id: assets
         run: |
-          DEB=$(ls ../pve-mod_*.deb)
+          DEB=$(ls ../pve-mods_*.deb)
           echo "deb=$DEB" >> "$GITHUB_OUTPUT"
           echo "deb_asc=${DEB}.asc" >> "$GITHUB_OUTPUT"
 
@@ -111,6 +111,6 @@ jobs:
           ASSETS="$DEB $DEB_ASC /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
 
           gh release create "$TAG" \
-            --title "pve-mod $TAG" \
+            --title "pve-mods $TAG" \
             --notes-file /tmp/notes.md \
             $ASSETS

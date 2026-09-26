@@ -174,9 +174,9 @@
 -    },
 +// Load custom PVE.node.StatusView from external module
 +Ext.Loader.loadScript({
-+    url: '/pve2/js/PveMod_PveNodeStatusView.js',
++    url: '/pve2/js/PveMods_PveNodeStatusView.js',
 +    onLoad: function() { },
-+    onError: function() { console.error('Failed to load PveMod_PveNodeStatusView.js'); }
++    onError: function() { console.error('Failed to load PveMods_PveNodeStatusView.js'); }
  });
 +// Ext.define('PVE.node.StatusView', {
 +//     extend: 'Proxmox.panel.StatusView',

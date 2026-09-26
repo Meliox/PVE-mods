@@ -1,4 +1,4 @@
-﻿package PVE::PVEMod::Store;
+﻿package PVE::PVEMods::Store;
 
 use strict;
 use warnings;
@@ -8,8 +8,8 @@ use File::Path qw(make_path);
 use PVE::INotify;
 use RRDs;
 
-use PVE::PVEMod::Config qw(%config $RRD_SOCKET $RRD_BASE);
-use PVE::PVEMod::Utils  qw(debug);
+use PVE::PVEMods::Config qw(%config $RRD_SOCKET $RRD_BASE);
+use PVE::PVEMods::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
     get_nodename

@@ -5,7 +5,7 @@ If you find this helpful, a small donation is appreciated, [![Donate](https://ww
 
 | Version | Description | Status |
 |---------|-------------|--------|
-| **v2** (current) | Debian package (`pve-mod`) with interactive `pve-mod-configure` wizard | Recommended |
+| **v2** (current) | Debian package (`pve-mods`) with interactive `pve-mods-configure` wizard | Recommended |
 | v1 (legacy) | Standalone bash scripts, manual install | Archived — see [Legacy section](#legacy-v1-shell-scripts) |
 
 ---
@@ -16,7 +16,7 @@ Compatibility: PVE 9.0+
 
 TBD PICTURE
 
-`pve-mod` is a Debian package that installs UI patches and an interactive configuration wizard.
+`pve-mods` is a Debian package that installs UI patches and an interactive configuration wizard.
 
 ### Mods
 
@@ -27,9 +27,9 @@ TBD PICTURE
 
 ### How it works
 
-1. The `pve-mod` package installs the mods installation, patch files under `/usr/lib/pve-mod/`.
-2. The mods main configuration file and mods can be found under `/etc/pve-mod/`.
-2. Running `pve-mod-configure` prompts for which modules to enable and configuration of mods.
+1. The `pve-mods` package installs the mods installation, patch files under `/usr/lib/pve-mods/`.
+2. The mods main configuration file and mods can be found under `/etc/pve-mods/`.
+2. Running `pve-mods-configure` prompts for which modules to enable and configuration of mods.
 3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
 
 ### Install
@@ -42,10 +42,10 @@ curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/insta
 
 Install respective mod dependencies - see Mod table.
 
-Run `pve-mod-configure` to install/uninstall and configure mods.
+Run `pve-mods-configure` to install/uninstall and configure mods.
 
 #### Manual configuration changes
-Configuration files are located in `/etc/pve-mod/`. After any manual edits, restart `pveproxy` to apply the changes:
+Configuration files are located in `/etc/pve-mods/`. After any manual edits, restart `pveproxy` to apply the changes:
 
 ```bash
 systemctl restart pveproxy
@@ -56,7 +56,7 @@ systemctl restart pveproxy
 Commands and mod configuration must be run as `root`.
 
 ```bash
-apt-get remove pve-mod 
+apt-get remove pve-mods
 ```
 And remove dependencies needed by respective mods.
 
@@ -72,7 +72,7 @@ Multiple node support requires application to be installed on all nodes with ide
 
 ### Node sensor readings view
 
-![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mod-sensors.png?raw=true)
+![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mods-sensors.png?raw=true)
 
 Compatibility:
 - 9.0-9.2. Newer versions may often work
@@ -114,8 +114,8 @@ Instructions be performed as 'root', as normal users do not have access to the f
 apt-get install lm-sensors
 # lm-sensors must be configured, run below to configure your sensors, apply temperature offsets. Refer to lm-sensors manual for more information.
 sensors-detect 
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mod-gui-sensors.sh
-bash pve-mod-gui-sensors.sh install
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mods-gui-sensors.sh
+bash pve-mods-gui-sensors.sh install
 # Then clear the browser cache to ensure all changes are visualized.
 ```
 Additionally, adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
@@ -137,8 +137,8 @@ The script provides three options:
 #### Install
 Instructions be performed as 'root', as normal users do not have access to the files.
 ```
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mod-nag-screen.sh
-bash pve-mod-nag-screen.sh install
+wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mods-nag-screen.sh
+bash pve-mods-nag-screen.sh install
 ```
 
 ### Script to update all containers

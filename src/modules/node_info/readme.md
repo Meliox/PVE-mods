@@ -82,7 +82,7 @@ Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in
 
 `intel_gpu_top` needs the `CAP_PERFMON` capability to read the GPU's performance-monitoring counters. `pveproxy` — and therefore this mod's collector processes, which it forks — runs as the unprivileged `www-data` user, not root. Without `CAP_PERFMON`, `intel_gpu_top` fails with `Permission denied` and the Intel GPU collector produces no data.
 
-To make Intel GPU monitoring work, `pve-mod-configure` checks whether `www-data` can already run `intel_gpu_top` and, **only with your explicit confirmation**, grants the capability directly to the binary:
+To make Intel GPU monitoring work, `pve-mods-configure` checks whether `www-data` can already run `intel_gpu_top` and, **only with your explicit confirmation**, grants the capability directly to the binary:
 
 ```sh
 setcap cap_perfmon+ep /usr/bin/intel_gpu_top
@@ -99,7 +99,7 @@ To remove it manually at any other time (e.g. without disabling the module):
 setcap -r /usr/bin/intel_gpu_top
 ```
 
-**Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mod-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
+**Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mods-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
 
 ### AMD GPU
 
@@ -130,7 +130,7 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | NVIDIA GPU | `nvidia-smi` |
 | Intel GPU | `intel-gpu-tools` (`intel_gpu_top` binary) |
 | UPS | `nut-client` (`upsc` binary) |
-| System information | `dmidecode` (run once via `pve-mod-configure`) |
+| System information | `dmidecode` (run once via `pve-mods-configure`) |
 
 ## Debug Mode
 
@@ -138,7 +138,7 @@ Each collector supports a debug mode that reads from a local file instead of exe
 
 ### Per-collector debug files
 
-Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mod/conf.d/node_info.conf` and populate its file(s) with sample data, captured from a real host via the commands below:
+Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mods/conf.d/node_info.conf` and populate its file(s) with sample data, captured from a real host via the commands below:
 
 | Collector | Enable flag | File | Content | Example to generate it |
 |-----------|-------------|------|---------|-------------------------|
@@ -152,7 +152,7 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 
 ### Verbose module logging (mod_debug)
 
-Set `mod_debug=1` in the `[debug]` section of `/etc/pve-mod/conf.d/node_info.conf`, then restart `pveproxy` (`systemctl restart pveproxy`) — the setting is only read at startup. With it enabled, the mod logs each internal step (collector start/stop, cache hits, file reads, etc.) to the journal, viewable with:
+Set `mod_debug=1` in the `[debug]` section of `/etc/pve-mods/conf.d/node_info.conf`, then restart `pveproxy` (`systemctl restart pveproxy`) — the setting is only read at startup. With it enabled, the mod logs each internal step (collector start/stop, cache hits, file reads, etc.) to the journal, viewable with:
 
 ```sh
 journalctl -u pveproxy -f

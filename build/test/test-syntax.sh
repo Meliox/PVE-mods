@@ -16,7 +16,7 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="${PVE_MOD_SRC_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/modules}"
+SRC_DIR="${PVE_MODs_SRC_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/modules}"
 
 info() { echo "[syntax] $*"; }
 warn() { echo "[syntax] WARNING: $*" >&2; }

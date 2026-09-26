@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# /usr/lib/pve-mod/revert-patches.sh
+# /usr/lib/pve-mods/revert-patches.sh
 #
-# Generic patch reverter for pve-mod.
+# Generic patch reverter for pve-mods.
 #
-# Reverses every patch found under /usr/lib/pve-mod/patches/<mod>/ (regardless
+# Reverses every patch found under /usr/lib/pve-mods/patches/<mod>/ (regardless
 # of whether the mod is currently enabled), using `patch -R -p1 -F0 -d /`.
 # Patches are reverted in reverse manifest order. Patched text files need no
 # backups - `patch -R` restores them exactly. Non-patch actions (e.g. the
@@ -17,28 +17,28 @@
 set -u
 
 # Root paths (overridable via environment, mainly for testing).
-PVE_MOD_ROOT="${PVE_MOD_ROOT:-/}"
-CONFD_DIR="${PVE_MOD_CONFD_DIR:-/etc/pve-mod/conf.d}"
-PATCHES_DIR="${PVE_MOD_PATCHES_DIR:-/usr/lib/pve-mod/patches}"
+PVE_MODs_ROOT="${PVE_MODs_ROOT:-/}"
+CONFD_DIR="${PVE_MODs_CONFD_DIR:-/etc/pve-mods/conf.d}"
+PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
 # Storage for non-patch replaced files (e.g. nag-screen's minified proxmoxlib).
-STASH_DIR="${PVE_MOD_STASH_DIR:-/var/lib/pve-mod/backup}"
+STASH_DIR="${PVE_MODs_STASH_DIR:-/var/lib/pve-mods/backup}"
 
-info() { echo "[pve-mod] $*"; }
-warn() { echo "[pve-mod] WARNING: $*" >&2; }
+info() { echo "[pve-mods] $*"; }
+warn() { echo "[pve-mods] WARNING: $*" >&2; }
 
 # Revert a single patch. Returns 0 if a change was made, 1 otherwise.
 revert_one_patch() {
     local patch="$1"
     # Not applied? (a clean forward apply means the change is absent)
-    if patch -p1 -F0 -d "$PVE_MOD_ROOT" -f --dry-run -s < "$patch" >/dev/null 2>&1; then
+    if patch -p1 -F0 -d "$PVE_MODs_ROOT" -f --dry-run -s < "$patch" >/dev/null 2>&1; then
         return 1
     fi
-    if patch -R -p1 -F0 -d "$PVE_MOD_ROOT" -f --dry-run -s < "$patch" >/dev/null 2>&1; then
-        patch -R -p1 -F0 -d "$PVE_MOD_ROOT" -f -s < "$patch"
+    if patch -R -p1 -F0 -d "$PVE_MODs_ROOT" -f --dry-run -s < "$patch" >/dev/null 2>&1; then
+        patch -R -p1 -F0 -d "$PVE_MODs_ROOT" -f -s < "$patch"
         return 0
     fi
     warn "  $(basename "$patch") could not be reverted cleanly; manual cleanup may be needed"
-    patch -R -p1 -F0 -f --dry-run --verbose -d "$PVE_MOD_ROOT" < "$patch" >&2 || true
+    patch -R -p1 -F0 -f --dry-run --verbose -d "$PVE_MODs_ROOT" < "$patch" >&2 || true
     return 2
 }
 

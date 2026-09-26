@@ -1,4 +1,4 @@
-# pve-mod :: nag_screen file manifest
+# pve-mods :: nag_screen file manifest
 # Maps files in this directory to their installation destinations.
 # Format: <source> <destination> [permission]
 #   source      - path relative to this files/ directory

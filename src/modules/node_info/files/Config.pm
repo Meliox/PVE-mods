@@ -1,4 +1,4 @@
-package PVE::PVEMod::Config;
+package PVE::PVEMods::Config;
 
 use strict;
 use warnings;
@@ -7,9 +7,9 @@ use Exporter 'import';
 our @EXPORT_OK = qw(
     %config
     $DEBUG_ENABLED $VERSION $process_type
-    $pve_mod_working_dir $stats_dir $state_file
+    $pve_mods_working_dir $stats_dir $state_file
     $sensors_state_file $ups_state_file
-    $pve_mod_worker_lock $startup_lock
+    $pve_mods_worker_lock $startup_lock
     $RRD_SOCKET $RRD_BASE
 );
 
@@ -24,8 +24,8 @@ our $VERSION       = 'version-placeholder';
 # Config paths
 # ============================================================================
 
-my $CONF_FILE = '/etc/pve-mod/pve-mod.conf';
-my $CONFD_DIR = '/etc/pve-mod/conf.d';
+my $CONF_FILE = '/etc/pve-mods/pve-mods.conf';
+my $CONFD_DIR = '/etc/pve-mods/conf.d';
 
 # Runtime process-type tag — set to 'worker' or 'collector' after fork.
 # Each forked child gets its own copy of this variable.
@@ -45,7 +45,7 @@ our %config = (
     debug => {
         mod_debug              => 0,
         log_enabled            => 0,
-        log_file               => '/tmp/pve-mod-debug.log',
+        log_file               => '/tmp/pve-mods-debug.log',
         lm_sensors_mode        => 0,
         lm_sensors_output_file => '/tmp/sensors-output.json',
         intel_mode             => 0,
@@ -85,7 +85,7 @@ our %config = (
         ignore_temp_below => 5,
     },
     paths => {
-        working_dir => '/run/pveproxy/pve-mod',
+        working_dir => '/run/pveproxy/pve-mods',
     },
 );
 
@@ -93,23 +93,23 @@ our %config = (
 # Derived paths
 # ============================================================================
 
-our $pve_mod_working_dir = $config{paths}{working_dir};
-our $stats_dir           = $pve_mod_working_dir;
-our $state_file          = "$pve_mod_working_dir/stats.json";
-our $sensors_state_file  = "$pve_mod_working_dir/sensors.json";
-our $ups_state_file      = "$pve_mod_working_dir/ups.json";
-our $pve_mod_worker_lock = "$pve_mod_working_dir/pve_mod_worker.lock";
-our $startup_lock        = "$pve_mod_working_dir/startup.lock";
+our $pve_mods_working_dir = $config{paths}{working_dir};
+our $stats_dir           = $pve_mods_working_dir;
+our $state_file          = "$pve_mods_working_dir/stats.json";
+our $sensors_state_file  = "$pve_mods_working_dir/sensors.json";
+our $ups_state_file      = "$pve_mods_working_dir/ups.json";
+our $pve_mods_worker_lock = "$pve_mods_working_dir/pve_mods_worker.lock";
+our $startup_lock        = "$pve_mods_working_dir/startup.lock";
 
 # ============================================================================
 # RRD paths
 # ============================================================================
 
 our $RRD_SOCKET = '/var/run/rrdcached.sock';
-our $RRD_BASE   = '/var/lib/rrdcached/db/pve-mod-gpu';
+our $RRD_BASE   = '/var/lib/rrdcached/db/pve-mods-gpu';
 
 # ============================================================================
-# Load configuration from /etc/pve-mod/pve-mod.conf (INI format).
+# Load configuration from /etc/pve-mods/pve-mods.conf (INI format).
 # Merges file values into %config, overriding compiled-in defaults.
 # Safe to call multiple times; silently skips missing file or unknown keys.
 # ============================================================================
