@@ -144,7 +144,7 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 |-----------|-------------|------|---------|-------------------------|
 | Temperature sensors | `lm_sensors_mode` | `lm_sensors_output_file` | Raw `sensors -j` JSON output | `sensors -j > /tmp/sensors-output.json` |
 | Intel GPU | `intel_mode` | `intel_devices_file` | Device list, one line per GPU (`intel_gpu_top -L` format) | `intel_gpu_top -L > /tmp/intel-gpu-devices.json` |
-| | | `intel_output_file` | Continuous `intel_gpu_top` stats output | `intel_gpu_top -d /dev/dri/card0 -s 1000 -l > /tmp/intel-gpu-output.txt` |
+| | | `intel_output_file` | Continuous `intel_gpu_top` JSON stats output | `intel_gpu_top -d /dev/dri/card0 -J -s 1000 > /tmp/intel-gpu-output.txt` |
 | NVIDIA GPU | `nvidia_mode` | `nvidia_devices_file` | Device list CSV | `nvidia-smi --query-gpu=index,name --format=csv > /tmp/nvidia-smi-devices.csv` |
 | | | `nvidia_output_file` | Stats CSV | `nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,nounits > /tmp/nvidia-smi-output.csv` |
 | AMD GPU | `amd_mode` | `amd_devices_file` | Placeholder — collector not yet implemented | — |
