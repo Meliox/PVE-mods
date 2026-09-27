@@ -142,7 +142,7 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 
 | Collector | Enable flag | File | Content | Example to generate it |
 |-----------|-------------|------|---------|-------------------------|
-| Temperature sensors | `lm_sensors_mode` | `lm_sensors_output_file` | Raw `sensors -j` JSON output | `sensors -j > /tmp/sensors-output.json` |
+| Temperature sensors | `lm_sensors_mode` | `lm_sensors_output_file` | Raw `sensors -J` JSON output | `sensors -J > /tmp/sensors-output.json` |
 | Intel GPU | `intel_mode` | `intel_devices_file` | Device list, one line per GPU (`intel_gpu_top -L` format) | `intel_gpu_top -L > /tmp/intel-gpu-devices.json` |
 | | | `intel_output_file` | Continuous `intel_gpu_top` JSON stats output | `intel_gpu_top -d /dev/dri/card0 -J -s 1000 > /tmp/intel-gpu-output.txt` |
 | NVIDIA GPU | `nvidia_mode` | `nvidia_devices_file` | Device list CSV | `nvidia-smi --query-gpu=index,name --format=csv > /tmp/nvidia-smi-devices.csv` |

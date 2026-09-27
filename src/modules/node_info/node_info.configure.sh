@@ -251,7 +251,7 @@ node_info_configure() {
         if [[ "$DEBUG_LM_SENSORS" -eq 1 ]]; then
             sensorsOutput=$(cat "$DEBUG_LM_SENSORS_FILE")
         else
-            sensorsOutput=$(sensors -j 2>/dev/null) || true
+            sensorsOutput=$(sensors -J 2>/dev/null) || true
         fi
 
         local trimmedSensorsOutput
@@ -353,8 +353,8 @@ node_info_configure() {
         msgb "\n=== Detecting other thermal sensors ==="
         local otherTempCount
         otherTempCount=$(echo "$sanitisedSensorsOutput" \
-            | grep -Ev '"(coretemp|k10temp-pci|cpu_thermal-virtual|nvme|drivetemp-scsi|SODIMM|spd5118)[^"]*"' \
-            | grep -c '"temp[0-9]*_input"' || true)
+            | sed -E '/^    "(coretemp-isa-|k10temp-pci-|cpu_thermal-virtual-|nvme-|drivetemp-|SODIMM|spd5118-)[^"]*"[[:space:]]*:/,/^    \},?$/d' \
+            | grep -c '"quantity": "temperature"' || true)
 
         if [[ "$otherTempCount" -gt 0 ]]; then
             info "Detected $otherTempCount other temperature reading(s)."

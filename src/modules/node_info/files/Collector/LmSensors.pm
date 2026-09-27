@@ -68,7 +68,7 @@ sub _get_temperature_sensors {
             $sensors_output = '{}';
         }
     } else {
-        $sensors_output = `sensors -j 2>/dev/null | python3 -m json.tool`;
+        $sensors_output = `sensors -J 2>/dev/null | python3 -m json.tool`;
         debug(__LINE__, "Raw lm-sensors output collected from command");
     }
 
@@ -135,22 +135,6 @@ sub _sanitize_sensors {
 # into a single "DIMM<slot>" key scheme with a common layout
 # ============================================================================
 
-# Flattens the legacy lm-sensors temperature format into temp1_input/temp1_max/...
-# so the UI can consume a single, common RAM layout.
-sub _flatten_temp_feature {
-    my ($raw) = @_;
-    my %flat;
-    return \%flat unless ref $raw eq 'HASH';
-
-    foreach my $key (keys %$raw) {
-        my $val = $raw->{$key};
-        next unless !ref $val && $key =~ /^temp\d+_(.+)$/;
-        $flat{"temp1_$1"} = $val + 0;
-    }
-
-    return \%flat;
-}
-
 sub _get_ram_info {
     my ($sensors_output) = @_;
 
@@ -174,7 +158,7 @@ sub _get_ram_info {
         }
 
         $dimms{$slot} = {
-            temp1     => _flatten_temp_feature($sensors_data->{$entry}->{temp1}),
+            temp1     => $sensors_data->{$entry}->{temp1},
             dimm_slot => $slot,
             bus       => $bus + 0,
             address   => $addr,
@@ -183,9 +167,14 @@ sub _get_ram_info {
         delete $sensors_data->{$entry};
     }
 
-    # ----- DDR3/4: SODIMM<N>, flat temp<N>_* fields, no bus/address -----
+    # ----- DDR3/4: SODIMM<N>, retain its structured temperature feature -----
     foreach my $entry (grep { /^SODIMM(\d+)$/ } keys %{$sensors_data}) {
         my ($slot) = ($entry =~ /^SODIMM(\d+)$/);
+        my $entry_data = $sensors_data->{$entry};
+        my ($temp_feature_key) = grep { /^temp\d+$/ } keys %{$entry_data};
+        my $temp_feature = defined($temp_feature_key)
+            ? $entry_data->{$temp_feature_key}
+            : $entry_data;
 
         if (exists $dimms{$slot}) {
             debug(__LINE__, "DIMM slot $slot already assigned; skipping SODIMM entry $entry");
@@ -194,7 +183,7 @@ sub _get_ram_info {
         }
 
         $dimms{$slot} = {
-            temp1     => _flatten_temp_feature($sensors_data->{$entry}),
+            temp1     => $temp_feature,
             dimm_slot => $slot + 0,
             source    => 'jc42',
         };
