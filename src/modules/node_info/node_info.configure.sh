@@ -35,6 +35,11 @@ data = json.load(sys.stdin)
 cpu_prefixes = ("coretemp-isa-", "k10temp-pci-", "cpu_thermal-virtual-")
 ram_prefixes = ("spd5118-", "jc42-", "SODIMM")
 cpu_sensors = []
+ram_sensors = []
+hdd_sensors = []
+nvme_sensors = []
+other_sensors = []
+fan_sensors = []
 ram_count = hdd_count = nvme_count = other_count = fan_count = 0
 
 def temperature_features(chip):
@@ -48,6 +53,9 @@ def temperature_features(chip):
                 and isinstance(reading.get("value"), (int, float))):
             features.append((name, feature))
     return features
+
+def joined_names(items):
+    return ",".join(items) or "-"
 
 for chip_name, chip in data.items():
     if not isinstance(chip, dict):
@@ -63,12 +71,16 @@ for chip_name, chip in data.items():
             cpu_sensors.append(chip_name)
         elif chip_name.startswith(ram_prefixes) or ram_by_label:
             ram_count += 1
+            ram_sensors.append(chip_name)
         elif chip_name.startswith("drivetemp-scsi-"):
             hdd_count += 1
+            hdd_sensors.append(chip_name)
         elif chip_name.startswith(("nvme-pci-", "drivetemp-nvme-")):
             nvme_count += 1
+            nvme_sensors.append(chip_name)
         else:
             other_count += 1
+            other_sensors.append(chip_name)
 
     for name, feature in chip.items():
         if not re.fullmatch(r"fan\d+", name) or not isinstance(feature, dict):
@@ -78,10 +90,13 @@ for chip_name, chip in data.items():
                 and reading.get("quantity") == "speed"
                 and isinstance(reading.get("value"), (int, float))):
             fan_count += 1
+            fan_sensors.append(f"{chip_name}/{name}")
 
 print("\t".join(map(str, (
     len(cpu_sensors), ram_count, hdd_count, nvme_count,
-    other_count, fan_count, ",".join(cpu_sensors)
+    other_count, fan_count, joined_names(cpu_sensors), joined_names(ram_sensors),
+    joined_names(hdd_sensors), joined_names(nvme_sensors),
+    joined_names(other_sensors), joined_names(fan_sensors)
 ))))
     '
 }
@@ -327,10 +342,12 @@ node_info_configure() {
     if [[ "$lm_sensors_ok" == true ]]; then
         local sanitisedSensorsOutput
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
-        local sensorCounts detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount cpuList
+        local sensorCounts detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount
+        local cpuList ramSensors hddSensors nvmeSensors otherSensors fanSensors
         sensorCounts=$(printf '%s\n' "$sanitisedSensorsOutput" | detect_sensor_counts 2>/dev/null) \
-            || sensorCounts=$'0\t0\t0\t0\t0\t0\t'
-        IFS=$'\t' read -r detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount cpuList \
+            || sensorCounts=$'0\t0\t0\t0\t0\t0\t-\t-\t-\t-\t-\t-'
+        IFS=$'\t' read -r detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount \
+            cpuList ramSensors hddSensors nvmeSensors otherSensors fanSensors \
             <<< "$sensorCounts"
 
         #region CPU
@@ -367,7 +384,7 @@ node_info_configure() {
         #region RAM
         msgb "\n=== Detecting RAM temperature sensors ==="
         if [[ "$ramCount" -gt 0 ]]; then
-            info "Detected $ramCount RAM sensor(s)."
+            info "Detected RAM sensors ($ramCount): $ramSensors"
             ENABLE_RAM_TEMP=1; sensors_detected=true
         else
             warn "No RAM temperature sensors found."
@@ -377,7 +394,7 @@ node_info_configure() {
         #region HDD/SSD
         msgb "\n=== Detecting HDD/SSD temperature sensors ==="
         if [[ "$hddList" -gt 0 ]]; then
-            info "Detected $hddList HDD/SSD sensor(s)."
+            info "Detected HDD/SSD sensors ($hddList): $hddSensors"
             ENABLE_HDD_TEMP=1; sensors_detected=true
         else
             warn "No HDD/SSD temperature sensors found. (Requires kernel module 'drivetemp'.)"
@@ -387,7 +404,7 @@ node_info_configure() {
         #region NVMe
         msgb "\n=== Detecting NVMe temperature sensors ==="
         if [[ "$nvmeCount" -gt 0 ]]; then
-            info "Detected $nvmeCount NVMe sensor(s)."
+            info "Detected NVMe sensors ($nvmeCount): $nvmeSensors"
             ENABLE_NVME_TEMP=1; sensors_detected=true
         else
             warn "No NVMe temperature sensors found."
@@ -397,7 +414,7 @@ node_info_configure() {
         #region Other thermals
         msgb "\n=== Detecting other thermal sensors ==="
         if [[ "$otherTempCount" -gt 0 ]]; then
-            info "Detected $otherTempCount other temperature sensor(s)."
+            info "Detected other temperature sensors ($otherTempCount): $otherSensors"
             ENABLE_OTHER_TEMP=1; sensors_detected=true
         else
             warn "No other temperature sensors found."
@@ -407,7 +424,7 @@ node_info_configure() {
         #region Fans
         msgb "\n=== Detecting fan speed sensors ==="
         if [[ "$fanCount" -gt 0 ]]; then
-            info "Detected $fanCount fan speed reading(s)."
+            info "Detected fan speed readings ($fanCount): $fanSensors"
             ENABLE_FAN_SPEED=1; sensors_detected=true
             local choice
             choice=$(ask "Display fans reporting zero speed? (Y/n)")
