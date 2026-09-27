@@ -17,13 +17,17 @@ REVERT_PATCHES="/usr/lib/pve-mods/revert-patches.sh"
 NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
 
 #region helpers
-msgb() { echo -e "\e[1m${1}\e[0m"; }
+# Blank-line spacing rule: section() is the only place that emits a leading
+# blank line, so every block in the wizard is separated by exactly one blank
+# line. Other helpers (info/warn/ask) never add their own surrounding blanks.
+msgb()    { echo -e "\e[1m${1}\e[0m"; }
+section() { echo -e "\n\e[1m=== ${1} ===\e[0m"; }
 info() { echo -e "\e[0;32m[info] ${1}\e[0m"; }
 warn() { echo -e "\e[0;33m[warning] ${1}\e[0m"; }
 err()  { echo -e "\e[0;31m[error] ${1}\e[0m"; exit 1; }
 ask()  {
     local prompt="$1" response
-    read -r -p $'\n\e[1;36m'"${prompt}:"$'\e[0m ' response
+    read -r -p $'\e[1;36m'"${prompt}:"$'\e[0m ' response
     echo "$response"
 }
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
@@ -118,7 +122,7 @@ main() {
     # ── Module / feature selection ────────────────────────────────────────────
     # Existing settings are loaded above; the user picks ONE option to (re)configure
     # this run, and all other options retain their previously saved values.
-    msgb "\n=== pve-mods Module Selection ==="
+    section "pve-mods Module Selection"
     echo "Available options (select one):"
     echo -e "  [1] Node Info   $(mod_status "$MOD_NODE_INFO") — sensor readings, GPU stats, UPS, system information"
     echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
@@ -134,7 +138,7 @@ main() {
                 MOD_NODE_INFO=0; info "Node Info will be removed."
             else
                 MOD_NODE_INFO=1; patching_needed=1
-                msgb "\n=== Node Info Configuration ==="
+                section "Node Info Configuration"
                 node_info_configure
             fi
             # Write before patching so pveproxy restarts with the new config.
@@ -167,18 +171,18 @@ main() {
     # ── Apply / revert patches ────────────────────────────────────────────────
     # Config is already written above; pveproxy will restart with new settings.
     if [[ "$patching_needed" == "1" ]]; then
-        msgb "\n=== Applying patches ==="
+        section "Applying patches"
         if ! "$APPLY_PATCHES" "$selected_mod"; then
             err "Could not apply all patches for $selected_mod."
         fi
     elif [[ -n "$selected_mod" ]]; then
-        msgb "\n=== Removing patches ==="
+        section "Removing patches"
         if ! "$REVERT_PATCHES" "$selected_mod"; then
             err "Could not revert all patches for $selected_mod."
         fi
     fi
 
-    msgb "\n=== Done ==="
+    section "Done"
     info "pve-mods is configured and active."
     info "Clear your browser cache to see the changes."
 }
