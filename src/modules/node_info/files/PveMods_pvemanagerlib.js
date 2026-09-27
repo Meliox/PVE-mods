@@ -121,6 +121,22 @@ function getTemperatureFeature(sensorGroup, preferredLabel) {
     return sensorGroup[matchingKey || featureKeys[0]] || null;
 }
 
+function getSensorPayload(sensorInfo) {
+    const payload = sensorInfo?.data?.['PVE MOD lm-sensors Enhanced'];
+    return payload && typeof payload === 'object' ? payload : {};
+}
+
+function isSensorEnabled(sensorInfo, sensorType) {
+    return !!sensorInfo
+        && sensorInfo.disabled !== true
+        && sensorInfo[sensorType] === true;
+}
+
+function getSensorIgnoreThreshold(sensorInfo, tempHelper) {
+    const threshold = Number(sensorInfo.ignore_temp_below);
+    return tempHelper.getTemp(Number.isFinite(threshold) ? threshold : 5);
+}
+
 Ext.define('PVE.node.StatusView', {
     extend: 'Proxmox.panel.StatusView',
     alias: 'widget.pveNodeStatus',
@@ -248,23 +264,24 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    if (cpuInfo.disabled === true) {
+                    if (!isSensorEnabled(cpuInfo, 'cpu')) {
                         this.hide();
                         return '';
                     }
-                    objValue = (cpuInfo.data && cpuInfo.data[Object.keys(cpuInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(cpuInfo);
                 } catch(e) {
                     return '';
                 }
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: cpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-                const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(cpuInfo.ignore_temp_below));
+                const cpuIgnoreThreshold = getSensorIgnoreThreshold(cpuInfo, cpuTempHelper);
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
                 const bINTEL = cpuKeysI.length > 0 ? true : false;
-                const INTELPackagePrefix = cpuInfo.cpu_temp_target == 'Core' ? 'Core ' : 'Package id';
-                const INTELPackageCaption = cpuInfo.cpu_temp_target == 'Core' ? 'Core' : 'Package';
+                const cpuTempTarget = cpuInfo.cpu_temp_target;
+                const INTELPackagePrefix = cpuTempTarget == 'Core' ? 'Core ' : 'Package id';
+                const INTELPackageCaption = cpuTempTarget == 'Core' ? 'Core' : 'Package';
                 let AMDPackagePrefix = 'Tccd';
                 let AMDPackageCaption = 'CCD';
                 
@@ -565,21 +582,22 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (ramInfo.ram !== true) {
+                    if (!isSensorEnabled(ramInfo, 'ram')) {
                         this.hide();
                         return '';
                     }
-					objValue = (ramInfo.data && ramInfo.data[Object.keys(ramInfo.data)[0]]) || {};
+					objValue = getSensorPayload(ramInfo);
 				} catch(e) {
                     return '';
 				}
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: ramInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(ramInfo.ignore_temp_below));
-				const dimmKeys = Object.keys(objValue).filter(item => /^DIMM\d+$/.test(item)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+                const ignoreThreshold = getSensorIgnoreThreshold(ramInfo, tempHelper);
+                const dimmEntries = Object.entries(objValue)
+                    .filter(([key]) => /^DIMM\d+$/.test(key))
+                    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let dimmData = [];
-				dimmKeys.forEach((dimmKey) => {
+				dimmEntries.forEach(([dimmKey, dimm]) => {
 					try {
-						const dimm = objValue[dimmKey];
                         const temperature = getTemperatureFeature(dimm, sensorName);
                         const tempVal = tempHelper.getTemp(getSensorValue(temperature, 'input'));
                         const tempMax = tempHelper.getTemp(getSensorValue(temperature, 'max'));
@@ -592,7 +610,7 @@ Ext.define('PVE.node.StatusView', {
 							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 								tempStyle = 'color: red; font-weight: bold;';
 							}
-							const slot = dimm['dimm_slot'] || dimmKey.replace('DIMM', '');
+							const slot = dimm.dimm_slot || dimmKey.replace('DIMM', '');
 							dimmData.push(`${slot}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
 						}
 					} catch(e) { /*_*/ }
@@ -618,17 +636,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (hddInfo.hdd !== true) {
+                    if (!isSensorEnabled(hddInfo, 'hdd')) {
                         this.hide();
 						return '';
 					}
-					objValue = (hddInfo.data && hddInfo.data[Object.keys(hddInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(hddInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: hddInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(hddInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(hddInfo, tempHelper);
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
@@ -690,17 +708,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (nvmeInfo.nvme !== true) {
+                    if (!isSensorEnabled(nvmeInfo, 'nvme')) {
                         this.hide();
 						return '';
 					}
-					objValue = (nvmeInfo.data && nvmeInfo.data[Object.keys(nvmeInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(nvmeInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: nvmeInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(nvmeInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(nvmeInfo, tempHelper);
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
@@ -771,17 +789,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (otherInfo.other !== true) {
+                    if (!isSensorEnabled(otherInfo, 'other')) {
                         this.hide();
 						return '';
 					}
-					objValue = (otherInfo.data && otherInfo.data[Object.keys(otherInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(otherInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: otherInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(otherInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(otherInfo, tempHelper);
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
@@ -862,10 +880,10 @@ Ext.define('PVE.node.StatusView', {
                 // ---
                 let objValue;
                 try {
-                    if (fansInfo.fans !== true) {
+                    if (!isSensorEnabled(fansInfo, 'fans')) {
 						return '';
 					}
-                    objValue = (fansInfo.data && fansInfo.data[Object.keys(fansInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(fansInfo);
                 } catch(e) {
                     return '';
                 }
