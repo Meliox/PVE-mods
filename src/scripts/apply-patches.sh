@@ -133,7 +133,7 @@ for mod in "${_target_modules[@]}"; do
         [[ -z "$line" ]] && continue
 
         # Format: <patch-file> [section.key=value]
-        patch_name="${line%%[[:space:]]*}"
+        read -r patch_name _ <<< "$line"
         condition=""
         if [[ "$line" == *[[:space:]]* ]]; then
             condition="$(echo "${line#"$patch_name"}" | sed -E 's/^[[:space:]]+//')"

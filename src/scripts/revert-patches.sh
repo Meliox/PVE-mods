@@ -83,7 +83,8 @@ for mod in "${_target_modules[@]}"; do
             line="${line%%#*}"
             line="$(echo "$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
             [[ -z "$line" ]] && continue
-            echo "${line%%[[:space:]]*}"
+            read -r patch_name _ <<< "$line"
+            echo "$patch_name"
         done < "$manifest"
     )
 
