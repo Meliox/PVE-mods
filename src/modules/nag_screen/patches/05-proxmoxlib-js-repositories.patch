@@ -1,0 +1,90 @@
+--- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.orig	2026-09-27 12:31:57.553624715 +0200
++++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-09-27 12:43:53.586947583 +0200
+@@ -1416,14 +1416,7 @@
+                     )
+                 );
+             } else if (status === 'non-production') {
+-                return (
+-                    fmt(getUpdates, 'check-circle good') +
+-                    ' ' +
+-                    fmt(
+-                        gettext('Non production-ready repository enabled!'),
+-                        'exclamation-circle warning',
+-                    )
+-                );
++                return fmt(getUpdates, 'check-circle good');
+             } else if (status === 'no-repo') {
+                 return fmt(noRepo, 'exclamation-circle critical');
+             }
+@@ -21170,21 +21163,7 @@
+                 if (components === undefined) {
+                     return '';
+                 }
+-                let err = '';
+-                if (components.length === 1) {
+-                    // FIXME: this should be a flag set to the actual repsotiories, i.e., a tristate
+-                    // like production-ready = <yes|no|other> (Option<bool>)
+-                    if (components[0].match(/\w+(-no-subscription|test)\s*$/i)) {
+-                        metaData.tdCls = 'proxmox-warning-row';
+-                        err = '<i class="fa fa-fw warning fa-exclamation-circle"></i> ';
+-
+-                        let qtip = components[0].match(/no-subscription/)
+-                            ? gettext('The no-subscription repository is NOT production-ready')
+-                            : gettext('The test repository may contain unstable updates');
+-                        metaData.tdAttr = `data-qtip="${Ext.htmlEncode(Ext.htmlEncode(qtip))}"`;
+-                    }
+-                }
+-                return components.join(' ') + err;
++                return components.join(' ');
+             },
+             width: 170,
+         },
+@@ -21315,7 +21294,7 @@
+             store.removeAll();
+ 
+             let status = 'good'; // start with best, the helper below will downgrade if needed
+-            let text = gettext('All OK, you have production-ready repositories configured!');
++            let text = gettext('All OK, you have no subscription repositories configured!');
+ 
+             let addGood = (message) => store.add({ status: 'good', message });
+             let addWarn = (message, important) => {
+@@ -21374,7 +21353,7 @@
+                 addWarn(gettext('Detected mixed suites before upgrade'));
+             }
+ 
+-            let productionReadyCheck = (repos, type, noSubAlternateName) => {
++            let productionReadyCheck = (repos, type) => {
+                 if (!activeSubscription && repos.enterprise) {
+                     addWarn(
+                         Ext.String.format(
+@@ -21386,18 +21365,6 @@
+                     );
+                 }
+ 
+-                if (repos.nosubscription) {
+-                    addWarn(
+-                        Ext.String.format(
+-                            gettext(
+-                                'The {0}no-subscription{1} repository is not recommended for production use!',
+-                            ),
+-                            type,
+-                            noSubAlternateName,
+-                        ),
+-                    );
+-                }
+-
+                 if (repos.test) {
+                     addWarn(
+                         Ext.String.format(
+@@ -21410,9 +21377,9 @@
+                 }
+             };
+ 
+-            productionReadyCheck({ enterprise, nosubscription, test }, '', '');
++            productionReadyCheck({ enterprise, nosubscription, test }, '');
+             // TODO drop alternate 'main' name when no longer relevant
+-            productionReadyCheck(cephRepos, 'Ceph ', '/main');
++            productionReadyCheck(cephRepos, 'Ceph ');
+ 
+             if (errors.length > 0) {
+                 text = gettext('Fatal parsing error for at least one repository');
