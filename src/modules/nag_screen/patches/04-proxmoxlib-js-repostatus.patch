@@ -1,0 +1,15 @@
+--- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.orig	2026-09-27 12:31:57.553624715 +0200
++++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-09-27 12:32:08.357142577 +0200
+@@ -1418,11 +1418,7 @@
+             } else if (status === 'non-production') {
+                 return (
+                     fmt(getUpdates, 'check-circle good') +
+-                    ' ' +
+-                    fmt(
+-                        gettext('Non production-ready repository enabled!'),
+-                        'exclamation-circle warning',
+-                    )
++                    ' '
+                 );
+             } else if (status === 'no-repo') {
+                 return fmt(noRepo, 'exclamation-circle critical');
