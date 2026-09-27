@@ -257,7 +257,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
-            textField: 'PveMods_JsonSensorInfo',
+            textField: 'PveMods_SensorInfo',
             renderer: function(cpuInfo){
                 // display configuration
                 const itemsPerRow = 0;
@@ -575,7 +575,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('RAM Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(ramInfo) {
 				// sensors configuration: RAM entries are normalized by LmSensors.pm into DIMM<slot> keys
 				const sensorName = "temp1";
@@ -629,7 +629,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('HDD/SSD Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(hddInfo) {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
@@ -698,7 +698,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(nvmeInfo) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
@@ -775,7 +775,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('Other Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(otherInfo) {
 				// Prefixes belonging to other known categories (excluded from this view)
 				const excludePrefixes = [
@@ -875,7 +875,7 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'PveMods_JsonSensorInfo',
+            textField: 'PveMods_SensorInfo',
             renderer: function(fansInfo) {
                 // ---
                 let objValue;
