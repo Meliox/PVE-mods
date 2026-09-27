@@ -2,8 +2,8 @@
 # node_info.configure.sh - Configure module for pve-mods node_info
 #
 # Sourced by pve-mods-configure. Requires CONFD_DIR and the helper functions
-# (info, warn, err, ask, msgb) to be defined in the calling script before
-# this file is sourced.
+# (info, warn, err, ask, msgb, section) to be defined in the calling script
+# before this file is sourced.
 #
 # Provides the standard four-function module API:
 #   node_info_defaults    — set all variables to safe defaults
@@ -351,7 +351,7 @@ node_info_configure() {
             <<< "$sensorCounts"
 
         #region CPU
-        msgb "\n=== Detecting CPU temperature sensors ==="
+        section "Detecting CPU temperature sensors"
         [[ "$cpuCount" -gt 0 ]] && ENABLE_CPU=1
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
             info "Detected CPU sensors ($cpuCount): $cpuList"
@@ -381,7 +381,7 @@ node_info_configure() {
         #endregion CPU
 
         #region RAM
-        msgb "\n=== Detecting RAM temperature sensors ==="
+        section "Detecting RAM temperature sensors"
         if [[ "$ramCount" -gt 0 ]]; then
             info "Detected RAM sensors ($ramCount): $ramSensors"
             ENABLE_RAM_TEMP=1; sensors_detected=true
@@ -391,7 +391,7 @@ node_info_configure() {
         #endregion RAM
 
         #region HDD/SSD
-        msgb "\n=== Detecting HDD/SSD temperature sensors ==="
+        section "Detecting HDD/SSD temperature sensors"
         if [[ "$hddList" -gt 0 ]]; then
             info "Detected HDD/SSD sensors ($hddList): $hddSensors"
             ENABLE_HDD_TEMP=1; sensors_detected=true
@@ -401,7 +401,7 @@ node_info_configure() {
         #endregion HDD/SSD
 
         #region NVMe
-        msgb "\n=== Detecting NVMe temperature sensors ==="
+        section "Detecting NVMe temperature sensors"
         if [[ "$nvmeCount" -gt 0 ]]; then
             info "Detected NVMe sensors ($nvmeCount): $nvmeSensors"
             ENABLE_NVME_TEMP=1; sensors_detected=true
@@ -411,17 +411,17 @@ node_info_configure() {
         #endregion NVMe
 
         #region Other thermals
-        msgb "\n=== Detecting other thermal sensors ==="
+        section "Detecting other thermal sensors"
         if [[ "$otherTempCount" -gt 0 ]]; then
             info "Detected other temperature sensors ($otherTempCount): $otherSensors"
             ENABLE_OTHER_TEMP=1; sensors_detected=true
         else
             warn "No other temperature sensors found."
         fi
-        #region Other thermals
+        #endregion Other thermals
 
         #region Fans
-        msgb "\n=== Detecting fan speed sensors ==="
+        section "Detecting fan speed sensors"
         if [[ "$fanCount" -gt 0 ]]; then
             info "Detected fan speed readings ($fanCount): $fanSensors"
             ENABLE_FAN_SPEED=1; sensors_detected=true
@@ -438,7 +438,7 @@ node_info_configure() {
 
         #region Temperature unit
         if [[ "$sensors_detected" == true ]]; then
-            msgb "\n=== Temperature unit ==="
+            section "Temperature unit"
             local unit
             unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
             case "$unit" in
@@ -446,7 +446,7 @@ node_info_configure() {
                 *)    TEMP_UNIT="C"; info "Using Celsius." ;;
             esac
 
-            msgb "\n=== Ignore threshold ==="
+            section "Ignore threshold"
             local default_c=5 default_display entered
             if [[ "$TEMP_UNIT" == "F" ]]; then
                 default_display=$(awk -v c="$default_c" 'BEGIN{printf "%.0f", c*9/5+32}')
@@ -470,7 +470,7 @@ node_info_configure() {
     fi
 
     #region GPU hardware detection
-    msgb "\n=== Detecting GPU hardware ==="
+    section "Detecting GPU hardware"
     local gpuPciInfo="" hasIntelGpu=false hasNvidiaGpu=false hasAmdGpu=false
     if command -v lspci &>/dev/null; then
         gpuPciInfo=$(lspci -nn 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)
@@ -490,7 +490,7 @@ node_info_configure() {
     #endregion GPU hardware detection
 
     #region Intel GPU
-    msgb "\n=== Intel GPU ==="
+    section "Intel GPU"
     ENABLE_INTEL_GPU_INFO=0
     local intelCards=""
     if [[ "$DEBUG_INTEL" -eq 1 && -f "$DEBUG_INTEL_FILE" ]]; then
@@ -555,7 +555,7 @@ node_info_configure() {
     #endregion Intel GPU
 
     #region NVIDIA GPU
-    msgb "\n=== NVIDIA GPU ==="
+    section "NVIDIA GPU"
     ENABLE_NVIDIA_GPU_INFO=0
     if [[ "$DEBUG_NVIDIA" -eq 1 && -f "$DEBUG_NVIDIA_DEVICES_FILE" ]]; then
         info "[debug] Using NVIDIA GPU data from $DEBUG_NVIDIA_DEVICES_FILE"
@@ -592,7 +592,7 @@ node_info_configure() {
 
     #region AMD GPU (disabled — data collection not yet implemented, see Collector/Amd.pm)
     ENABLE_AMD_GPU_INFO=0
-    # msgb "\n=== AMD GPU ==="
+    # section "AMD GPU"
     # if [[ "$DEBUG_AMD" -eq 1 && -f "$DEBUG_AMD_FILE" ]]; then
     #     info "[debug] Using AMD GPU data from $DEBUG_AMD_FILE"
     #     local amdCards
@@ -617,7 +617,7 @@ node_info_configure() {
     # GPU historical data and graphs are disabled until the feature is complete.
     #region GPU history (disabled)
     # if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
-    #     msgb "\n=== GPU Historical Data ==="
+    #     section "GPU Historical Data"
     #     local choice
     #     choice=$(ask "Store historical GPU data for graphs? (y/N)")
     #     case "$choice" in
@@ -628,7 +628,7 @@ node_info_configure() {
     #endregion GPU history
 
     #region UPS
-    msgb "\n=== UPS Information ==="
+    section "UPS Information"
     local choiceUPS
     choiceUPS=$(ask "Enable UPS information? (y/N)")
     case "$choiceUPS" in
@@ -663,7 +663,7 @@ node_info_configure() {
     #endregion UPS
 
     #region System info
-    msgb "\n=== System Information ==="
+    section "System Information"
     echo "  type 1) System information (manufacturer, product, serial)"
     dmidecode -t 1 2>/dev/null | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print "    "$0}' || true
     echo "  type 2) Baseboard/Motherboard information"
