@@ -158,7 +158,7 @@ jobs:
             cat /tmp/CHANGES.md 2>/dev/null || echo "No changes recorded."
             echo ""
             echo "---"
-            echo "*Change label to \`bump:minor\` or \`bump:major\` before merging if needed.*"
+            echo "*Use \`bump:major\` for breaking changes, \`bump:minor\` for new features, or \`bump:patch\` for fixes before merging.*"
             echo "*Merge this PR when ready to release.*"
           } > /tmp/pr-body.md
 
