@@ -399,6 +399,9 @@ Ext.define('PVE.node.StatusView', {
                     dstUnit: gpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS
                 });
 
+                // Collector values arrive as raw floats (e.g. 86.851087); round for display only.
+                const round2 = (n) => (typeof n === 'number' ? Math.round(n * 100) / 100 : n);
+
                 let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
 
                 // Intel GPUs - Secondary details
@@ -411,27 +414,27 @@ Ext.define('PVE.node.StatusView', {
                         // All engine details
                         if (gpuData.stats.engines) {
                             if (gpuData.stats.engines['Render/3D']) {
-                                details.push(`Render/3D: ${gpuData.stats.engines['Render/3D'].busy}%`);
+                                details.push(`Render/3D: ${round2(gpuData.stats.engines['Render/3D'].busy)}%`);
                             }
                             if (gpuData.stats.engines['Video']) {
-                                details.push(`Video: ${gpuData.stats.engines['Video'].busy}%`);
+                                details.push(`Video: ${round2(gpuData.stats.engines['Video'].busy)}%`);
                             }
                             if (gpuData.stats.engines['Blitter']) {
-                                details.push(`Blitter: ${gpuData.stats.engines['Blitter'].busy}%`);
+                                details.push(`Blitter: ${round2(gpuData.stats.engines['Blitter'].busy)}%`);
                             }
                             if (gpuData.stats.engines['VideoEnhance']) {
-                                details.push(`VideoEnhance: ${gpuData.stats.engines['VideoEnhance'].busy}%`);
+                                details.push(`VideoEnhance: ${round2(gpuData.stats.engines['VideoEnhance'].busy)}%`);
                             }
                         }
                         
                         // Power
                         if (gpuData.stats.power) {
-                            details.push(`Power: ${gpuData.stats.power?.GPU ?? 'N/A'} / ${gpuData.stats.power?.Package ?? 'N/A'} ${gpuData.stats.power?.unit || 'W'}`);
+                            details.push(`Power: ${round2(gpuData.stats.power?.GPU) ?? 'N/A'} / ${round2(gpuData.stats.power?.Package) ?? 'N/A'} ${gpuData.stats.power?.unit || 'W'}`);
                         }
                         
                         // Frequency
                         if (gpuData.stats.frequency) {
-                            details.push(`Freq: ${gpuData.stats.frequency?.actual ?? 'N/A'}/${gpuData.stats.frequency?.requested ?? 'N/A'} ${gpuData.stats.frequency?.unit || 'MHz'}`);
+                            details.push(`Freq: ${round2(gpuData.stats.frequency?.actual) ?? 'N/A'}/${round2(gpuData.stats.frequency?.requested) ?? 'N/A'} ${gpuData.stats.frequency?.unit || 'MHz'}`);
                         }
                         
                         html += '<tr>';
