@@ -342,17 +342,16 @@ node_info_configure() {
     if [[ "$lm_sensors_ok" == true ]]; then
         local sanitisedSensorsOutput
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
-        local sensorCounts detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount
+        local sensorCounts cpuCount ramCount hddList nvmeCount otherTempCount fanCount
         local cpuList ramSensors hddSensors nvmeSensors otherSensors fanSensors
         sensorCounts=$(printf '%s\n' "$sanitisedSensorsOutput" | detect_sensor_counts 2>/dev/null) \
             || sensorCounts=$'0\t0\t0\t0\t0\t0\t-\t-\t-\t-\t-\t-'
-        IFS=$'\t' read -r detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount \
+        IFS=$'\t' read -r cpuCount ramCount hddList nvmeCount otherTempCount fanCount \
             cpuList ramSensors hddSensors nvmeSensors otherSensors fanSensors \
             <<< "$sensorCounts"
 
         #region CPU
         msgb "\n=== Detecting CPU temperature sensors ==="
-        local cpuCount="$detectedCpuCount"
         [[ "$cpuCount" -gt 0 ]] && ENABLE_CPU=1
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
             info "Detected CPU sensors ($cpuCount): $cpuList"
