@@ -84,6 +84,59 @@ Ext.define('PVE.mod.TempHelper', {
 		}
 	},
 });
+function getSensorLabel(feature, fallback) {
+    return feature && typeof feature.label === 'string' ? feature.label : fallback;
+}
+
+function getSensorValue(feature, subfeature) {
+    if (!feature || typeof feature !== 'object') {
+        return NaN;
+    }
+
+    let reading = feature[subfeature];
+    if (reading === undefined) {
+        const legacyKey = Object.keys(feature).find(key => key.endsWith(`_${subfeature}`));
+        if (legacyKey) {
+            reading = feature[legacyKey];
+        }
+    }
+    if (reading && typeof reading === 'object') {
+        reading = reading.value;
+    }
+
+    const value = Number(reading);
+    return Number.isFinite(value) ? value : NaN;
+}
+
+function getTemperatureFeature(sensorGroup, preferredLabel) {
+    if (!sensorGroup || typeof sensorGroup !== 'object') {
+        return null;
+    }
+    if (sensorGroup[preferredLabel] && typeof sensorGroup[preferredLabel] === 'object') {
+        return sensorGroup[preferredLabel];
+    }
+
+    const featureKeys = Object.keys(sensorGroup).filter(key => /^temp\d+$/.test(key));
+    const matchingKey = featureKeys.find(key => getSensorLabel(sensorGroup[key], key) === preferredLabel);
+    return sensorGroup[matchingKey || featureKeys[0]] || null;
+}
+
+function getSensorPayload(sensorInfo) {
+    const payload = sensorInfo?.enhanced_sensors;
+    return payload && typeof payload === 'object' ? payload : {};
+}
+
+function isSensorEnabled(sensorInfo, sensorType) {
+    return !!sensorInfo
+        && sensorInfo.disabled !== true
+        && sensorInfo[sensorType] === true;
+}
+
+function getSensorIgnoreThreshold(sensorInfo, tempHelper) {
+    const threshold = Number(sensorInfo.ignore_temp_below);
+    return tempHelper.getTemp(Number.isFinite(threshold) ? threshold : 5);
+}
+
 Ext.define('PVE.node.StatusView', {
     extend: 'Proxmox.panel.StatusView',
     alias: 'widget.pveNodeStatus',
@@ -204,30 +257,31 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('CPU Thermal State'),
             iconCls: 'fa fa-fw fa-thermometer-half',
-            textField: 'PveMods_JsonSensorInfo',
+            textField: 'PveMods_SensorInfo',
             renderer: function(cpuInfo){
                 // display configuration
                 const itemsPerRow = 0;
                 // ---
                 let objValue;
                 try {
-                    if (cpuInfo.disabled === true) {
+                    if (!isSensorEnabled(cpuInfo, 'cpu')) {
                         this.hide();
                         return '';
                     }
-                    objValue = (cpuInfo.data && cpuInfo.data[Object.keys(cpuInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(cpuInfo);
                 } catch(e) {
                     return '';
                 }
                 // sensors configuration
                 const cpuTempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: cpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-                const cpuIgnoreThreshold = cpuTempHelper.getTemp(parseFloat(cpuInfo.ignore_temp_below));
+                const cpuIgnoreThreshold = getSensorIgnoreThreshold(cpuInfo, cpuTempHelper);
                 const cpuKeysI = Object.keys(objValue).filter(item => String(item).startsWith('coretemp-isa-')).sort();
                 const cpuKeysA = Object.keys(objValue).filter(item => String(item).startsWith('k10temp-pci-')).sort();
                 const cpuKeysRpi = Object.keys(objValue).filter(item => String(item).startsWith('cpu_thermal-virtual-')).sort();
                 const bINTEL = cpuKeysI.length > 0 ? true : false;
-                const INTELPackagePrefix = cpuInfo.cpu_temp_target == 'Core' ? 'Core ' : 'Package id';
-                const INTELPackageCaption = cpuInfo.cpu_temp_target == 'Core' ? 'Core' : 'Package';
+                const cpuTempTarget = cpuInfo.cpu_temp_target;
+                const INTELPackagePrefix = cpuTempTarget == 'Core' ? 'Core ' : 'Package id';
+                const INTELPackageCaption = cpuTempTarget == 'Core' ? 'Core' : 'Package';
                 let AMDPackagePrefix = 'Tccd';
                 let AMDPackageCaption = 'CCD';
                 
@@ -238,10 +292,10 @@ Ext.define('PVE.node.StatusView', {
                     let bCpuCoreTemp = false;
                     cpuKeysA.forEach((cpuKey, cpuIndex) => {
                         let items = objValue[cpuKey];
-                        bTccd = Object.keys(items).findIndex(item => { return String(item).startsWith('Tccd'); }) >= 0;
-                        bTctl = Object.keys(items).findIndex(item => { return String(item).startsWith('Tctl'); }) >= 0;
-                        bTdie = Object.keys(items).findIndex(item => { return String(item).startsWith('Tdie'); }) >= 0;
-                        bCpuCoreTemp = Object.keys(items).findIndex(item => { return String(item) === 'CPU Core Temp'; }) >= 0;
+                        bTccd = Object.keys(items).some(item => getSensorLabel(items[item], item).startsWith('Tccd'));
+                        bTctl = Object.keys(items).some(item => getSensorLabel(items[item], item).startsWith('Tctl'));
+                        bTdie = Object.keys(items).some(item => getSensorLabel(items[item], item).startsWith('Tdie'));
+                        bCpuCoreTemp = Object.keys(items).some(item => getSensorLabel(items[item], item) === 'CPU Core Temp');
                     });
                     if (bTccd && 'Core' == 'Core') {
                         AMDPackagePrefix = 'Tccd';
@@ -274,32 +328,28 @@ Ext.define('PVE.node.StatusView', {
                     const cpuModel = items.cpu_model || '';
                     
                     const itemKeys = Object.keys(items).filter(item => { 
+                        const label = getSensorLabel(items[item], item);
                         if ('Core' == 'Core') {
                             // In Core mode: only show individual cores/CCDs, exclude overall CPU temp
-                            return String(item).includes(cpuItemPrefix) || String(item).startsWith('Tccd');
+                            return label.includes(cpuItemPrefix) || label.startsWith('Tccd');
                         } else {
                             // In Package mode: show overall CPU temp and package-level readings
-                            return String(item).includes(cpuItemPrefix) || String(item) === 'CPU Core Temp';
+                            return label.includes(cpuItemPrefix) || label === 'CPU Core Temp';
                         }
                     }).sort((a, b) => {
                         // Sort cores numerically
-                        let numA = parseInt(a.match(/\d+/)?.[0] || '0', 10);
-                        let numB = parseInt(b.match(/\d+/)?.[0] || '0', 10);
+                        let numA = parseInt(getSensorLabel(items[a], a).match(/\d+/)?.[0] || '0', 10);
+                        let numB = parseInt(getSensorLabel(items[b], b).match(/\d+/)?.[0] || '0', 10);
                         return numA - numB;
                     });
                     
                     itemKeys.forEach((coreKey) => {
                         try {
+                            const coreLabel = getSensorLabel(items[coreKey], coreKey);
                             let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-                            Object.keys(items[coreKey]).forEach((secondLevelKey) => {
-                                if (secondLevelKey.endsWith('_input')) {
-                                    tempVal = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-                                } else if (secondLevelKey.endsWith('_max')) {
-                                    tempMax = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-                                } else if (secondLevelKey.endsWith('_crit')) {
-                                    tempCrit = cpuTempHelper.getTemp(parseFloat(items[coreKey][secondLevelKey]));
-                                }
-                            });
+                            tempVal = cpuTempHelper.getTemp(getSensorValue(items[coreKey], 'input'));
+                            tempMax = cpuTempHelper.getTemp(getSensorValue(items[coreKey], 'max'));
+                            tempCrit = cpuTempHelper.getTemp(getSensorValue(items[coreKey], 'crit'));
                             
                             if (!isNaN(tempVal) && tempVal >= cpuIgnoreThreshold) {
                                 let tempStyle = '';
@@ -313,8 +363,8 @@ Ext.define('PVE.node.StatusView', {
                                 let tempStr = '';
                                 
                                 // Enhanced parsing for AMD temperatures
-                                if (coreKey.startsWith('Tccd')) {
-                                    let tempIndex = coreKey.match(/Tccd(\d+)/);
+                                if (coreLabel.startsWith('Tccd')) {
+                                    let tempIndex = coreLabel.match(/Tccd(\d+)/);
                                     if (tempIndex !== null && tempIndex.length > 1) {
                                         tempIndex = tempIndex[1];
                                         tempStr = `${cpuTempCaption}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
@@ -323,22 +373,22 @@ Ext.define('PVE.node.StatusView', {
                                     }
                                 }
                                 // Handle CPU Core Temp (single overall temperature)
-                                else if (coreKey === 'CPU Core Temp') {
+                                else if (coreLabel === 'CPU Core Temp') {
                                     tempStr = `${cpuTempCaption}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
                                 }
                                 // Enhanced parsing for Intel cores (P-Core, E-Core, regular Core)
                                 else {
-                                    let tempIndex = coreKey.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
+                                    let tempIndex = coreLabel.match(/(?:P\s+Core|E\s+Core|Core)\s*(\d+)/);
                                     if (tempIndex !== null && tempIndex.length > 1) {
                                         tempIndex = tempIndex[1];
-                                        let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-                                                    coreKey.startsWith('E Core') ? 'E Core' :
+                                        let coreType = coreLabel.startsWith('P Core') ? 'P Core' :
+                                                    coreLabel.startsWith('E Core') ? 'E Core' :
                                                     cpuTempCaption;
                                         tempStr = `${coreType}&nbsp;${tempIndex}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
                                     } else {
                                         // fallback for CPUs which do not have a core index
-                                        let coreType = coreKey.startsWith('P Core') ? 'P Core' :
-                                            coreKey.startsWith('E Core') ? 'E Core' :
+                                        let coreType = coreLabel.startsWith('P Core') ? 'P Core' :
+                                            coreLabel.startsWith('E Core') ? 'E Core' :
                                             cpuTempCaption;
                                         tempStr = `${coreType}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, formatTemp)}${cpuTempHelper.getUnit()}</span>`;
                                     }
@@ -525,38 +575,33 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('RAM Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(ramInfo) {
 				// sensors configuration: RAM entries are normalized by LmSensors.pm into DIMM<slot> keys
 				const sensorName = "temp1";
 				// ---
 				let objValue;
 				try {
-                    if (ramInfo.ram !== true) {
+                    if (!isSensorEnabled(ramInfo, 'ram')) {
                         this.hide();
                         return '';
                     }
-					objValue = (ramInfo.data && ramInfo.data[Object.keys(ramInfo.data)[0]]) || {};
+					objValue = getSensorPayload(ramInfo);
 				} catch(e) {
                     return '';
 				}
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: ramInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(ramInfo.ignore_temp_below));
-				const dimmKeys = Object.keys(objValue).filter(item => /^DIMM\d+$/.test(item)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+                const ignoreThreshold = getSensorIgnoreThreshold(ramInfo, tempHelper);
+                const dimmEntries = Object.entries(objValue)
+                    .filter(([key]) => /^DIMM\d+$/.test(key))
+                    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let dimmData = [];
-				dimmKeys.forEach((dimmKey) => {
+				dimmEntries.forEach(([dimmKey, dimm]) => {
 					try {
-						const dimm = objValue[dimmKey];
-						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-						Object.keys(dimm[sensorName]).forEach((secondLevelKey) => {
-							if (secondLevelKey.endsWith('_input')) {
-								tempVal = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_max')) {
-								tempMax = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_crit')) {
-								tempCrit = tempHelper.getTemp(parseFloat(dimm[sensorName][secondLevelKey]));
-							}
-						});
+                        const temperature = getTemperatureFeature(dimm, sensorName);
+                        const tempVal = tempHelper.getTemp(getSensorValue(temperature, 'input'));
+                        const tempMax = tempHelper.getTemp(getSensorValue(temperature, 'max'));
+                        const tempCrit = tempHelper.getTemp(getSensorValue(temperature, 'crit'));
 						if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 							let tempStyle = '';
 							if (!isNaN(tempMax) && tempVal >= tempMax) {
@@ -565,7 +610,7 @@ Ext.define('PVE.node.StatusView', {
 							if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 								tempStyle = 'color: red; font-weight: bold;';
 							}
-							const slot = dimm['dimm_slot'] || dimmKey.replace('DIMM', '');
+							const slot = dimm.dimm_slot || dimmKey.replace('DIMM', '');
 							dimmData.push(`${slot}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
 						}
 					} catch(e) { /*_*/ }
@@ -584,40 +629,33 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('HDD/SSD Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(hddInfo) {
 				// sensors configuration
 				const addressPrefix = "drivetemp-scsi-";
-				const sensorName = "temp1";
 				// ---
 				let objValue;
 				try {
-                    if (hddInfo.hdd !== true) {
+                    if (!isSensorEnabled(hddInfo, 'hdd')) {
                         this.hide();
 						return '';
 					}
-					objValue = (hddInfo.data && hddInfo.data[Object.keys(hddInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(hddInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: hddInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(hddInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(hddInfo, tempHelper);
 				const drvKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 				let drvData = [];
 				drvKeys.forEach((drvKey) => {
 					try {
 						const drv = objValue[drvKey];
-						let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-						Object.keys(drv[sensorName]).forEach((secondLevelKey) => {
-							if (secondLevelKey.endsWith('_input')) {
-								tempVal = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_max')) {
-								tempMax = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_crit')) {
-								tempCrit = tempHelper.getTemp(parseFloat(drv[sensorName][secondLevelKey]));
-							}
-						});
+                        const temperature = getTemperatureFeature(drv, 'Drive Temperature');
+                        const tempVal = tempHelper.getTemp(getSensorValue(temperature, 'input'));
+                        const tempMax = tempHelper.getTemp(getSensorValue(temperature, 'max'));
+                        const tempCrit = tempHelper.getTemp(getSensorValue(temperature, 'crit'));
 						if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 							let tempStyle = '';
 							if (!isNaN(tempMax) && tempVal >= tempMax) {
@@ -660,7 +698,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('NVMe Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(nvmeInfo) {
 				// sensors configuration
 				const addressPrefix = "nvme-pci-";
@@ -670,31 +708,26 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (nvmeInfo.nvme !== true) {
+                    if (!isSensorEnabled(nvmeInfo, 'nvme')) {
                         this.hide();
 						return '';
 					}
-					objValue = (nvmeInfo.data && nvmeInfo.data[Object.keys(nvmeInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(nvmeInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: nvmeInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(nvmeInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(nvmeInfo, tempHelper);
 				const nvmeKeys = Object.keys(objValue).filter(item => String(item).startsWith(addressPrefix)).sort();
 				let nvmeData = [];
 				nvmeKeys.forEach((nvmeKey, index) => {
 					try {
 						let tempVal = NaN, tempMax = NaN, tempCrit = NaN, model = '', serial = '';
-						Object.keys(objValue[nvmeKey][sensorName]).forEach((secondLevelKey) => {
-							if (secondLevelKey.endsWith('_input')) {
-								tempVal = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_max')) {
-								tempMax = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
-							} else if (secondLevelKey.endsWith('_crit')) {
-								tempCrit = tempHelper.getTemp(parseFloat(objValue[nvmeKey][sensorName][secondLevelKey]));
-							}
-						});
+                        const temperature = getTemperatureFeature(objValue[nvmeKey], sensorName);
+                        tempVal = tempHelper.getTemp(getSensorValue(temperature, 'input'));
+                        tempMax = tempHelper.getTemp(getSensorValue(temperature, 'max'));
+                        tempCrit = tempHelper.getTemp(getSensorValue(temperature, 'crit'));
 						model = objValue[nvmeKey]['model'] || 'Unknown';
 						serial = objValue[nvmeKey]['serial'] || '';
 						
@@ -742,7 +775,7 @@ Ext.define('PVE.node.StatusView', {
 			printBar: false,
 			title: gettext('Other Temperatures'),
 			iconCls: 'fa fa-fw fa-thermometer-half',
-			textField: 'PveMods_JsonSensorInfo',
+			textField: 'PveMods_SensorInfo',
 			renderer: function(otherInfo) {
 				// Prefixes belonging to other known categories (excluded from this view)
 				const excludePrefixes = [
@@ -756,17 +789,17 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (otherInfo.other !== true) {
+                    if (!isSensorEnabled(otherInfo, 'other')) {
                         this.hide();
 						return '';
 					}
-					objValue = (otherInfo.data && otherInfo.data[Object.keys(otherInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(otherInfo);
 				} catch(e) {
                     return '';
 				}
 
 				const tempHelper = Ext.create('PVE.mod.TempHelper', {srcUnit: PVE.mod.TempHelper.CELSIUS, dstUnit: otherInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS});
-				const ignoreThreshold = tempHelper.getTemp(parseFloat(otherInfo.ignore_temp_below));
+                const ignoreThreshold = getSensorIgnoreThreshold(otherInfo, tempHelper);
 
 				// Keep only keys that do not belong to known categories
 				const otherKeys = Object.keys(objValue).filter(key =>
@@ -781,7 +814,7 @@ Ext.define('PVE.node.StatusView', {
 						if (!sensorObj || typeof sensorObj !== 'object') { return; }
 
 						// Collect all nested temp* sub-objects
-						const tempKeys = Object.keys(sensorObj).filter(k => String(k).startsWith('temp')).sort();
+                        const tempKeys = Object.keys(sensorObj).filter(k => /^temp\d+$/.test(k)).sort();
 						if (tempKeys.length === 0) { return; }
 
 						let tempParts = [];
@@ -790,16 +823,9 @@ Ext.define('PVE.node.StatusView', {
 								const tempData = sensorObj[tempKey];
 								if (!tempData || typeof tempData !== 'object') { return; }
 
-								let tempVal = NaN, tempMax = NaN, tempCrit = NaN;
-								Object.keys(tempData).forEach(subKey => {
-									if (subKey.endsWith('_input')) {
-										tempVal = tempHelper.getTemp(parseFloat(tempData[subKey]));
-									} else if (subKey.endsWith('_max')) {
-										tempMax = tempHelper.getTemp(parseFloat(tempData[subKey]));
-									} else if (subKey.endsWith('_crit')) {
-										tempCrit = tempHelper.getTemp(parseFloat(tempData[subKey]));
-									}
-								});
+                                const tempVal = tempHelper.getTemp(getSensorValue(tempData, 'input'));
+                                const tempMax = tempHelper.getTemp(getSensorValue(tempData, 'max'));
+                                const tempCrit = tempHelper.getTemp(getSensorValue(tempData, 'crit'));
 
 								if (!isNaN(tempVal) && tempVal >= ignoreThreshold) {
 									let tempStyle = '';
@@ -809,7 +835,7 @@ Ext.define('PVE.node.StatusView', {
 									if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 										tempStyle = 'color: red; font-weight: bold;';
 									}
-									tempParts.push(`${tempKey}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
+                                    tempParts.push(`${getSensorLabel(tempData, tempKey)}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
 								}
 							} catch(e) { /*_*/ }
 						});
@@ -849,33 +875,52 @@ Ext.define('PVE.node.StatusView', {
             printBar: false,
             title: gettext('System Fans'),
             iconCls: 'fa fa-fw fa-snowflake-o',
-            textField: 'PveMods_JsonSensorInfo',
+            textField: 'PveMods_SensorInfo',
             renderer: function(fansInfo) {
                 // ---
                 let objValue;
                 try {
-                    if (fansInfo.fans !== true) {
+                    if (!isSensorEnabled(fansInfo, 'fans')) {
 						return '';
 					}
-                    objValue = (fansInfo.data && fansInfo.data[Object.keys(fansInfo.data)[0]]) || {};
+                    objValue = getSensorPayload(fansInfo);
                 } catch(e) {
                     return '';
                 }
 
                 // Recursive function to find fan keys and values
-                function findFanKeys(obj, fanKeys, parentKey = null) {
+                function findFanKeys(obj, fanKeys) {
                     Object.keys(obj).forEach(key => {
                     const value = obj[key];
+                    if (/^fan[0-9]+(?:_input)?$/.test(key)) {
+                        if (value && typeof value === 'object') {
+                            const measurement = value.input
+                                || (Object.prototype.hasOwnProperty.call(value, 'value') ? value : null);
+                            if (!measurement) {
+                                findFanKeys(value, fanKeys);
+                                return;
+                            }
+                            const numericSpeed = Number(measurement.value);
+                            if (Number.isFinite(numericSpeed)
+                                && (fansInfo.display_zero_speed_fans === true || numericSpeed !== 0)) {
+                                fanKeys.push({
+                                    key: key.replace(/_input$/, ''),
+                                    value: numericSpeed,
+                                    unit: measurement.unit || 'RPM',
+                                });
+                            }
+                        } else {
+                            const numericSpeed = Number(value);
+                            if (Number.isFinite(numericSpeed)
+                                && (fansInfo.display_zero_speed_fans === true || numericSpeed !== 0)) {
+                                fanKeys.push({ key: key.replace(/_input$/, ''), value: numericSpeed, unit: 'RPM' });
+                            }
+                        }
+                        return;
+                    }
                     if (typeof value === 'object' && value !== null) {
                         // If the value is an object, recursively call the function
-                        findFanKeys(value, fanKeys, key);
-                    } else if (/^fan[0-9]+(_input)?$/.test(key)) {
-                        if (fansInfo.display_zero_speed_fans !== true && value === 0) {
-                            // Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
-                            return;
-                        }
-                        // If the key matches the pattern, add the parent key and value to the fanKeys array
-                        fanKeys.push({ key: parentKey, value: value });
+                        findFanKeys(value, fanKeys);
                     }
                     });
                 }
@@ -895,10 +940,10 @@ Ext.define('PVE.node.StatusView', {
                         return 0;
                     });
                     // Process each fan key and value
-                    fanKeys.forEach(({ key: fanKey, value: fanSpeed }) => {
+                    fanKeys.forEach(({ key: fanKey, value: fanSpeed, unit }) => {
                     try {
                         const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
-                        speeds.push(`${fan}:&nbsp;${fanSpeed} RPM`);
+                        speeds.push(`${fan}:&nbsp;${fanSpeed} ${unit}`);
                     } catch(e) {
                         console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
                     }
