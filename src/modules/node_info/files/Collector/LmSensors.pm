@@ -118,6 +118,7 @@ sub _get_temperature_sensors {
 sub _sanitize_sensors {
     my ($sensors_output) = @_;
 
+    $sensors_output =~ s/(?:\\u(?:00b0|fffd)|\xC2\xB0|\xEF\xBF\xBD|\xB0|\x{00B0}|\x{FFFD})([CF])/$1/ig;
     $sensors_output =~ s/ERROR:.+\s(\w+):\s(.+)/\"$1\": 0.000,/g;
     $sensors_output =~ s/ERROR:.+\s(\w+)!/\"$1\": 0.000,/g;
     $sensors_output =~ s/,\s*(})/$1/g;
