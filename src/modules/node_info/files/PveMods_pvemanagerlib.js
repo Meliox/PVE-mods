@@ -529,7 +529,7 @@ Ext.define('PVE.node.StatusView', {
 				// ---
 				let objValue;
 				try {
-                    if (ramInfo.disabled === true) {
+                    if (ramInfo.ram !== true) {
                         this.hide();
                         return '';
                     }
