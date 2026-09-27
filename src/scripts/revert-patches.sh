@@ -79,7 +79,7 @@ for mod in "${_target_modules[@]}"; do
 
     # Collect patch names (ignore conditions and comments), then reverse order.
     mapfile -t patches < <(
-        while IFS= read -r line; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
             line="${line%%#*}"
             line="$(echo "$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
             [[ -z "$line" ]] && continue
