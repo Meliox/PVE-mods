@@ -99,6 +99,7 @@ sub _get_temperature_sensors {
         ram   => $config{lm_sensors}{enable_ram_temp}   ? \1 : \0,
         nvme  => $config{lm_sensors}{enable_nvme_temp}  ? \1 : \0,
         fans  => $config{lm_sensors}{enable_fan_speed}  ? \1 : \0,
+        display_zero_speed_fans => $config{lm_sensors}{display_zero_speed_fans} ? \1 : \0,
         hdd   => $config{lm_sensors}{enable_hdd_temp}   ? \1 : \0,
         other => $config{lm_sensors}{enable_other_temp} ? \1 : \0,
         temp_unit => $config{system_info}{temp_unit},

@@ -867,7 +867,7 @@ Ext.define('PVE.node.StatusView', {
                         // If the value is an object, recursively call the function
                         findFanKeys(value, fanKeys, key);
                     } else if (/^fan[0-9]+(_input)?$/.test(key)) {
-                        if (true != true && value === 0) {
+                        if (fansInfo.display_zero_speed_fans !== true && value === 0) {
                             // Skip this fan if DISPLAY_ZERO_SPEED_FANS is false and value is 0
                             return;
                         }
