@@ -12,7 +12,6 @@
 #   node_info_write_conf  — write /etc/pve-mods/conf.d/node_info.conf
 
 NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
-KNOWN_CPU_SENSORS=("coretemp-isa-" "k10temp-pci-" "cpu_thermal-virtual-")
 
 # --- utilities ---------------------------------------------------------------
 
@@ -26,6 +25,65 @@ sanitize_sensors_output() {
         s/"SODIMM"\s*:\s*\{\s*"temp(\d+)_input"/"SODIMM $1": {\n  "temp$1_input"/g;
         s/"([^"]*Fan[^"]*)"\s*:\s*\{\s*"fan(\d+)_input"/"$1 $2": {\n  "fan$2_input"/g;
     ' | python3 -m json.tool 2>/dev/null || echo "$input"
+}
+
+detect_sensor_counts() {
+    python3 -c '
+import json, re, sys
+
+data = json.load(sys.stdin)
+cpu_prefixes = ("coretemp-isa-", "k10temp-pci-", "cpu_thermal-virtual-")
+ram_prefixes = ("spd5118-", "jc42-", "SODIMM")
+cpu_sensors = []
+ram_count = hdd_count = nvme_count = other_count = fan_count = 0
+
+def temperature_features(chip):
+    features = []
+    for name, feature in chip.items():
+        if not isinstance(feature, dict):
+            continue
+        reading = feature.get("input")
+        if (isinstance(reading, dict)
+                and reading.get("quantity") == "temperature"
+                and isinstance(reading.get("value"), (int, float))):
+            features.append((name, feature))
+    return features
+
+for chip_name, chip in data.items():
+    if not isinstance(chip, dict):
+        continue
+    temperatures = temperature_features(chip)
+    if temperatures:
+        ram_by_label = any(
+            isinstance(feature.get("label"), str)
+            and re.search(r"(?:SODIMM|DIMM)", feature["label"], re.I)
+            for _, feature in temperatures
+        )
+        if chip_name.startswith(cpu_prefixes):
+            cpu_sensors.append(chip_name)
+        elif chip_name.startswith(ram_prefixes) or ram_by_label:
+            ram_count += 1
+        elif chip_name.startswith("drivetemp-scsi-"):
+            hdd_count += 1
+        elif chip_name.startswith(("nvme-pci-", "drivetemp-nvme-")):
+            nvme_count += 1
+        else:
+            other_count += 1
+
+    for name, feature in chip.items():
+        if not re.fullmatch(r"fan\d+", name) or not isinstance(feature, dict):
+            continue
+        reading = feature.get("input")
+        if (isinstance(reading, dict)
+                and reading.get("quantity") == "speed"
+                and isinstance(reading.get("value"), (int, float))):
+            fan_count += 1
+
+print("\t".join(map(str, (
+    len(cpu_sensors), ram_count, hdd_count, nvme_count,
+    other_count, fan_count, ",".join(cpu_sensors)
+))))
+    '
 }
 
 _check_or_install_tool() {
@@ -50,7 +108,6 @@ _check_or_install_tool() {
             ;;
     esac
 }
-
 _check_setcap_available() {
     command -v setcap &>/dev/null && return 0
     warn "'setcap' is not installed (needed to grant intel_gpu_top permission to run as www-data)."
@@ -270,22 +327,16 @@ node_info_configure() {
     if [[ "$lm_sensors_ok" == true ]]; then
         local sanitisedSensorsOutput
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
+        local sensorCounts detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount cpuList
+        sensorCounts=$(printf '%s\n' "$sanitisedSensorsOutput" | detect_sensor_counts 2>/dev/null) \
+            || sensorCounts=$'0\t0\t0\t0\t0\t0\t'
+        IFS=$'\t' read -r detectedCpuCount ramCount hddList nvmeCount otherTempCount fanCount cpuList \
+            <<< "$sensorCounts"
 
         #region CPU
         msgb "\n=== Detecting CPU temperature sensors ==="
-        local cpuList="" cpuCount=0
-        for pattern in "${KNOWN_CPU_SENSORS[@]}"; do
-            local found_cpus
-            found_cpus=$(echo "$sanitisedSensorsOutput" | grep -o "\"${pattern}[^\"]*\"" || true | sed 's/"//g')
-            if [[ -n "$found_cpus" ]]; then
-                while read -r sensor; do
-                    [[ -z "$sensor" ]] && continue
-                    cpuCount=$((cpuCount + 1))
-                    cpuList="${cpuList:+$cpuList,}$sensor"
-                    ENABLE_CPU=1
-                done <<< "$found_cpus"
-            fi
-        done
+        local cpuCount="$detectedCpuCount"
+        [[ "$cpuCount" -gt 0 ]] && ENABLE_CPU=1
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
             info "Detected CPU sensors ($cpuCount): $cpuList"
             sensors_detected=true
@@ -315,8 +366,6 @@ node_info_configure() {
 
         #region RAM
         msgb "\n=== Detecting RAM temperature sensors ==="
-        local ramCount
-        ramCount=$(grep -Ec '"(SODIMM[0-9]*|spd5118-)[^"]*"' <<<"$sanitisedSensorsOutput" || true)
         if [[ "$ramCount" -gt 0 ]]; then
             info "Detected $ramCount RAM sensor(s)."
             ENABLE_RAM_TEMP=1; sensors_detected=true
@@ -327,8 +376,6 @@ node_info_configure() {
 
         #region HDD/SSD
         msgb "\n=== Detecting HDD/SSD temperature sensors ==="
-        local hddList
-        hddList=$(echo "$sanitisedSensorsOutput" | grep -o '"drivetemp-scsi[^"]*"' | sed 's/"//g' | wc -l || true)
         if [[ "$hddList" -gt 0 ]]; then
             info "Detected $hddList HDD/SSD sensor(s)."
             ENABLE_HDD_TEMP=1; sensors_detected=true
@@ -339,8 +386,6 @@ node_info_configure() {
 
         #region NVMe
         msgb "\n=== Detecting NVMe temperature sensors ==="
-        local nvmeCount
-        nvmeCount=$(echo "$sanitisedSensorsOutput" | grep -c '"nvme[^"]*"' || true)
         if [[ "$nvmeCount" -gt 0 ]]; then
             info "Detected $nvmeCount NVMe sensor(s)."
             ENABLE_NVME_TEMP=1; sensors_detected=true
@@ -351,13 +396,8 @@ node_info_configure() {
 
         #region Other thermals
         msgb "\n=== Detecting other thermal sensors ==="
-        local otherTempCount
-        otherTempCount=$(echo "$sanitisedSensorsOutput" \
-            | sed -E '/^    "(coretemp-isa-|k10temp-pci-|cpu_thermal-virtual-|nvme-|drivetemp-|SODIMM|spd5118-)[^"]*"[[:space:]]*:/,/^    \},?$/d' \
-            | grep -c '"quantity": "temperature"' || true)
-
         if [[ "$otherTempCount" -gt 0 ]]; then
-            info "Detected $otherTempCount other temperature reading(s)."
+            info "Detected $otherTempCount other temperature sensor(s)."
             ENABLE_OTHER_TEMP=1; sensors_detected=true
         else
             warn "No other temperature sensors found."
@@ -366,8 +406,6 @@ node_info_configure() {
 
         #region Fans
         msgb "\n=== Detecting fan speed sensors ==="
-        local fanCount
-        fanCount=$(grep -c 'fan[0-9]\+_input' <<<"$sanitisedSensorsOutput" || true)
         if [[ "$fanCount" -gt 0 ]]; then
             info "Detected $fanCount fan speed reading(s)."
             ENABLE_FAN_SPEED=1; sensors_detected=true
