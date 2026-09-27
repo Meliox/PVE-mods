@@ -1,3 +1,14 @@
+pve-mods (2.1.0) stable; urgency=low
+
+  * df21e7f chore(node_info): standardize wizard blank-line spacing with a section() helper (#379) by @Meliox
+  * 1053bd5 chore(node_info): Update to lm-sensors 3.6.2 json output format (#378) by @Meliox
+  * eb6d651 fix(node_info): parse intel_gpu_top JSON output instead of positional columns (#377) by @Meliox
+  * cb01824 fix(node_info): Hide ram info when disabled in config (#375) by @Meliox
+  * daeba2c feat(nag_screen): Remove more naggins (#372) by @Meliox
+  * 2d12ec6 fix(node_info): Hide zero-RPM fans when disabled in lm-sensors settings (#373) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 27 Sep 2026 18:58:09 +0000
+
 pve-mods (2.0.0) stable; urgency=low
 
   * 0d8ceea fix(node_info): debug messages logged as journal warnings (#365) by @Meliox
