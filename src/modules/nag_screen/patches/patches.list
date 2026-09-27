@@ -3,3 +3,6 @@
 
 01-proxmoxlib-js-nagscreen.patch
 02-index-html-tpl-mobilenag.patch
+03-pvemanager-js-dc-subblock.patch
+04-proxmoxlib-js-repostatus.patch
+05-proxmoxlib-js-repositories.patch

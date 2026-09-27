@@ -126,14 +126,14 @@ for mod in "${_target_modules[@]}"; do
     # Build the list of active patch files (those whose condition is met).
     active=()
     preflight_ok=true
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
         # Strip comments and surrounding whitespace; skip blanks.
         line="${line%%#*}"
         line="$(echo "$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
         [[ -z "$line" ]] && continue
 
         # Format: <patch-file> [section.key=value]
-        patch_name="${line%%[[:space:]]*}"
+        read -r patch_name _ <<< "$line"
         condition=""
         if [[ "$line" == *[[:space:]]* ]]; then
             condition="$(echo "${line#"$patch_name"}" | sed -E 's/^[[:space:]]+//')"
