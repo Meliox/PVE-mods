@@ -105,7 +105,7 @@ sub _get_temperature_sensors {
         temp_unit => $config{system_info}{temp_unit},
         cpu_temp_target => $config{lm_sensors}{cpu_temp_target},
         ignore_temp_below => $config{system_info}{ignore_temp_below} + 0,
-        data  => { 'PVE MOD lm-sensors Enhanced' => $sensors_json },
+        enhanced_sensors => $sensors_json,
     });
 
     return $data;

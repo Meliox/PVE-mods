@@ -122,7 +122,7 @@ function getTemperatureFeature(sensorGroup, preferredLabel) {
 }
 
 function getSensorPayload(sensorInfo) {
-    const payload = sensorInfo?.data?.['PVE MOD lm-sensors Enhanced'];
+    const payload = sensorInfo?.enhanced_sensors;
     return payload && typeof payload === 'object' ? payload : {};
 }
 
