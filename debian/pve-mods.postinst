@@ -114,7 +114,15 @@ case "$1" in
         fi
         ;;
 
-    abort-upgrade|abort-remove|abort-deconfigure)
+    abort-upgrade)
+        # An upgrade can fail after preinst has reverted the old patches.
+        # Restore the currently installed version's patches during rollback.
+        if ! /usr/lib/pve-mods/apply-patches.sh; then
+            echo "pve-mods: WARNING: Failed to restore patches after an aborted upgrade. Run 'pve-mods-configure' to retry." >&2
+        fi
+        ;;
+
+    abort-remove|abort-deconfigure)
         ;;
 esac
 

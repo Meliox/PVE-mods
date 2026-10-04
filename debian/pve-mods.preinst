@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+
+PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
+PATCH_ROOT="${PVE_MODs_ROOT:-/}"
+CHANGED=false
+
+case "$1" in
+    upgrade)
+        OLD_VERSION="${2:-unknown}"
+        NEW_VERSION="${3:-unknown}"
+        echo "[pve-mods] Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
+        # This new preinst runs before the old package files are replaced, so
+        # its manifests and patches still describe exactly what is installed.
+        # Check every patch in every old manifest, regardless of enabled
+        # config flags; reverse only patches detected as currently applied.
+        if [ -d "$PATCHES_DIR" ]; then
+            for mod_dir in "$PATCHES_DIR"/*/; do
+                [ -d "$mod_dir" ] || continue
+                manifest="${mod_dir}patches.list"
+                [ -f "$manifest" ] || continue
+                mapfile -t patches < <(
+                    while IFS= read -r line || [ -n "$line" ]; do
+                        line="${line%%#*}"
+                        line="$(echo "$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+                        [ -z "$line" ] && continue
+                        read -r patch_name _ <<< "$line"
+                        echo "$patch_name"
+                    done < "$manifest"
+                )
+
+                for (( i=${#patches[@]}-1; i>=0; i-- )); do
+                    patch_file="${mod_dir}${patches[$i]}"
+                    [ -f "$patch_file" ] || continue
+
+                    if patch -R -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
+                        if ! patch -R -p1 -F0 -d "$PATCH_ROOT" -f -s < "$patch_file"; then
+                            echo "[pve-mods] ERROR: Failed to revert ${patches[$i]} during upgrade." >&2
+                            exit 1
+                        fi
+                        echo "[pve-mods] Reverted ${patches[$i]} before package upgrade."
+                        CHANGED=true
+                    elif ! patch -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
+                        echo "[pve-mods] ERROR: ${patches[$i]} is in an unknown state; cannot safely upgrade." >&2
+                        patch -R -p1 -F0 -d "$PATCH_ROOT" -f --dry-run --verbose < "$patch_file" >&2 || true
+                        exit 1
+                    fi
+                done
+            done
+        fi
+
+        echo "[pve-mods] Uninstallation of patches from version ${OLD_VERSION} completed."
+
+        if [ "$CHANGED" = "true" ] && command -v systemctl >/dev/null 2>&1; then
+            if ! systemctl restart pveproxy; then
+                echo "[pve-mods] WARNING: Could not restart pveproxy after reverting patches." >&2
+            fi
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+exit 0
