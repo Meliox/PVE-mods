@@ -48,12 +48,12 @@ jobs:
 
           git fetch origin main
 
-          # Collect all commits touching src/ since the last release tag (both paths need this)
+          # Collect all commits touching src/ or debian/ since the last release tag (both paths need this)
           LAST_TAG=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)
           if [[ -n "$LAST_TAG" ]]; then
-            LOG=$(git log "${LAST_TAG}..origin/main" --oneline -- src/ | head -50)
+            LOG=$(git log "${LAST_TAG}..origin/main" --oneline -- src/ debian/ ':!debian/changelog' | head -50)
           else
-            LOG=$(git log origin/main --oneline -- src/ | head -50)
+            LOG=$(git log origin/main --oneline -- src/ debian/ ':!debian/changelog' | head -50)
           fi
           if [[ -n "$LOG" ]]; then
             while IFS= read -r line; do
@@ -65,7 +65,7 @@ jobs:
               echo "$line"
             done <<< "$LOG" > /tmp/CHANGES.md
           else
-            echo "No src/ changes since last release." > /tmp/CHANGES.md
+            echo "No src/ or debian/ changes since last release." > /tmp/CHANGES.md
           fi
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
