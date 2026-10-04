@@ -64,6 +64,10 @@ And remove dependencies needed by respective mods.
 
 Multiple node support requires application to be installed on all nodes with identical configuration. (untested)
 
+#### Reverse proxy / CDN caching
+
+If mod details appear when accessing a node directly but not through a reverse proxy or CDN, it may be serving a cached, unpatched `pvemanagerlib.js`. Its URL version may not change when the file is patched, so purge the cache for Proxmox JavaScript assets (such as `/pve2/js/`), disable asset caching for the PVE host, and hard-refresh the browser. After a Proxmox update, reapply the mod and purge the proxy/CDN cache again.
+
 ---
 
 ## Legacy / v1 (shell scripts)
