@@ -44,7 +44,7 @@ patch -p1 -F0 -d "$ROOT" < "$MOD_DIR/old.patch"
 PVE_MODs_ROOT="$ROOT" \
 PVE_MODs_PATCHES_DIR="$PATCHES" \
 PATH="$TMP_DIR/bin:$PATH" \
-    "$PREINST" install
+    bash "$PREINST" install
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-old" ]] || {
     echo "[test] initial install unexpectedly reverted an existing file" >&2
     exit 1
@@ -53,7 +53,7 @@ PATH="$TMP_DIR/bin:$PATH" \
 PVE_MODs_ROOT="$ROOT" \
 PVE_MODs_PATCHES_DIR="$PATCHES" \
 PATH="$TMP_DIR/bin:$PATH" \
-    "$PREINST" upgrade 2.0.0
+    bash "$PREINST" upgrade 2.0.0
 
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=old" ]] || {
     echo "[test] upgrade revert did not restore the original file" >&2
@@ -98,7 +98,7 @@ printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
 if PVE_MODs_ROOT="$ROOT" \
    PVE_MODs_PATCHES_DIR="$PATCHES" \
    PATH="$TMP_DIR/bin:$PATH" \
-       "$PREINST" upgrade 2.0.0 > "$TMP_DIR/upgrade-error.log" 2>&1; then
+       bash "$PREINST" upgrade 2.0.0 > "$TMP_DIR/upgrade-error.log" 2>&1; then
     echo "[test] upgrade unexpectedly accepted a patch in an unknown state" >&2
     exit 1
 fi
