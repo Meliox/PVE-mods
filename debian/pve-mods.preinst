@@ -9,7 +9,7 @@ case "$1" in
     upgrade)
         OLD_VERSION="${2:-unknown}"
         NEW_VERSION="${3:-unknown}"
-        echo "pve-mods: Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
+        echo "[pve-mods] Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
         # This new preinst runs before the old package files are replaced, so
         # its manifests and patches still describe exactly what is installed.
         # Check every patch in every old manifest, regardless of enabled
@@ -35,13 +35,13 @@ case "$1" in
 
                     if patch -R -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
                         if ! patch -R -p1 -F0 -d "$PATCH_ROOT" -f -s < "$patch_file"; then
-                            echo "pve-mods: ERROR: Failed to revert ${patches[$i]} during upgrade." >&2
+                            echo "[pve-mods] ERROR: Failed to revert ${patches[$i]} during upgrade." >&2
                             exit 1
                         fi
-                        echo "pve-mods: Reverted ${patches[$i]} before package upgrade."
+                        echo "[pve-mods] Reverted ${patches[$i]} before package upgrade."
                         CHANGED=true
                     elif ! patch -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
-                        echo "pve-mods: ERROR: ${patches[$i]} is in an unknown state; cannot safely upgrade." >&2
+                        echo "[pve-mods] ERROR: ${patches[$i]} is in an unknown state; cannot safely upgrade." >&2
                         patch -R -p1 -F0 -d "$PATCH_ROOT" -f --dry-run --verbose < "$patch_file" >&2 || true
                         exit 1
                     fi
@@ -49,11 +49,11 @@ case "$1" in
             done
         fi
 
-        echo "pve-mods: Uninstallation of patches from version ${OLD_VERSION} completed."
+        echo "[pve-mods] Uninstallation of patches from version ${OLD_VERSION} completed."
 
         if [ "$CHANGED" = "true" ] && command -v systemctl >/dev/null 2>&1; then
             if ! systemctl restart pveproxy; then
-                echo "pve-mods: WARNING: Could not restart pveproxy after reverting patches." >&2
+                echo "[pve-mods] WARNING: Could not restart pveproxy after reverting patches." >&2
             fi
         fi
         ;;

@@ -55,11 +55,11 @@ upgrade_output="$(PVE_MODs_ROOT="$ROOT" \
     PATH="$TMP_DIR/bin:$PATH" \
 bash "$PREINST" upgrade 2.0.0 2.1.0)"
 echo "$upgrade_output"
-grep -q "Uninstalling patches from version 2.0.0 before installing version 2.1.0" <<< "$upgrade_output" || {
+grep -q "\[pve-mods\] Uninstalling patches from version 2.0.0 before installing version 2.1.0" <<< "$upgrade_output" || {
 echo "[test] upgrade did not announce the old and new package versions" >&2
     exit 1
 }
-grep -q "Uninstallation of patches from version 2.0.0 completed" <<< "$upgrade_output" || {
+grep -q "\[pve-mods\] Uninstallation of patches from version 2.0.0 completed" <<< "$upgrade_output" || {
 echo "[test] upgrade did not announce completion of patch uninstallation" >&2
 exit 1
 }
