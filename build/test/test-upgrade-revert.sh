@@ -50,10 +50,19 @@ PATH="$TMP_DIR/bin:$PATH" \
     exit 1
 }
 
-PVE_MODs_ROOT="$ROOT" \
-PVE_MODs_PATCHES_DIR="$PATCHES" \
-PATH="$TMP_DIR/bin:$PATH" \
-    bash "$PREINST" upgrade 2.0.0
+upgrade_output="$(PVE_MODs_ROOT="$ROOT" \
+    PVE_MODs_PATCHES_DIR="$PATCHES" \
+    PATH="$TMP_DIR/bin:$PATH" \
+bash "$PREINST" upgrade 2.0.0 2.1.0)"
+echo "$upgrade_output"
+grep -q "Uninstalling patches from version 2.0.0 before installing version 2.1.0" <<< "$upgrade_output" || {
+echo "[test] upgrade did not announce the old and new package versions" >&2
+    exit 1
+}
+grep -q "Uninstallation of patches from version 2.0.0 completed" <<< "$upgrade_output" || {
+echo "[test] upgrade did not announce completion of patch uninstallation" >&2
+exit 1
+}
 
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=old" ]] || {
     echo "[test] upgrade revert did not restore the original file" >&2
@@ -98,7 +107,7 @@ printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
 if PVE_MODs_ROOT="$ROOT" \
    PVE_MODs_PATCHES_DIR="$PATCHES" \
    PATH="$TMP_DIR/bin:$PATH" \
-       bash "$PREINST" upgrade 2.0.0 > "$TMP_DIR/upgrade-error.log" 2>&1; then
+    bash "$PREINST" upgrade 2.0.0 2.1.0 > "$TMP_DIR/upgrade-error.log" 2>&1; then
     echo "[test] upgrade unexpectedly accepted a patch in an unknown state" >&2
     exit 1
 fi

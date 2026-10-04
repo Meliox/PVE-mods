@@ -7,6 +7,9 @@ CHANGED=false
 
 case "$1" in
     upgrade)
+        OLD_VERSION="${2:-unknown}"
+        NEW_VERSION="${3:-unknown}"
+        echo "pve-mods: Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
         # This new preinst runs before the old package files are replaced, so
         # its manifests and patches still describe exactly what is installed.
         # Check every patch in every old manifest, regardless of enabled
@@ -45,6 +48,8 @@ case "$1" in
                 done
             done
         fi
+
+        echo "pve-mods: Uninstallation of patches from version ${OLD_VERSION} completed."
 
         if [ "$CHANGED" = "true" ] && command -v systemctl >/dev/null 2>&1; then
             if ! systemctl restart pveproxy; then
