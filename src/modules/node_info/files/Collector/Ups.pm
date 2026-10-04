@@ -105,8 +105,10 @@ sub _parse_upsc_output {
                 $value =~ s/^\s+|\s+$//g;
 
                 # Coerce numeric values
-                if ($value =~ /^-?\d+\.?\d*$/) {
+                if ($value =~ /^-?\d+\.?\d*$/ && $key ne "ups.serial") {
                     $ups_data->{$key} = $value + 0;
+                } elsif ($key eq "ups.test.result" && $value eq "No test initiated") {
+                    $ups_data->{$key} = "N/A";
                 } else {
                     $ups_data->{$key} = $value;
                 }
