@@ -31,6 +31,7 @@ TBD PICTURE
 2. The mods main configuration file and mods can be found under `/etc/pve-mods/`.
 2. Running `pve-mods-configure` prompts for which modules to enable and configuration of mods.
 3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
+4. When upgrading `pve-mods`, the previous patches are reverted before package files are replaced, then the new version's patches are applied.
 
 ### Install
 
