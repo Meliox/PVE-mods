@@ -1,8 +1,8 @@
-pve-mods (2.2.0) stable; urgency=low
+pve-mods (2.1.1) stable; urgency=low
 
   * 84dac9e fix(installer): revert applied patches before package upgrade (#383) by @Meliox
 
- -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 04 Oct 2026 17:26:41 +0000
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 04 Oct 2026 17:27:03 +0000
 
 pve-mods (2.1.0) stable; urgency=low
 
