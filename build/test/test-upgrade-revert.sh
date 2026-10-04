@@ -84,7 +84,7 @@ patch -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch"
 PVE_MODs_ROOT="$ROOT" \
 PVE_MODs_PATCHES_DIR="$PATCHES" \
 PVE_MODs_CONFD_DIR="$CONF" \
-    "$REVERT"
+    bash "$REVERT"
 [[ -e "$ROOT/hook-ran" ]] || {
     echo "[test] regular revert did not run the post-revert hook" >&2
     exit 1
