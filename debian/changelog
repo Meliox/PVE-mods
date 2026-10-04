@@ -1,3 +1,9 @@
+pve-mods (2.1.1) stable; urgency=low
+
+  * 84dac9e fix(installer): revert applied patches before package upgrade (#383) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 04 Oct 2026 17:27:03 +0000
+
 pve-mods (2.1.0) stable; urgency=low
 
   * c6ba2e1 fix(note_info): improve SN and test rendering for UPS (#371) by @vit9696
