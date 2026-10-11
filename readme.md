@@ -52,6 +52,16 @@ Configuration files are located in `/etc/pve-mods/`. After any manual edits, res
 systemctl restart pveproxy
 ```
 
+### Upgrade
+
+`pve-mods` follows [Semantic Versioning](https://semver.org/), using `MAJOR.MINOR.PATCH` version numbers. Major releases may include breaking changes. Before upgrading to a new major version, read its release notes and changelog so you can review those changes and any required migration steps. Minor releases add backward-compatible functionality, and patch releases contain backward-compatible fixes.
+
+To upgrade to the latest release, run the installer as `root`. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
+
+```bash
+curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
+```
+
 ### Uninstall
 
 Commands and mod configuration must be run as `root`.
