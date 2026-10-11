@@ -881,6 +881,7 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     if (!isSensorEnabled(fansInfo, 'fans')) {
+                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(fansInfo);
