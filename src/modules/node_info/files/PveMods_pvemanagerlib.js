@@ -906,6 +906,7 @@ Ext.define('PVE.node.StatusView', {
                                 && (fansInfo.display_zero_speed_fans === true || numericSpeed !== 0)) {
                                 fanKeys.push({
                                     key: key.replace(/_input$/, ''),
+                                    label: typeof value.label === 'string' ? value.label.trim() : '',
                                     value: numericSpeed,
                                     unit: measurement.unit || 'RPM',
                                 });
@@ -941,9 +942,12 @@ Ext.define('PVE.node.StatusView', {
                         return 0;
                     });
                     // Process each fan key and value
-                    fanKeys.forEach(({ key: fanKey, value: fanSpeed, unit }) => {
+                    fanKeys.forEach(({ key: fanKey, label: fanLabel, value: fanSpeed, unit }) => {
                     try {
-                        const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
+                        // Use the custom sensors label when present, otherwise the capitalized key
+                        const fan = fanLabel
+                            ? Ext.htmlEncode(fanLabel)
+                            : fanKey.charAt(0).toUpperCase() + fanKey.slice(1);
                         speeds.push(`${fan}:&nbsp;${fanSpeed} ${unit}`);
                     } catch(e) {
                         console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
