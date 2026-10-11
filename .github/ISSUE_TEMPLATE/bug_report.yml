@@ -16,7 +16,9 @@ body:
     id: pve_mods_version
     attributes:
       label: PVE-mods version
-      description: "Required. Find it by running `dpkg-query -W -f='${Version}\\n' pve-mods` on the Proxmox shell."
+      description: >-
+        Required. Find it by running `dpkg-query -W -f='${Version}\n' pve-mods`
+        on the Proxmox shell.
       placeholder: "For example, 2.1.0"
     validations:
       required: true
