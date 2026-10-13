@@ -25,6 +25,9 @@
 
 set -u
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/patch-diagnostics.sh"
+
 # Root paths (overridable via environment, mainly for testing).
 PVE_MODs_ROOT="${PVE_MODs_ROOT:-/}"
 MAIN_CONF="${PVE_MODs_MAIN_CONF:-/etc/pve-mods/pve-mods.conf}"
@@ -172,7 +175,7 @@ for mod in "${_target_modules[@]}"; do
                 to_apply+=("$pf")
             else
                 warn "  $(basename "$pf") does not apply cleanly"
-                patch -p1 -F0 -f --dry-run --verbose -d "$PVE_MODs_ROOT" < "$pf" >&2 || true
+                report_patch_failure "$pf"
                 preflight_ok=false
                 break
             fi

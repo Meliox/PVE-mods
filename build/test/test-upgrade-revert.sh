@@ -116,6 +116,16 @@ grep -q "cannot safely upgrade" "$TMP_DIR/upgrade-error.log" || {
     cat "$TMP_DIR/upgrade-error.log" >&2
     exit 1
 }
+grep -Fq "Context at $ROOT/usr/share/demo/config:1" "$TMP_DIR/upgrade-error.log" || {
+    echo "[test] upgrade failure did not include the absolute target path and line" >&2
+    cat "$TMP_DIR/upgrade-error.log" >&2
+    exit 1
+}
+grep -Fq "version=unexpected" "$TMP_DIR/upgrade-error.log" || {
+    echo "[test] upgrade failure did not include the target file context" >&2
+    cat "$TMP_DIR/upgrade-error.log" >&2
+    exit 1
+}
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || {
     echo "[test] failed upgrade modified a file in an unknown state" >&2
     exit 1

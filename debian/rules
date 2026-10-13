@@ -12,6 +12,7 @@ override_dh_install:
 	# Patch helpers (generic, manifest-driven)
 	install -Dm755 src/scripts/apply-patches.sh debian/pve-mods/usr/lib/pve-mods/apply-patches.sh
 	install -Dm755 src/scripts/revert-patches.sh debian/pve-mods/usr/lib/pve-mods/revert-patches.sh
+	install -Dm644 src/scripts/patch-diagnostics.sh debian/pve-mods/usr/lib/pve-mods/patch-diagnostics.sh
 	# Configure tool
 	install -Dm755 src/scripts/pve-mods-configure debian/pve-mods/usr/sbin/pve-mods-configure
 	# Main config (conffile for user edits)
