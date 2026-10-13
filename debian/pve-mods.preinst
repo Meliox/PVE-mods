@@ -5,6 +5,34 @@ PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
 PATCH_ROOT="${PVE_MODs_ROOT:-/}"
 CHANGED=false
 
+# Keep this diagnostic self-contained: preinst runs before package payload files
+# are installed, so the helper script may not yet exist on upgrade.
+report_patch_failure() {
+    local patch_file="$1" output line current_file=""
+    local target_path root start end hunk_number
+    output="$(patch -R -p1 -F0 -f --dry-run --verbose -d "$PATCH_ROOT" < "$patch_file" 2>&1)" || true
+    grep -E '^(checking file|Hunk #|[0-9]+ out of [0-9]+ hunks? FAILED)' <<< "$output" >&2 || true
+
+    root="$PATCH_ROOT"
+    [[ "$root" == /* ]] || root="$PWD/$root"
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^checking\ file\ (.+)$ ]]; then
+            current_file="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^Hunk\ \#([0-9]+)\ FAILED\ at\ ([0-9]+)\.?$ ]]; then
+            hunk_number="${BASH_REMATCH[1]}"
+            line="${BASH_REMATCH[2]}"
+            target_path="${root%/}/$current_file"
+            if [[ -f "$target_path" ]]; then
+                start=$((line - 3))
+                (( start < 1 )) && start=1
+                end=$((line + 3))
+                echo "Context at $target_path:$line (hunk #$hunk_number; 3 lines before/after):" >&2
+                nl -ba "$target_path" | sed -n "${start},${end}p" >&2
+            fi
+        fi
+    done <<< "$output"
+}
+
 case "$1" in
     upgrade)
         OLD_VERSION="${2:-unknown}"
@@ -42,7 +70,7 @@ case "$1" in
                         CHANGED=true
                     elif ! patch -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
                         echo "[pve-mods] ERROR: ${patches[$i]} is in an unknown state; cannot safely upgrade." >&2
-                        patch -R -p1 -F0 -d "$PATCH_ROOT" -f --dry-run --verbose < "$patch_file" >&2 || true
+                        report_patch_failure "$patch_file"
                         exit 1
                     fi
                 done

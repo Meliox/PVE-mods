@@ -16,6 +16,9 @@
 
 set -u
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/patch-diagnostics.sh"
+
 # Root paths (overridable via environment, mainly for testing).
 PVE_MODs_ROOT="${PVE_MODs_ROOT:-/}"
 CONFD_DIR="${PVE_MODs_CONFD_DIR:-/etc/pve-mods/conf.d}"
@@ -38,7 +41,7 @@ revert_one_patch() {
         return 0
     fi
     warn "  $(basename "$patch") could not be reverted cleanly; manual cleanup may be needed"
-    patch -R -p1 -F0 -f --dry-run --verbose -d "$PVE_MODs_ROOT" < "$patch" >&2 || true
+    report_patch_failure "$patch" reverse
     return 2
 }
 
