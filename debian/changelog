@@ -1,3 +1,12 @@
+pve-mods (2.1.2) stable; urgency=low
+
+  * c59f304 feat(installer): Show file path, line and code context when a patch fails (#403) by @Meliox
+  * fbeb71e fix(installer): Remove unused config key to remove "New configuration options are available" warning - (#394) by @Meliox
+  * e215a67 fix(node_info): Use label from sensors output for System Fans, fall back to default name (#393) by @Meliox
+  * b8b6fa8 fix(node_info): Only show fans when enabled (#391) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Tue, 13 Oct 2026 18:09:06 +0000
+
 pve-mods (2.1.1) stable; urgency=low
 
   * 84dac9e fix(installer): revert applied patches before package upgrade (#383) by @Meliox
