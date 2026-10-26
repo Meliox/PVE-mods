@@ -246,6 +246,42 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | Storage health | `zfsutils-linux` (`zpool`) for pools; `smartmontools` (`smartctl`) for drive health |
 | System information | `dmidecode` (run once via `pve-mods-configure`) |
 
+## Collector intervals
+
+The `[intervals]` section accepts the following options, in whole seconds:
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `data_pull` | `1` | Delay between collector data polls. Increasing it reduces polling frequency. |
+| `collector_timeout` | `10` | Worker inactivity timeout, after which collectors stop. API requests reset the inactivity timer. |
+
+Only known keys and positive integers from `1` to `2147483647` are accepted.
+Invalid values produce a warning and retain the previous valid value (or the
+default); unknown keys are ignored.
+
+The main file `/etc/pve-mods/pve-mods.conf` is read first, followed by
+`/etc/pve-mods/conf.d/*.conf` in lexical filename order. Later valid values
+override earlier ones. For persistent custom settings, create a separate file
+such as `/etc/pve-mods/conf.d/90-intervals.conf`; the configuration wizard
+manages `node_info.conf`, so keep custom overrides separate from that file.
+An override must sort after any other file that sets the same options.
+
+For an external client such as Home Assistant polling approximately every
+60 seconds, use a collector timeout greater than the client's API polling
+interval, with margin for delays. For example:
+
+```ini
+[intervals]
+data_pull=5
+collector_timeout=120
+```
+
+Restart `pveproxy` after changing these settings (`systemctl restart pveproxy`).
+No packaged Perl files need editing, and no additional service is required.
+Defaults remain unchanged when the section is absent. A longer timeout keeps
+collectors running between requests; it does not guarantee fresh data on the
+first request after a collector starts.
+
 ## Debug Mode
 
 Each collector supports a debug mode that reads from a local file instead of executing the real tool. Useful for development and testing without physical hardware.
