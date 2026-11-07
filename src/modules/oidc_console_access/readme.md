@@ -4,6 +4,13 @@ Allows members of selected Proxmox groups to use the node Upgrade console
 and/or the passwordless root Shell, which Proxmox normally reserves for
 `root@pam`.
 
+## Table of contents
+
+- [Security](#security)
+- [Configuration](#configuration)
+- [OIDC group synchronization](#oidc-group-synchronization)
+- [Required Proxmox permissions](#required-proxmox-permissions)
+
 | Feature | UI location | Setting |
 |---|---|---|
 | Upgrade console (`pveupgrade --shell`) | Node → Updates → **Upgrade** | `upgrade`, `upgrade_groups` |
@@ -11,6 +18,10 @@ and/or the passwordless root Shell, which Proxmox normally reserves for
 
 Each feature is controlled independently. Members must also have the
 `Sys.Console` privilege on `/nodes/<node>`.
+
+![Node Updates tab with the Upgrade console button](images/oidc-upgrade.png)
+
+![Node Shell tab with a passwordless root shell](images/oidc-shell.png)
 
 ## Security
 
