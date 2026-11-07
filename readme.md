@@ -1,8 +1,6 @@
 # PVE-mods
 PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
 
-If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
-
 <p align="center">
   <a href="images/proxmox-node-overview.png">
     <img src="images/proxmox-node-overview-small.png" alt="PVE-mods node summary on a simulated Proxmox VE node">
@@ -28,6 +26,7 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
 - [Notes](#notes)
   - [Reverse proxy / CDN caching](#reverse-proxy--cdn-caching)
 - [Support and contributing](#support-and-contributing)
+  - [Donations](#donations)
 - [License](#license)
 
 > Looking for the old standalone bash scripts (v1)? They are archived, see the [legacy scripts readme](https://github.com/Meliox/PVE-mods/blob/e1c3eb0524fbb8ca940454aef3a51c0644a2d170/legacy-scripts/readme.md).
@@ -123,6 +122,14 @@ If mod details appear when accessing a node directly but not through a reverse p
 - Report bugs or request features through [GitHub issues](https://github.com/Meliox/PVE-mods/issues) (include your PVE and `pve-mods` versions).
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute and run the tests.
 - Report security vulnerabilities as described in [security.md](security.md).
+
+### Donations
+
+If you find this helpful, a small donation is appreciated:
+
+Paypal: [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W)
+
+Bitcoin (BTC): `16hg7syEJ3HkSP1PAANkpSW6pZ4vCdvUnK`
 
 ## License
 
