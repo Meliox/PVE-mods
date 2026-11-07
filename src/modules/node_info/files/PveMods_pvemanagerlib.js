@@ -221,7 +221,7 @@ function getCpuThermalGroups(info) {
                 || packages.find(row => row.label === 'CPU Core Temp')
                 || packages.find(row => row.label === 'Tctl');
             const packageRows = preferred ? [preferred] : packages;
-            const selected = info.cpu_temp_target === 'Core' && cores.length ? cores
+            const selected = cores.length >= 2 ? cores
                 : packageRows.length ? packageRows : cores.length ? cores : rows;
             const packageId = packages.find(row => /^Package id/.test(row.label))?.label.match(/\d+/)?.[0];
             return [{
