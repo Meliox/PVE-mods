@@ -835,6 +835,7 @@ node_info_write_conf() {
     cat > "$NODE_INFO_CONF" <<EOF
 # pve-mods :: node_info mod configuration
 # Managed by pve-mods-configure. Re-run to update.
+# After editing this file manually, restart pveproxy (systemctl restart pveproxy).
 
 [gpu]
 intel_enabled=${ENABLE_INTEL_GPU_INFO}
@@ -865,9 +866,11 @@ zfs_interval=${STORAGE_ZFS_INTERVAL}
 smart_interval=${STORAGE_SMART_INTERVAL}
 smart_wake_disks=${STORAGE_SMART_WAKE}
 
-# Seconds
 [intervals]
+# Seconds between collector data polls
 data_pull=${DATA_PULL_INTERVAL}
+# Seconds without a request before collectors stop. Keep above the polling
+# interval of external clients (e.g. Home Assistant).
 collector_timeout=${COLLECTOR_TIMEOUT}
 
 [system_info]
