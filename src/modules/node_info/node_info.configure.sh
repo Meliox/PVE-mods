@@ -131,12 +131,13 @@ _ask_prefilled() {
     echo "${reply:-$current}"
 }
 
-# Prompts for a whole number in min..max, pre-filled with the current value.
-# Prints the result on stdout.
+# Prompts for a whole number in min..max, pre-filled with the current value and
+# showing the default in brackets. Prints the result on stdout.
 _ask_int() {
-    local label="$1" current="$2" min="$3" max="$4" reply
+    local label="$1" current="$2" min="$3" max="$4" default="$5" reply hint=""
+    [[ -n "$default" ]] && hint=" [default: $default]"
     while true; do
-        reply=$(_ask_prefilled "$label ($min-$max)" "$current")
+        reply=$(_ask_prefilled "$label ($min-$max)$hint" "$current")
         if [[ "$reply" =~ ^[0-9]+$ ]] && (( 10#$reply >= min && 10#$reply <= max )); then
             echo "$((10#$reply))"; return
         fi
@@ -145,19 +146,54 @@ _ask_int() {
     done
 }
 
-# Prompts for y/n, pre-filled with the current 1/0 value. Prints 1 or 0.
+# Prompts for y/n, pre-filled with the current 1/0 value and showing the default
+# 1/0 in brackets. An empty current value means nothing is pre-filled and a blank
+# reply counts as "no". Prints 1 or 0.
 _ask_yes_no() {
-    local label="$1" current="$2" shown="n" reply
+    local label="$1" current="$2" default="$3" shown="n" hint="" reply blank_ok=0
+    if [[ -z "$current" ]]; then shown=""; blank_ok=1; fi
     [[ "$current" == "1" ]] && shown="y"
+    if [[ -n "$default" ]]; then
+        [[ "$default" == "1" ]] && hint=" [default: y]" || hint=" [default: n]"
+    fi
     while true; do
-        reply=$(_ask_prefilled "$label (y/n)" "$shown")
+        reply=$(_ask_prefilled "$label (y/n)$hint" "$shown")
         case "$reply" in
             [yY]*) echo 1; return ;;
             [nN]*) echo 0; return ;;
+            "") if (( blank_ok )); then echo 0; return; fi ;;
         esac
         warn "Answer y or n." >&2
         shown="$reply"
     done
+}
+
+# Prompts for one of the given choices (case-insensitive), pre-filled with the
+# current choice and showing the default in brackets. An empty current value
+# means nothing is pre-filled and a blank reply prints nothing. Prints the
+# matching choice.
+#   _ask_choice <label> <current> <default> <choice>...
+_ask_choice() {
+    local label="$1" current="$2" default="$3" reply choice options="" hint="" blank_ok=0
+    shift 3
+    for choice in "$@"; do options+="${options:+/}$choice"; done
+    [[ -n "$default" ]] && hint=" [default: $default]"
+    [[ -z "$current" ]] && blank_ok=1
+    while true; do
+        reply=$(_ask_prefilled "$label ($options)$hint" "$current")
+        if [[ -z "$reply" ]] && (( blank_ok )); then return; fi
+        for choice in "$@"; do
+            [[ "${reply,,}" == "${choice,,}" ]] && { echo "$choice"; return; }
+        done
+        warn "Choose one of: $options." >&2
+        current="$reply"
+    done
+}
+
+# Echoes the saved value when a config file exists, otherwise the default, so a
+# first run pre-fills the defaults rather than the zero-initialised variables.
+_saved_or_default() {
+    if [[ -f "$NODE_INFO_CONF" ]]; then echo "$1"; else echo "$2"; fi
 }
 
 _check_setcap_available() {
@@ -350,6 +386,19 @@ node_info_load_conf() {
 
 #region node-info wizard
 node_info_configure() {
+    # Remember the saved answers so each prompt can pre-fill them (defaults on a first run)
+    local saved_zero_fans saved_unit saved_ignore saved_gpu_history saved_ups saved_ups_name
+    local saved_sysinfo saved_sysinfo_type saved_storage
+    saved_zero_fans=$(_saved_or_default "$DISPLAY_ZERO_SPEED_FANS" 1)
+    saved_unit=$(_saved_or_default "$TEMP_UNIT" C)
+    saved_ignore=$(_saved_or_default "$IGNORE_TEMP_BELOW" 5)
+    saved_gpu_history=$(_saved_or_default "$ENABLE_GPU_HISTORY" 0)
+    saved_ups=$(_saved_or_default "$ENABLE_UPS" "")
+    saved_ups_name=$(_saved_or_default "$UPS_DEVICE_NAME" "ups@localhost")
+    saved_sysinfo=$(_saved_or_default "$ENABLE_SYSTEM_INFO" "")
+    saved_sysinfo_type=$(_saved_or_default "$SYSTEM_INFO_TYPE" 1)
+    saved_storage=$(_saved_or_default "$ENABLE_STORAGE_HEALTH" "")
+
     # Initialize all variables to off
     LM_SENSORS_ENABLED=0
     ENABLE_CPU=0
@@ -460,12 +509,12 @@ node_info_configure() {
         if [[ "$fanCount" -gt 0 ]]; then
             info "Detected fan speed readings ($fanCount): $fanSensors"
             ENABLE_FAN_SPEED=1; sensors_detected=true
-            local choice
-            choice=$(ask "Display fans reporting zero speed? (Y/n)")
-            case "$choice" in
-                [nN]) DISPLAY_ZERO_SPEED_FANS=0; info "Zero-speed fans will be hidden." ;;
-                *)    DISPLAY_ZERO_SPEED_FANS=1; info "Zero-speed fans will be shown." ;;
-            esac
+            DISPLAY_ZERO_SPEED_FANS=$(_ask_yes_no "Display fans reporting zero speed?" "$saved_zero_fans" 1)
+            if [[ "$DISPLAY_ZERO_SPEED_FANS" -eq 1 ]]; then
+                info "Zero-speed fans will be shown."
+            else
+                info "Zero-speed fans will be hidden."
+            fi
         else
             warn "No fan speed sensors found."
         fi
@@ -475,24 +524,28 @@ node_info_configure() {
         if [[ "$sensors_detected" == true ]]; then
             section "Temperature unit"
             local unit
-            unit=$(ask "Display temperatures in Celsius [C] or Fahrenheit [f]? (C/f)")
+            unit=$(_ask_choice "Display temperatures in Celsius or Fahrenheit" "$saved_unit" C C F)
             case "$unit" in
-                [fF]) TEMP_UNIT="F"; info "Using Fahrenheit." ;;
-                *)    TEMP_UNIT="C"; info "Using Celsius." ;;
+                F) TEMP_UNIT="F"; info "Using Fahrenheit." ;;
+                *) TEMP_UNIT="C"; info "Using Celsius." ;;
             esac
 
             section "Ignore threshold"
-            local default_c=5 default_display entered
+            local default_c=5 default_display current_display entered
+            [[ "$saved_ignore" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || saved_ignore="$default_c"
             if [[ "$TEMP_UNIT" == "F" ]]; then
                 default_display=$(awk -v c="$default_c" 'BEGIN{printf "%.0f", c*9/5+32}')
+                current_display=$(awk -v c="$saved_ignore" 'BEGIN{printf "%.1f", c*9/5+32}')
             else
                 default_display="$default_c"
+                current_display=$(awk -v c="$saved_ignore" 'BEGIN{printf "%.1f", c}')
             fi
+            current_display="${current_display%.0}"
             while true; do
-                entered=$(ask "Hide temperature readings below this value (°${TEMP_UNIT}) [${default_display}]")
-                [[ -z "$entered" ]] && entered="$default_display"
+                entered=$(_ask_prefilled "Hide temperature readings below this value (°${TEMP_UNIT}) [default: ${default_display}]" "$current_display")
                 [[ "$entered" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] && break
                 warn "Invalid number, please try again."
+                current_display="$entered"
             done
             if [[ "$TEMP_UNIT" == "F" ]]; then
                 IGNORE_TEMP_BELOW=$(awk -v f="$entered" 'BEGIN{printf "%.1f", (f-32)*5/9}')
@@ -657,8 +710,9 @@ node_info_configure() {
         echo "  1) Live only        - graphs fill from live samples while the page is open (default)"
         echo "  2) Record history   - samples are stored in RRD files, so past hours, days and years can be graphed"
         warn "Recording history keeps the GPU collectors (intel_gpu_top / nvidia-smi) running around the clock, even when nobody has the web UI open. This consumes CPU continuously."
-        local choiceHistory
-        choiceHistory=$(ask "GPU graph data [1=live only, 2=record history] (1)")
+        local choiceHistory shownHistory=1
+        [[ "$saved_gpu_history" == "1" ]] && shownHistory=2
+        choiceHistory=$(_ask_choice "GPU graph data: 1=live only, 2=record history" "$shownHistory" 1 1 2)
         case "$choiceHistory" in
             2) ENABLE_GPU_HISTORY=1; info "GPU history will be recorded (CPU is used continuously)." ;;
             *) info "GPU graphs will use live data only." ;;
@@ -669,11 +723,11 @@ node_info_configure() {
     #region UPS
     section "UPS Information"
     local choiceUPS
-    choiceUPS=$(ask "Enable UPS information? (y/N)")
+    choiceUPS=$(_ask_yes_no "Enable UPS information?" "$saved_ups")
     case "$choiceUPS" in
-        [yY])
+        1)
             local upsConn modelName upsOutput
-            upsConn=$(ask "Enter UPS connection string (e.g. upsname@hostname[:port])")
+            upsConn=$(_ask_prefilled "Enter UPS connection string, e.g. upsname@hostname[:port] [default: ups@localhost]" "$saved_ups_name")
             if [[ "$DEBUG_UPS" -eq 1 ]]; then
                 if [[ -f "$DEBUG_UPS_FILE" ]]; then
                     info "[debug] Using UPS data from $DEBUG_UPS_FILE"
@@ -704,9 +758,9 @@ node_info_configure() {
     #region Storage health
     section "Storage Health"
     local choiceStorage
-    choiceStorage=$(ask "Enable storage health information? (y/N)")
+    choiceStorage=$(_ask_yes_no "Enable storage health information?" "$saved_storage")
     case "$choiceStorage" in
-        [yY])
+        1)
             ENABLE_STORAGE_HEALTH=1
             if [[ "$DEBUG_STORAGE_HEALTH" -eq 1 ]]; then
                 info "[debug] Using storage data from $DEBUG_ZPOOL_FILE and $DEBUG_SMARTCTL_FILE"
@@ -718,16 +772,16 @@ node_info_configure() {
             info "Storage health will be shown on the node Summary."
 
             echo "  Each value is pre-filled; press Enter to accept it or edit it first."
-            STORAGE_ZFS_INTERVAL=$(_ask_int "ZFS pool check interval in seconds, while the Summary is open" "$STORAGE_ZFS_INTERVAL" 5 3600)
+            STORAGE_ZFS_INTERVAL=$(_ask_int "ZFS pool check interval in seconds, while the Summary is open" "$STORAGE_ZFS_INTERVAL" 5 3600 15)
             if [[ "$STORAGE_SMART_ENABLED" -eq 1 ]]; then
-                STORAGE_SMART_INTERVAL=$(_ask_int "SMART check interval in seconds for spinning drives" "$STORAGE_SMART_INTERVAL" 60 86400)
-                STORAGE_LIFE_WARNING=$(_ask_int "Warn when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_WARNING" 0 100)
-                STORAGE_LIFE_CRITICAL=$(_ask_int "Critical when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_CRITICAL" 0 100)
+                STORAGE_SMART_INTERVAL=$(_ask_int "SMART check interval in seconds for spinning drives" "$STORAGE_SMART_INTERVAL" 60 86400 1800)
+                STORAGE_LIFE_WARNING=$(_ask_int "Warn when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_WARNING" 0 100 20)
+                STORAGE_LIFE_CRITICAL=$(_ask_int "Critical when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_CRITICAL" 0 100 10)
                 if (( STORAGE_LIFE_WARNING < STORAGE_LIFE_CRITICAL )); then
                     warn "The warning level cannot be below the critical level. Using ${STORAGE_LIFE_CRITICAL}% for both."
                     STORAGE_LIFE_WARNING="$STORAGE_LIFE_CRITICAL"
                 fi
-                STORAGE_SMART_WAKE=$(_ask_yes_no "Allow SMART checks to wake sleeping drives?" "$STORAGE_SMART_WAKE")
+                STORAGE_SMART_WAKE=$(_ask_yes_no "Allow SMART checks to wake sleeping drives?" "$STORAGE_SMART_WAKE" 0)
             fi
         ;;
         *) info "Storage health information disabled." ;;
@@ -741,13 +795,14 @@ node_info_configure() {
     echo "  type 2) Baseboard/Motherboard information"
     dmidecode -t 2 2>/dev/null | awk -F': ' '/Manufacturer|Product Name|Serial Number/ {print "    "$0}' || true
 
-    local choiceSys
-    choiceSys=$(ask "Enable system information? (1/2/n)")
+    local choiceSys shownSys=""
+    if [[ "$saved_sysinfo" == "1" ]]; then shownSys="$saved_sysinfo_type"; elif [[ -n "$saved_sysinfo" ]]; then shownSys=n; fi
+    [[ -z "$shownSys" || "$shownSys" == "1" || "$shownSys" == "2" || "$shownSys" == "n" ]] || shownSys=1
+    choiceSys=$(_ask_choice "Enable system information?" "$shownSys" "" 1 2 n)
     case "$choiceSys" in
-        1|"") ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1; info "System information (type 1) will be shown." ;;
-        2)    ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=2; info "Baseboard information (type 2) will be shown." ;;
-        [nN]) info "System information disabled." ;;
-        *)    warn "Invalid selection. Defaulting to type 1."; ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1 ;;
+        1) ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=1; info "System information (type 1) will be shown." ;;
+        2) ENABLE_SYSTEM_INFO=1; SYSTEM_INFO_TYPE=2; info "Baseboard information (type 2) will be shown." ;;
+        *) info "System information disabled." ;;
     esac
 
     if [[ "$ENABLE_SYSTEM_INFO" -eq 1 ]]; then
