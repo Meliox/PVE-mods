@@ -51,3 +51,6 @@ jobs:
 
       - name: Test collector interval configuration and lifecycle
         run: prove build/test/test-intervals.t
+
+      - name: Test AMD GPU support
+        run: bash build/test/test-amd.sh

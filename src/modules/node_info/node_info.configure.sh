@@ -681,38 +681,37 @@ node_info_configure() {
     fi
     #endregion NVIDIA GPU
 
-    #region AMD GPU (disabled — data collection not yet implemented, see Collector/Amd.pm)
+    #region AMD GPU
     ENABLE_AMD_GPU_INFO=0
-    # section "AMD GPU"
-    # if [[ "$DEBUG_AMD" -eq 1 && -f "$DEBUG_AMD_FILE" ]]; then
-    #     info "[debug] Using AMD GPU data from $DEBUG_AMD_FILE"
-    #     local amdCards
-    #     amdCards=$(cat "$DEBUG_AMD_FILE")
-    #     if [[ -n "$amdCards" ]]; then
-    #         info "AMD GPU(s) detected (debug):"
-    #         echo "$amdCards" | while IFS= read -r line; do echo "  $line"; done
-    #         ENABLE_AMD_GPU_INFO=1
-    #     else
-    #         warn "No AMD GPUs in debug file."
-    #     fi
-    # elif [[ "$hasAmdGpu" != true ]]; then
-    #     info "No AMD GPU hardware detected. Skipping."
-    # elif ! _check_or_install_tool rocm-smi rocm-smi "AMD GPU tools (rocm-smi)" \
-    #     "rocm-smi is not installed; AMD GPU information cannot be detected without it."; then
-    #     warn "Skipping AMD GPU monitoring."
-    # else
-    #     warn "AMD GPU hardware and rocm-smi were detected, but AMD GPU data collection is not yet implemented in this pve-mods release."
-    # fi
+    section "AMD GPU"
+    local amdCards
+    if amdCards=$(perl -MPVE::PVEMods::Collector::Amd -MPVE::PVEMods::Config -e '
+        $PVE::PVEMods::Config::config{debug}{amd_mode} = $ARGV[0];
+        $PVE::PVEMods::Config::config{debug}{amd_devices_file} = $ARGV[1];
+        for my $device (PVE::PVEMods::Collector::Amd::get_amd_gpu_devices()) {
+            print "$device->{card}: $device->{name}\n";
+        }
+    ' "$DEBUG_AMD" "$DEBUG_AMD_FILE"); then
+        if [[ -n "$amdCards" ]]; then
+            info "AMD GPU(s) detected (native amdgpu sysfs; no ROCm required):"
+            printf '%s\n' "$amdCards"
+            ENABLE_AMD_GPU_INFO=1
+        else
+            info "No AMD GPUs bound to amdgpu detected. Passthrough GPUs cannot be monitored on the host."
+        fi
+    else
+        warn "AMD GPU discovery failed. See the error above; monitoring remains disabled."
+    fi
     #endregion AMD GPU
 
     #region GPU history
     ENABLE_GPU_HISTORY=0
-    if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
+    if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 || "$ENABLE_AMD_GPU_INFO" -eq 1 ]]; then
         section "GPU Graphs"
         echo "The node summary page shows one graph per GPU. Choose where its data comes from:"
         echo "  1) Live only        - graphs fill from live samples while the page is open (default)"
         echo "  2) Record history   - samples are stored in RRD files, so past hours, days and years can be graphed"
-        warn "Recording history keeps the GPU collectors (intel_gpu_top / nvidia-smi) running around the clock, even when nobody has the web UI open. This consumes CPU continuously."
+        warn "Recording history keeps GPU collectors running around the clock, even when nobody has the web UI open. This consumes CPU continuously."
         local choiceHistory shownHistory=1
         [[ "$saved_gpu_history" == "1" ]] && shownHistory=2
         choiceHistory=$(_ask_choice "GPU graph data: 1=live only, 2=record history" "$shownHistory" 1 1 2)

@@ -156,7 +156,7 @@ setcap -r /usr/bin/intel_gpu_top
 
 ### GPU summary and details
 
-The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA GPU: Render and Video engine load for Intel, GPU load and VRAM usage for NVIDIA, plus the temperature when available. Values turn amber from 70 % and red from 90 %. Click the info icon on the row to open a live window with every reported value, with one tab per GPU.
+The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA/AMD GPU: Render and Video engine load for Intel, GPU load and VRAM usage for NVIDIA and AMD, plus the temperature when available. Values turn amber from 70 % and red from 90 %. Click the info icon on the row to open a live window with every reported value, with one tab per GPU.
 
 <p align="center"><img src="images/gpu-summary-three.png" alt="GPU Details row with one Intel and two NVIDIA GPUs"></p>
 
@@ -166,13 +166,13 @@ The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA
 
 ### GPU graphs and history
 
-The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
+The node summary page shows one graph per Intel/NVIDIA/AMD GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
 
 <p align="center"><img src="images/gpu-intel.png" alt="Intel GPU graph with utilisation on the left axis and frequency on the right"></p>
 
 <p align="center"><img src="images/gpu-nvidia.png" alt="NVIDIA GPU graph with utilisation on the left axis and temperature on the right"></p>
 
-`pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
+`pve-mods-configure` asks how the graphs get their data (only when an Intel, NVIDIA or AMD GPU was detected):
 
 | Mode | `gpu_history` | Behavior |
 |------|---------------|----------|
@@ -185,7 +185,36 @@ RRD files are stored in `/var/lib/rrdcached/db/pve-mods-gpu/<node>/`, one per GP
 
 ### AMD GPU
 
-Placeholder — device discovery and collection are not yet implemented.
+Reads device and `amdgpu` hwmon sysfs files directly, so no ROCm or AMD-SMI is needed. The GPU must be bound to the host's `amdgpu` driver; GPUs passed through to a VM (for example bound to `vfio-pci`) cannot be monitored. Supports multiple GPUs, including APUs, and each device is identified by its PCI address. Metrics can be stored in RRD for historical graphing (see [GPU graphs and history](#gpu-graphs-and-history)).
+
+`pve-mods-configure` detects AMD GPUs automatically and enables monitoring when one is found.
+
+| Metric | Unit |
+|--------|------|
+| GPU utilisation | % |
+| VRAM used / total | MiB |
+| GTT used / total | MiB |
+| Frequency | MHz |
+| Sensor power | W |
+| Temperatures (all sensors, with their labels and thresholds) | °C |
+| Fan speed | RPM |
+
+Notes:
+- Only readings that the GPU exposes and that are valid are shown. A value of zero is a real reading; missing or invalid data is left out rather than shown as zero.
+- Power is labelled *Sensor power* because the sensor can cover more than the GPU, for example the whole APU package.
+- VRAM and GTT are shown separately. On an APU, VRAM can be a BIOS-reserved part of system memory rather than dedicated GPU memory. These are allocation figures, not memory-controller utilisation.
+- The compact graph uses temperature, frequency, power and the first fan sensor where available. All sensors, including every frequency sensor label, are listed in the details window.
+- Not covered yet: decoding of the binary `gpu_metrics` file, per-process and per-engine counters, and rediscovering GPUs while the collector is running.
+
+<p align="center"><img src="images/amd-summary.png" alt="GPU Details row with two AMD GPUs"></p>
+
+<p align="center"><img src="images/amd-780m-details.png" alt="Live details for an AMD GPU"></p>
+
+<p align="center"><img src="images/amd-780m-chart.png" alt="AMD APU graph with utilisation on the left axis and frequency on the right"></p>
+
+<p align="center"><img src="images/amd-7900xtx-chart.png" alt="AMD discrete GPU graph with utilisation on the left axis and frequency on the right"></p>
+
+The screenshots use simulated data.
 
 ### UPS (Network UPS Tools)
 
@@ -243,6 +272,7 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | HDD/SSD temperatures | Kernel module `drivetemp` |
 | NVIDIA GPU | `nvidia-smi` |
 | Intel GPU | `intel-gpu-tools` (`intel_gpu_top` binary) |
+| AMD GPU | None; the GPU must use the `amdgpu` kernel driver |
 | UPS | `nut-client` (`upsc` binary) |
 | Storage health | `zfsutils-linux` (`zpool`) for pools; `smartmontools` (`smartctl`) for drive health |
 | System information | `dmidecode` (run once via `pve-mods-configure`) |
@@ -276,12 +306,12 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 | | | `intel_output_file` | Continuous `intel_gpu_top` JSON stats output | `intel_gpu_top -d /dev/dri/card0 -J -s 1000 > /tmp/intel-gpu-output.txt` |
 | NVIDIA GPU | `nvidia_mode` | `nvidia_devices_file` | Device list CSV | `nvidia-smi --query-gpu=index,name,pci.bus_id --format=csv > /tmp/nvidia-smi-devices.csv` |
 | | | `nvidia_output_file` | Stats CSV | `nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,nounits > /tmp/nvidia-smi-output.csv` |
-| AMD GPU | `amd_mode` | `amd_devices_file` | Placeholder — collector not yet implemented | — |
+| AMD GPU | `amd_mode` | `amd_devices_file` | JSON array of devices, each with `card` (`amdN`), `name`, `history_id` (alphanumeric) and `sysfs_path` (absolute path of a fixture directory that mirrors the device's sysfs and hwmon files) | Not generated from a tool; write it by hand, or copy a real `/sys/class/drm/cardN/device` tree |
 | UPS | `ups_mode` | `ups_output_file` | Raw `upsc` key: value output (despite the `.json` name, it's plain text, not JSON) | `upsc ups@192.168.1.50 > /tmp/ups-output.json` |
 | Storage health | `storage_health_mode` | `zpool_output_file` | Raw `zpool status -LP` output | `zpool status -LP > /tmp/zpool-status.txt` |
 | | | `smartctl_output_file` | `smartctl -a -j` JSON of one drive, or a JSON array of several (read directly by the collector; the SMART service is not used) | `smartctl -a -j /dev/sda > /tmp/smartctl-output.json` |
 
-Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`.
+Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`. The AMD GPU collector, history, API, GUI and wizard tests also need no hardware: `bash build/test/test-amd.sh`.
 
 ### Verbose module logging (mod_debug)
 

@@ -17,6 +17,7 @@ our @EXPORT_OK = qw(
     gpu_rrd_path
     update_intel_gpu_rrd
     update_nvidia_gpu_rrd
+    update_amd_gpu_rrd
 );
 
 # ============================================================================
@@ -182,6 +183,40 @@ sub update_nvidia_gpu_rrd {
     );
     my $err = RRDs::error();
     debug(__LINE__, "RRD update nvidia $id: $err") if $err;
+}
+
+sub update_amd_gpu_rrd {
+    my ($id, $stats) = @_;
+    return unless $config{gpu}{gpu_history};
+    my @fields = qw(gpu_util mem_util mem_used mem_total gtt_used gtt_total freq_act power_draw temp_gpu fan_rpm);
+    my @values = map {
+        my ($group, $key) = @$_;
+        ref($stats->{$group}) eq 'HASH' ? $stats->{$group}{$key} : undef;
+    } (
+        ['utilization', 'gpu'], ['utilization', 'memory'],
+        ['memory', 'used'], ['memory', 'total'],
+        ['gtt', 'used'], ['gtt', 'total'],
+        ['frequency', 'actual'], ['power', 'draw'],
+        ['temperature', 'gpu'], ['fan', 'speed'],
+    );
+    my $path = gpu_rrd_path($id);
+    unless (-f $path) {
+        my $dir = "$RRD_BASE/" . get_nodename();
+        make_path($dir, { mode => 0755 }) unless -d $dir;
+        RRDs::create($path, '--step', '1',
+            (map { "DS:$_:GAUGE:120:" . ($_ eq 'temp_gpu' ? 'U' : 0) . ':'
+                . (/^(gpu_util|mem_util)$/ ? 100 : 'U') } @fields),
+            (map { my $cf = $_; map { "RRA:$cf:0.5:$_" }
+                qw(1:1440 60:1440 1800:1440 21600:1464 604800:520) } qw(AVERAGE MAX)));
+        if (my $err = RRDs::error()) {
+            warn "AMD GPU: cannot create RRD $path: $err\n";
+            return;
+        }
+    }
+    my @daemon_args = (-S $RRD_SOCKET) ? ('--daemon', "unix:$RRD_SOCKET") : ();
+    RRDs::update($path, @daemon_args, 'N:' . join(':', map { defined $_ ? $_ : 'U' } @values));
+    my $err = RRDs::error();
+    warn "AMD GPU: cannot update RRD $path: $err\n" if $err;
 }
 
 1;

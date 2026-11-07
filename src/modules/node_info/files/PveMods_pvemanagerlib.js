@@ -416,7 +416,10 @@ function getGpuDetailRows(info, device) {
             if (value && typeof value === 'object' && !Array.isArray(value)) {
                 collect(value, fields);
             } else {
-                const temperature = fields.join('.') === 'stats.temperature.gpu'
+                const isTemperature = fields.join('.') === 'stats.temperature.gpu'
+                    || (path[0] === 'stats' && path[1] === 'sensors'
+                        && /^temp\d+$/.test(path[2]) && ['value', 'max', 'crit'].includes(field));
+                const temperature = isTemperature
                     ? formatGpuTemperature({ ...info, ignore_temp_below: undefined }, value) : null;
                 const formatted = value === null || value === undefined ? gettext('N/A')
                     : typeof value === 'number' ? Ext.util.Format.number(value, '0.##') : String(value);
@@ -1365,7 +1368,7 @@ Ext.define('PVE.node.StatusView', {
                             return;
                         }
 
-                        const gpuName = stats?.name || key;
+                        const gpuName = Ext.htmlEncode(gpuData.name || stats?.name || key);
                         const unit = fan.unit || '%';
                         rows.push(
                             '<tr>' +
@@ -1612,13 +1615,21 @@ Ext.define('pve-rrd-gpu', {
         'power_gpu', 'power_pkg',
         'render_busy', 'blitter_busy', 'video_busy', 'videnh_busy',
         'gpu_util', 'mem_util', 'mem_used', 'mem_total',
-        'power_draw', 'power_limit', 'temp_gpu', 'fan_speed',
+        'power_draw', 'power_limit', 'temp_gpu', 'fan_speed', 'fan_rpm',
+        'gtt_used', 'gtt_total',
         {
             name: 'mem_used_pct',
             calculate: function (data) {
                 return data.mem_total > 0 && Ext.isNumber(data.mem_used)
                     ? (data.mem_used * 100) / data.mem_total
                     : null;
+            },
+        },
+        {
+            name: 'gtt_used_pct',
+            calculate: function (data) {
+                return data.gtt_total > 0 && Ext.isNumber(data.gtt_used)
+                    ? (data.gtt_used * 100) / data.gtt_total : null;
             },
         },
         { type: 'date', dateFormat: 'timestamp', name: 'time' },
@@ -1702,6 +1713,20 @@ Ext.define('PVE.mod.GpuGraphs', {
             { field: 'power_limit', title: gettext('Power limit'), unit: 'W', get: (s) => s.power?.limit },
             { field: 'temp_gpu', title: gettext('Temperature'), unit: '°C', get: (s) => s.temperature?.gpu },
         ],
+        AMD: [
+            { field: 'gpu_util', title: gettext('GPU'), unit: '%', on: true, get: (s) => s.utilization?.gpu },
+            { field: 'mem_util', title: gettext('Memory controller'), unit: '%', get: (s) => s.utilization?.memory },
+            { field: 'mem_used_pct', title: gettext('VRAM allocation used'), unit: '%', on: true,
+                get: (s) => s.memory?.total > 0 && Ext.isNumber(s.memory.used)
+                    ? s.memory.used * 100 / s.memory.total : undefined },
+            { field: 'gtt_used_pct', title: gettext('GTT allocation used'), unit: '%',
+                get: (s) => s.gtt?.total > 0 && Ext.isNumber(s.gtt.used)
+                    ? s.gtt.used * 100 / s.gtt.total : undefined },
+            { field: 'freq_act', title: gettext('Frequency'), unit: 'MHz', get: (s) => s.frequency?.actual },
+            { field: 'power_draw', title: gettext('Sensor power'), unit: 'W', get: (s) => s.power?.draw },
+            { field: 'temp_gpu', title: gettext('Temperature'), unit: '°C', get: (s) => s.temperature?.gpu },
+            { field: 'fan_rpm', title: gettext('Fan speed'), unit: 'RPM', get: (s) => s.fan?.speed },
+        ],
     },
 
     // Series offered for a GPU: skips those its collector doesn't report.
@@ -1714,7 +1739,7 @@ Ext.define('PVE.mod.GpuGraphs', {
     // One entry per GPU found in the PveMods_graphicsInfo status value.
     devices: function (info) {
         let res = [];
-        ['Intel', 'NVIDIA'].forEach((type) => {
+        ['Intel', 'NVIDIA', 'AMD'].forEach((type) => {
             let group = info?.Graphics?.[type] || {};
             Object.keys(group).sort().forEach((key) => {
                 let dev = group[key];
@@ -1744,9 +1769,13 @@ Ext.define('PVE.mod.GpuGraphs', {
                 row[m.field] = v;
             }
         });
-        if (type === 'NVIDIA') {
+        if (type === 'NVIDIA' || type === 'AMD') {
             row.mem_used = stats.memory?.used;
             row.mem_total = stats.memory?.total;
+        }
+        if (type === 'AMD') {
+            row.gtt_used = stats.gtt?.used;
+            row.gtt_total = stats.gtt?.total;
         }
         return row;
     },
@@ -1919,6 +1948,7 @@ Ext.define('PVE.mod.GpuChart', {
             'MHz': gettext('Frequency'),
             'W': gettext('Power'),
             '°C': gettext('Temperature'),
+            'RPM': gettext('Fan speed'),
         };
         return names[unit] || unit;
     },
