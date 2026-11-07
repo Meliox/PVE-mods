@@ -344,6 +344,177 @@ function showCpuThermalDetails(widget, groupId) {
     widget.cpuThermalWindow.show();
 }
 
+function getGpuDevices(info) {
+    return Object.entries(info?.Graphics || {}).flatMap(([type, devices]) =>
+        Object.entries(devices && typeof devices === 'object' ? devices : {})
+            .filter(([, device]) => device && typeof device === 'object' && !Array.isArray(device))
+            .sort(([a], [b]) => a.localeCompare(b)).map(([key, device]) => ({
+            type, key, device, stats: device.stats || {},
+            name: device.name || device.stats?.name || key,
+        }))).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+            || a.type.localeCompare(b.type) || a.key.localeCompare(b.key));
+}
+
+function formatGpuTemperature(info, value) {
+    const number = getSensorValue({ input: value }, 'input');
+    if (!Number.isFinite(number)) {
+        return null;
+    }
+    const helper = Ext.create('PVE.mod.TempHelper', {
+        srcUnit: PVE.mod.TempHelper.CELSIUS,
+        dstUnit: (info.temp_unit || info.Graphics?.temp_unit) === 'F'
+            ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS,
+    });
+    const threshold = getSensorValue({ input: info.ignore_temp_below }, 'input');
+    if (Number.isFinite(threshold) && number < threshold) {
+        return null;
+    }
+    const style = number >= 80 ? 'color: red; font-weight: bold;'
+        : number >= 70 ? 'color: #FFC300; font-weight: bold;' : '';
+    return `<span style="${style}">${Ext.util.Format.number(helper.getTemp(number), '0')}${helper.getUnit()}</span>`;
+}
+
+function renderGpuSummary(info) {
+    this.gpuInfo = info;
+    const encode = value => Ext.htmlEncode(String(value));
+    const percent = (label, value) => {
+        const number = getSensorValue({ input: value }, 'input');
+        const style = number >= 90 ? 'color: #d9534f; font-weight: bold;'
+            : number >= 70 ? 'color: #f0ad4e; font-weight: bold;' : '';
+        return Number.isFinite(number)
+            ? `<span style="${style}">${encode(label)}: ${Ext.util.Format.number(number, '0.##')}%</span>` : null;
+    };
+    return '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">'
+        + getGpuDevices(info).map(({ type, name, stats }) => {
+            const parts = type === 'Intel'
+                ? [percent(gettext('Render'), stats.engines?.['Render/3D']?.busy),
+                    percent(gettext('Video'), stats.engines?.Video?.busy)]
+                : [percent(gettext('GPU'), stats.utilization?.gpu),
+                    percent(gettext('VRAM'), stats.memory?.total > 0
+                        ? stats.memory.used / stats.memory.total * 100 : undefined)];
+            const temperature = formatGpuTemperature(info, stats.temperature?.gpu);
+            if (temperature) {
+                parts.push(`${encode(gettext('Temp'))}: ${temperature}`);
+            }
+            const summary = parts.filter(Boolean).join(' | ') || encode(gettext('N/A'));
+            return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${encode(name)}</td>`
+                + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; overflow-wrap: anywhere;">${summary}</td></tr>`;
+        }).join('') + '</table>';
+}
+
+function getGpuDetailRows(info, device) {
+    const rows = [];
+    const collect = (object, path = []) => {
+        Object.entries(object).sort(([a], [b]) => a.localeCompare(b)).forEach(([field, value]) => {
+            if (field === 'unit') {
+                return;
+            }
+            const fields = [...path, field];
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                collect(value, fields);
+            } else {
+                const temperature = fields.join('.') === 'stats.temperature.gpu'
+                    ? formatGpuTemperature({ ...info, ignore_temp_below: undefined }, value) : null;
+                const formatted = value === null || value === undefined ? gettext('N/A')
+                    : typeof value === 'number' ? Ext.util.Format.number(value, '0.##') : String(value);
+                const group = path[1];
+                const unit = object.unit || (group === 'utilization' || group === 'fan' || group === 'engines'
+                    || group === 'rc6' ? '%' : group === 'frequency' ? 'MHz'
+                    : group === 'power' ? 'W' : '');
+                const numeric = getSensorValue({ input: value }, 'input');
+                const suffix = Number.isFinite(numeric) && unit ? ` ${Ext.htmlEncode(String(unit))}` : '';
+                rows.push({
+                    id: JSON.stringify(fields),
+                    property: fields.filter(part => part !== 'stats').join(' / '),
+                    value: temperature || Ext.htmlEncode(formatted) + suffix,
+                });
+            }
+        });
+    };
+    collect(device);
+    return rows.sort((a, b) => a.property.localeCompare(b.property, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function refreshGpuDetails(widget) {
+    const win = widget.gpuWindow;
+    if (!win || win.destroyed) {
+        return;
+    }
+    const tabs = win.down('tabpanel');
+    const devices = getGpuDevices(widget.gpuInfo);
+    const ids = new Set();
+    devices.forEach(({ type, key, name, device }) => {
+        const id = JSON.stringify([type, device.history_id || device.card || key]);
+        ids.add(id);
+        let grid = tabs.items.items.find(tab => tab.gpuId === id);
+        const rows = getGpuDetailRows(widget.gpuInfo, device);
+        if (!grid) {
+            grid = tabs.add({
+                xtype: 'grid',
+                gpuId: id,
+                title: Ext.htmlEncode(`${name} (${device.card || key})`),
+                scrollable: true,
+                viewConfig: { preserveScrollOnRefresh: true, emptyText: gettext('GPU data unavailable') },
+                store: { fields: ['id', 'property', 'value'], data: rows, sorters: ['property'] },
+                columns: [
+                    { text: gettext('Property'), dataIndex: 'property', flex: 1, minWidth: 180, renderer: Ext.htmlEncode },
+                    { text: gettext('Value'), dataIndex: 'value', flex: 1, minWidth: 140,
+                        renderer: value => value },
+                ],
+            });
+        } else {
+            const store = grid.getStore();
+            const rowIds = new Set(rows.map(row => row.id));
+            store.remove(store.getRange().filter(record => !rowIds.has(record.getId())));
+            rows.forEach(row => {
+                const record = store.getById(row.id);
+                if (record) {
+                    record.set(row);
+                    record.commit();
+                } else {
+                    store.add(row);
+                }
+            });
+        }
+    });
+    tabs.items.items.slice().forEach(tab => {
+        if (!ids.has(tab.gpuId)) {
+            tabs.remove(tab);
+        }
+    });
+    if (!devices.length) {
+        tabs.add({
+            xtype: 'panel',
+            title: gettext('GPU details'),
+            bodyPadding: 15,
+            html: Ext.htmlEncode(gettext('GPU data unavailable')),
+        });
+    }
+    if (!tabs.getActiveTab() && tabs.items.getCount()) {
+        tabs.setActiveTab(0);
+    }
+}
+
+function showGpuDetails(widget) {
+    if (widget.gpuWindow && !widget.gpuWindow.destroyed) {
+        widget.gpuWindow.toFront();
+        return;
+    }
+    const size = Ext.getBody().getViewSize();
+    widget.gpuWindow = Ext.create('Ext.window.Window', {
+        title: gettext('GPU details - live'),
+        modal: true,
+        width: Math.min(760, size.width - 32),
+        height: Math.min(600, size.height - 64),
+        layout: 'fit',
+        items: [{ xtype: 'tabpanel' }],
+        buttons: [{ text: gettext('Close'), handler: button => button.up('window').close() }],
+        listeners: { destroy: function() { widget.gpuWindow = null; } },
+    });
+    widget.gpuWindow.show();
+    refreshGpuDetails(widget);
+}
+
 function getUpsStatus(value) {
     const tokens = String(value || '').toUpperCase().split(/\s+/);
     const states = [
@@ -752,139 +923,17 @@ Ext.define('PVE.node.StatusView', {
             title: gettext('GPU Details'),
             printBar: false,
             textField: 'PveMods_graphicsInfo',
-            renderer: function(gpuInfo) {
-                try {
-                    if (gpuInfo.enable_gpu !== true) {
-                        return '';
+            renderer: renderGpuSummary,
+            listeners: {
+                afterrender: function(widget) {
+                    widget.getEl().on('click', () => showGpuDetails(widget), null,
+                        { delegate: 'button.pve-mods-gpu-details' });
+                },
+                destroy: function(widget) {
+                    if (widget.gpuWindow) {
+                        widget.gpuWindow.destroy();
                     }
-                } catch (e) {
-                    return '';
-                }
-
-                // Create temperature helper for GPU temperature conversion
-                const gpuTempHelper = Ext.create('PVE.mod.TempHelper', {
-                    srcUnit: PVE.mod.TempHelper.CELSIUS,
-                    dstUnit: gpuInfo.temp_unit === 'F' ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS
-                });
-
-                // Collector values arrive as raw floats (e.g. 86.851087); round for display only.
-                const round2 = (n) => (typeof n === 'number' ? Math.round(n * 100) / 100 : n);
-
-                let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
-
-                // Intel GPUs - Secondary details
-                if (gpuInfo.Graphics.Intel) {
-                    Object.keys(gpuInfo.Graphics.Intel).sort().forEach(key => {
-                        const gpuData = gpuInfo.Graphics.Intel[key];
-                        
-                        let details = [];
-                        
-                        // All engine details
-                        if (gpuData.stats.engines) {
-                            if (gpuData.stats.engines['Render/3D']) {
-                                details.push(`Render/3D: ${round2(gpuData.stats.engines['Render/3D'].busy)}%`);
-                            }
-                            if (gpuData.stats.engines['Video']) {
-                                details.push(`Video: ${round2(gpuData.stats.engines['Video'].busy)}%`);
-                            }
-                            if (gpuData.stats.engines['Blitter']) {
-                                details.push(`Blitter: ${round2(gpuData.stats.engines['Blitter'].busy)}%`);
-                            }
-                            if (gpuData.stats.engines['VideoEnhance']) {
-                                details.push(`VideoEnhance: ${round2(gpuData.stats.engines['VideoEnhance'].busy)}%`);
-                            }
-                        }
-                        
-                        // Power
-                        if (gpuData.stats.power) {
-                            details.push(`Power: ${round2(gpuData.stats.power?.GPU) ?? 'N/A'} / ${round2(gpuData.stats.power?.Package) ?? 'N/A'} ${gpuData.stats.power?.unit || 'W'}`);
-                        }
-                        
-                        // Frequency
-                        if (gpuData.stats.frequency) {
-                            details.push(`Freq: ${round2(gpuData.stats.frequency?.actual) ?? 'N/A'}/${round2(gpuData.stats.frequency?.requested) ?? 'N/A'} ${gpuData.stats.frequency?.unit || 'MHz'}`);
-                        }
-                        
-                        html += '<tr>';
-                        html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuData.name}</td>`;
-                        html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${details.join(' | ')}</td>`;
-                        html += '</tr>';
-                    });
-                }
-
-                // NVIDIA GPUs - Secondary details
-                if (gpuInfo.Graphics.NVIDIA) {
-                    Object.keys(gpuInfo.Graphics.NVIDIA).sort().forEach(key => {
-                        const gpuData = gpuInfo.Graphics.NVIDIA[key];
-                        const stats = gpuData.stats;
-                        
-                        let details = [];
-
-                        // GPU Utilization
-                        if (stats.utilization && stats.utilization.gpu) {
-                            const gpuUsage = parseInt(stats.utilization.gpu);
-                            let gpuStyle = '';
-                            if (gpuUsage >= 90) gpuStyle = 'color: #d9534f; font-weight: bold;';
-                            else if (gpuUsage >= 70) gpuStyle = 'color: #f0ad4e; font-weight: bold;';
-                            details.push(`<span style="${gpuStyle}">GPU: ${stats.utilization.gpu}%</span>`);
-                        }
-                                                
-                        // Memory Utilization
-                        if (stats.utilization && stats.utilization.memory) {
-                            const memUsage = parseInt(stats.utilization.memory);
-                            let memStyle = '';
-                            if (memUsage >= 90) memStyle = 'color: #d9534f; font-weight: bold;';
-                            else if (memUsage >= 70) memStyle = 'color: #f0ad4e; font-weight: bold;';
-                            details.push(`<span style="${memStyle}">MEM: ${stats.utilization.memory}%</span>`);
-                        }
-                        
-                        // VRAM Usage
-                        if (stats.memory) {
-                            const vramUsedGB = parseInt(stats.memory.used);
-                            const vramTotalGB = parseInt(stats.memory.total);
-                            const vramPercent = (vramUsedGB / vramTotalGB) * 100;
-                            let vramStyle = '';
-                            if (vramPercent >= 90) vramStyle = 'color: #d9534f; font-weight: bold;';
-                            else if (vramPercent >= 70) vramStyle = 'color: #f0ad4e; font-weight: bold;';
-                            details.push(`<span style="${vramStyle}">VRAM: ${stats.memory.used}/${stats.memory.total} ${stats.memory.unit}</span>`);
-                        }
-                        
-                        // Temperature
-                        if (stats.temperature) {
-                            const gpuTemp = gpuTempHelper.getTemp(parseFloat(stats.temperature.gpu));
-                            const gpuIgnoreThreshold = gpuTempHelper.getTemp(parseFloat(gpuInfo.ignore_temp_below));
-                            if (gpuTemp >= gpuIgnoreThreshold) {
-                                const tempUnit = gpuTempHelper.getUnit();
-                                // Convert thresholds to target unit for comparison
-                                const tempHigh = gpuTempHelper.getTemp(80);
-                                const tempWarn = gpuTempHelper.getTemp(70);
-                                let tempStyle = '';
-                                if (gpuTemp >= tempHigh) {
-                                    tempStyle = 'color: red; font-weight: bold;';
-                                } else if (gpuTemp >= tempWarn) {
-                                    tempStyle = 'color: #FFC300; font-weight: bold;';
-                                }
-                                details.push(`Temp: <span style="${tempStyle}">${Ext.util.Format.number(gpuTemp, '0')}${tempUnit}</span>`);
-                            }
-                        }
-                        
-                        // Power
-                        if (stats.power) {
-                            details.push(`Power: ${stats.power.draw}/${stats.power.limit} ${stats.power.unit}`);
-                        }
-                        
-                        html += '<tr>';
-                        html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${stats.name}</td>`;
-                        html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${details.join(' | ')}</td>`;
-                        html += '</tr>';
-                    });
-                }
-
-                html += '</table>';
-                if (html.indexOf('<tr>') <= 0) {
-                    return '';
-                }
-                return html;
+                },
             },
         },
         {
@@ -1437,6 +1486,9 @@ Ext.define('PVE.node.StatusView', {
                 if (field.itemId === 'upsc' && field.upsWindow) {
                     field.upsWindow.close();
                 }
+                if (field.itemId === 'gpu_details' && field.gpuWindow) {
+                    field.gpuWindow.close();
+                }
                 return;
             }
             if (state === 'pending') {
@@ -1452,6 +1504,9 @@ Ext.define('PVE.node.StatusView', {
         }
         if (field.itemId === 'upsc') {
             refreshUpsDetails(field);
+        }
+        if (field.itemId === 'gpu_details') {
+            refreshGpuDetails(field);
         }
     },
 
@@ -1504,6 +1559,12 @@ Ext.define('PVE.node.StatusView', {
                 '<div style="width: 100%; white-space: normal;">{usage}</div>'
             );
         });
+        const gpuLabel = Ext.htmlEncode(gettext('GPU details - live'));
+        me.down('#gpu_details').getComponent('label').tpl = new Ext.XTemplate(
+            '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title} ',
+            `<button type="button" class="pve-mods-gpu-details" aria-label="${gpuLabel}" title="${gpuLabel}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button></div>`,
+            '<div style="width: 100%; white-space: normal;">{usage}</div>'
+        );
         me.down('#thermalRam').getComponent('label').tpl = new Ext.XTemplate(
             '<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start;">',
             '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',
