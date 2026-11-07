@@ -130,6 +130,12 @@ Placeholder — device discovery and collection are not yet implemented.
 
 Polls `upsc` for a configured NUT device and exposes all key-value pairs returned by the daemon. Supports any UPS accessible via NUT (local or remote).
 
+The node summary shows the UPS status, battery capacity with the runtime left, and load. Use the info button on the row to open a details window with the full device readings.
+
+![Node summary UPS row](images/ups-summary.png)
+
+![UPS details window](images/ups-details.png)
+
 Configuration: `device_name=ups@localhost`
 
 ### System Information

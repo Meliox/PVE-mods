@@ -221,7 +221,7 @@ function getCpuThermalGroups(info) {
                 || packages.find(row => row.label === 'CPU Core Temp')
                 || packages.find(row => row.label === 'Tctl');
             const packageRows = preferred ? [preferred] : packages;
-            const selected = cores.length ? cores
+            const selected = info.cpu_temp_target === 'Core' && cores.length ? cores
                 : packageRows.length ? packageRows : cores.length ? cores : rows;
             const packageId = packages.find(row => /^Package id/.test(row.label))?.label.match(/\d+/)?.[0];
             return [{
@@ -342,6 +342,162 @@ function showCpuThermalDetails(widget, groupId) {
         listeners: { destroy: function() { widget.cpuThermalWindow = null; } },
     });
     widget.cpuThermalWindow.show();
+}
+
+function getUpsStatus(value) {
+    const tokens = String(value || '').toUpperCase().split(/\s+/);
+    const states = [
+        ['FSD', gettext('Shutdown'), 'critical'],
+        ['LB', gettext('Low battery'), 'critical'],
+        ['RB', gettext('Replace battery'), 'critical'],
+        ['OVER', gettext('Overload'), 'critical'],
+        ['ALARM', gettext('Alarm'), 'critical'],
+        ['OFF', gettext('Off'), 'critical'],
+        ['NOCOMM', gettext('No communication'), 'warning'],
+        ['OB', gettext('On battery'), 'warning'],
+        ['BYPASS', gettext('Bypass'), 'warning'],
+        ['CAL', gettext('Calibrating'), 'warning'],
+        ['OL', gettext('Online'), 'ok'],
+        ['CHRG', gettext('Charging'), 'ok'],
+        ['DISCHRG', gettext('Discharging'), 'warning'],
+        ['BOOST', gettext('Boosting'), 'warning'],
+        ['TRIM', gettext('Trimming'), 'warning'],
+    ].filter(([token]) => tokens.includes(token));
+    return {
+        text: states.length ? states.map(([, label]) => label).join(', ') : value || gettext('Unknown'),
+        state: states.some(([, , state]) => state === 'critical') ? 'critical'
+            : states.some(([, , state]) => state === 'warning') ? 'warning' : states.length ? 'ok' : 'warning',
+    };
+}
+
+function formatUpsRuntime(value) {
+    const seconds = getSensorValue({ input: value }, 'input');
+    if (!Number.isFinite(seconds) || seconds < 0) {
+        return gettext('N/A');
+    }
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m` : `${Math.floor(seconds)}s`;
+}
+
+function renderUpsSummary(info) {
+    this.upsInfo = info;
+    const encode = value => Ext.htmlEncode(String(value));
+    const percent = value => {
+        const number = getSensorValue({ input: value }, 'input');
+        return Number.isFinite(number) && number >= 0 && number <= 100
+            ? `${Math.round(number)}%` : gettext('N/A');
+    };
+    const rows = Object.entries(info || {}).filter(([, data]) =>
+        data && typeof data === 'object' && !Array.isArray(data)).map(([key, data]) => {
+        const status = getUpsStatus(data['ups.status']);
+        const style = status.state === 'critical' ? 'color: red; font-weight: bold;'
+            : status.state === 'warning' ? 'color: #FFC300; font-weight: bold;' : '';
+        const label = encode(gettext('UPS details'));
+        const button = `<button type="button" class="pve-mods-ups-details" data-ups-key="${encode(key)}" aria-label="${label}" title="${label}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
+        const summary = `<div style="display: flex; justify-content: space-between; gap: 8px;">`
+            + `<span style="text-align: left; ${style}">${encode(status.text)}</span>`
+            + `<span>${encode(gettext('Capacity'))}: ${encode(percent(data['battery.charge']))}`
+            + ` (${encode(formatUpsRuntime(data['battery.runtime']))} ${encode(gettext('left'))})`
+            + ` | <span style="white-space: nowrap;">${encode(gettext('Load'))}: ${encode(percent(data['ups.load']))} ${button}</span></span></div>`;
+        const charge = getSensorValue({ input: data['battery.charge'] }, 'input');
+        const chargeAvailable = Number.isFinite(charge) && charge >= 0 && charge <= 100;
+        const capacityLabel = encode(gettext('Battery capacity') + ': ' + percent(data['battery.charge']));
+        const lowCharge = getSensorValue({ input: data['battery.charge.low'] }, 'input');
+        const capacityClass = String(data['ups.status'] || '').split(/\s+/).includes('LB')
+            || (Number.isFinite(lowCharge) && charge <= lowCharge) ? 'critical' : '';
+        const bar = chargeAvailable
+            ? `<div class="x-progress x-progress-default ${capacityClass}" role="progressbar" aria-label="${encode(gettext('Battery capacity'))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${charge}" aria-valuetext="${capacityLabel}" title="${capacityLabel}" style="height: 5px; margin-top: 3px;"><div class="x-progress-bar x-progress-bar-default" style="height: 5px; width: ${charge}%;"></div></div>`
+            : '';
+        return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${encode(data['ups.model'] || data['device.model'] || key)}</td>`
+            + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; overflow-wrap: anywhere;">${summary}${bar}</td></tr>`;
+    });
+    return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows.join('')}</table>`;
+}
+
+function refreshUpsDetails(widget) {
+    const win = widget.upsWindow;
+    if (!win || win.destroyed) {
+        return;
+    }
+    const data = widget.upsInfo?.[widget.upsDetailKey];
+    const encode = value => Ext.htmlEncode(String(value));
+    const sections = [
+        [gettext('Device'), [
+            [gettext('Connection'), null, widget.upsDetailKey],
+            [gettext('Manufacturer'), 'ups.mfr', data?.['device.mfr']],
+            [gettext('Model'), 'ups.model', data?.['device.model']],
+            [gettext('Serial number'), 'ups.serial', data?.['device.serial']],
+            [gettext('Status'), null, data ? getUpsStatus(data['ups.status']).text : undefined],
+            [gettext('Alarm'), 'ups.alarm'],
+            [gettext('Self-test'), 'ups.test.result'],
+            [gettext('Beeper'), 'ups.beeper.status'],
+        ]],
+        [gettext('Battery'), [
+            [gettext('Capacity'), 'battery.charge', undefined, '%'],
+            [gettext('Estimated runtime'), null, data ? formatUpsRuntime(data['battery.runtime']) : undefined],
+            [gettext('Low capacity threshold'), 'battery.charge.low', undefined, '%'],
+            [gettext('Low runtime threshold'), null, data?.['battery.runtime.low'] != null
+                ? formatUpsRuntime(data['battery.runtime.low']) : undefined],
+            [gettext('Voltage'), 'battery.voltage', undefined, ' V'],
+            [gettext('Nominal voltage'), 'battery.voltage.nominal', undefined, ' V'],
+            [gettext('Type'), 'battery.type'],
+            [gettext('Manufacturing date'), 'battery.mfr.date'],
+        ]],
+        [gettext('Power'), [
+            [gettext('Load'), 'ups.load', undefined, '%'],
+            [gettext('Output power'), 'ups.realpower', undefined, ' W'],
+            [gettext('Rated power'), 'ups.realpower.nominal', undefined, ' W'],
+            [gettext('Input voltage'), 'input.voltage', undefined, ' V'],
+            [gettext('Nominal input voltage'), 'input.voltage.nominal', undefined, ' V'],
+            [gettext('Output voltage'), 'output.voltage', undefined, ' V'],
+            [gettext('Input frequency'), 'input.frequency', undefined, ' Hz'],
+        ]],
+    ];
+    const html = sections.map(([title, fields]) => {
+        const entries = fields.map(([label, field, fallback, unit = '']) => {
+            const value = data?.[field] ?? fallback;
+            return value === undefined || value === null ? ''
+                : `<tr><td style="width: 50%; padding: 4px 12px 4px 0; vertical-align: top;">${encode(label)}</td>`
+                    + `<td style="padding: 4px 0; overflow-wrap: anywhere;">${encode(value)}${unit}</td></tr>`;
+        }).join('');
+        return entries ? `<h3>${encode(title)}</h3><table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${entries}</table>` : '';
+    }).join('');
+    win.down('#overview').update(data ? html : encode(gettext('UPS data unavailable')));
+}
+
+function showUpsDetails(widget, key) {
+    const data = widget.upsInfo?.[key];
+    if (!data) {
+        return;
+    }
+    if (widget.upsWindow && widget.upsDetailKey !== key) {
+        widget.upsWindow.close();
+    }
+    widget.upsDetailKey = key;
+    if (widget.upsWindow && !widget.upsWindow.destroyed) {
+        widget.upsWindow.toFront();
+        return;
+    }
+    const size = Ext.getBody().getViewSize();
+    widget.upsWindow = Ext.create('Ext.window.Window', {
+        title: Ext.htmlEncode(gettext('UPS details - live') + ' - '
+            + (data['ups.model'] || data['device.model'] || key)),
+        modal: true,
+        width: Math.min(760, size.width - 32),
+        height: Math.min(560, size.height - 64),
+        layout: 'fit',
+        items: [{
+            xtype: 'panel',
+            itemId: 'overview',
+            bodyPadding: 15,
+            scrollable: true,
+        }],
+        buttons: [{ text: gettext('Close'), handler: button => button.up('window').close() }],
+        listeners: { destroy: function() { widget.upsWindow = null; } },
+    });
+    refreshUpsDetails(widget);
+    widget.upsWindow.show();
 }
 
 function showStorageHealthDetails(widget) {
@@ -1162,301 +1318,22 @@ Ext.define('PVE.node.StatusView', {
             colspan: 2,
             title: gettext('UPS Status'),
             iconCls: 'fa fa-fw fa-battery-three-quarters',
-            valueField: 'PveMods_upsInfo',
-            printBar: true,
-            warningThreshold: 1.1,
-            criticalThreshold: 1.2,
-            layout: {
-                type: 'vbox',
-                align: 'stretch',
-            },
-            items: [
-                {
-                    xtype: 'component',
-                    itemId: 'label',
-                    data: {
-                        title: '',
-                        usage: '',
-                        iconCls: undefined,
-                    },
-                    tpl: [
-                        '<div class="left-aligned">',
-                        '<tpl if="iconCls">',
-                        '<i class="{iconCls}"></i> ',
-                        '</tpl>',
-                        '{title}</div>',
-                    ],
+            textField: 'PveMods_upsInfo',
+            printBar: false,
+            renderer: renderUpsSummary,
+            listeners: {
+                afterrender: function(widget) {
+                    widget.getEl().on('click', function(event) {
+                        const button = event.getTarget('button.pve-mods-ups-details');
+                        showUpsDetails(widget, button.getAttribute('data-ups-key'));
+                    }, null, { delegate: 'button.pve-mods-ups-details' });
                 },
-                {
-                    xtype: 'container',
-                    layout: {
-                        type: 'hbox',
-                        align: 'top',
-                    },
-                    items: [
-                        {
-                            xtype: 'component',
-                            itemId: 'usageText',
-                            flex: 1,
-                            minWidth: 0,
-                            margin: '0 16 0 0',
-                        },
-                        {
-                            xtype: 'container',
-                            flex: 1,
-                            minWidth: 0,
-                            layout: {
-                                type: 'vbox',
-                                align: 'stretch',
-                            },
-                            items: [
-                                {
-                                    xtype: 'component',
-                                    itemId: 'loadText',
-                                    margin: '0 0 2 0',
-                                },
-                                {
-                                    xtype: 'progressbar',
-                                    itemId: 'progress',
-                                    height: 5,
-                                    value: 0,
-                                    animate: true,
-                                },
-                                {
-                                    xtype: 'component',
-                                    itemId: 'infoText',
-                                    margin: '4 0 0 0',
-                                },
-                            ],
-                        },
-                    ],
+                destroy: function(widget) {
+                    if (widget.upsWindow) {
+                        widget.upsWindow.destroy();
+                    }
                 },
-            ],
-            initComponent: function() {
-                var me = this;
-                if (!me.title) {
-                    throw 'no title defined';
-                }
-                Ext.container.Container.prototype.initComponent.call(me);
-                var progress = me.down('#progress');
-                if (progress) {
-                    progress.setVisible(!!me.printBar);
-                }
-                me.updateValue(me.text, me.value);
-                me.setIconCls(me.iconCls);
             },
-            setPrintBar: function(enable) {
-                var me = this;
-                me.printBar = enable;
-                var progress = me.down('#progress');
-                if (progress) {
-                    progress.setVisible(enable);
-                }
-            },
-            // Single source of truth for all DOM writes — called once per refresh
-            // cycle, right after renderer() returns. renderer() only computes data;
-            // it never touches the DOM, so there's no race/flash between the two.
-            updateValue: function(text, usage) {
-                var me = this;
-                var infoText = me._pendingInfoText || '';
-                var loadText = me._pendingLoadText || '';
-
-                if (me.lastText === text && me.lastUsage === usage && me.lastLoadText === loadText && me.lastInfoText === infoText) {
-                    return;
-                }
-                me.lastText = text;
-                me.lastUsage = usage;
-                me.lastLoadText = loadText;
-                me.lastInfoText = infoText;
-
-                var label = me.getComponent('label');
-                if (label) {
-                    label.update(Ext.apply(label.data, { title: me.title, usage: '' }));
-                }
-
-                var usageText = me.down('#usageText');
-                if (usageText) {
-                    if (usageText.setHtml) {
-                        usageText.setHtml(text || '');
-                    } else {
-                        usageText.update(text || '');
-                    }
-                }
-
-                var loadTextCmp = me.down('#loadText');
-                if (loadTextCmp) {
-                    if (loadTextCmp.setHtml) {
-                        loadTextCmp.setHtml(loadText);
-                    } else {
-                        loadTextCmp.update(loadText);
-                    }
-                }
-
-               var infoTextCmp = me.down('#infoText');
-                if (infoTextCmp) {
-                    if (infoTextCmp.setHtml) {
-                        infoTextCmp.setHtml(infoText);
-                    } else {
-                        infoTextCmp.update(infoText);
-                    }
-                }
-
-                var progressBar = me.down('#progress');
-                if (usage !== undefined && me.printBar && Ext.isNumeric(usage) && usage >= 0 && progressBar) {
-                    progressBar.updateProgress(usage, '');
-                    if (usage > me.criticalThreshold) {
-                        progressBar.removeCls('warning');
-                        progressBar.addCls('critical');
-                    } else if (usage > me.warningThreshold) {
-                        progressBar.removeCls('critical');
-                        progressBar.addCls('warning');
-                    } else {
-                        progressBar.removeCls('warning');
-                        progressBar.removeCls('critical');
-                    }
-                }
-            },
-            // Drives the progress bar's fill — based on battery.charge.
-            calculate: function(used) {
-                if (!used || used.disabled === true || typeof used !== 'object') {
-                    return 0;
-                }
-                let charge = NaN;
-                Object.keys(used).forEach(function(k) {
-                    const row = used[k];
-                    if (row && typeof row === 'object' && row['battery.charge'] != null) {
-                        charge = parseFloat(row['battery.charge']);
-                    }
-                });
-                if (isNaN(charge)) {
-                    return 0;
-                }
-                return Math.max(0, Math.min(1, charge / 100));
-            },
-            // Pure computation — no DOM writes. Stashes the "Battery capacity ...
-            // X% (Runtime: ...)" line for updateValue to place above the bar, and
-            // returns a model/serial column wrapped in the
-            renderer: function(upsInfo) {
-                try {  
-                    if (upsInfo.disabled === true) {
-                        this.setPrintBar(false);
-                        return '';
-                    }
-                } catch (e) {
-                    return '';
-                }
-
-                const upsKeys = Object.keys(upsInfo).filter(function(k) {
-                    return upsInfo[k] && typeof upsInfo[k] === 'object' && !Array.isArray(upsInfo[k]);
-                });
-                if (!upsKeys.length) {
-                    this.setPrintBar(false);
-                    return '';
-                }
-                this.setPrintBar(true);
-
-                function formatRuntime(seconds) {
-                    const s = parseInt(seconds, 10);
-                    if (!s || isNaN(s)) {
-                        return null;
-                    }
-                    const h = Math.floor(s / 3600);
-                    const m = Math.floor((s % 3600) / 60);
-                    if (h > 0) {
-                        return h + 'h ' + m + 'm';
-                    }
-                    return m + 'm';
-                }
-
-                function statusText(upsStatus) {
-                    const u = String(upsStatus || '').toUpperCase();
-                    if (u.indexOf('LB') >= 0) {
-                        return { text: 'Low Battery', color: '#d9534f' };
-                    }
-                    if (u.indexOf('OB') >= 0) {
-                        return { text: 'On Battery', color: '#d9534f' };
-                    }
-                    if (u.indexOf('FSD') >= 0) {
-                        return { text: 'Shutdown', color: '#d9534f' };
-                    }
-                    if (u.indexOf('OL') >= 0) {
-                        return {
-                            text: u.indexOf('CHRG') >= 0 ? 'Online, charging' : 'Online',
-                            color: null,
-                        };
-                    }
-                    return { text: upsStatus || 'Unknown', color: '#f0ad4e' };
-                }
-
-                function colorize(label, color) {
-                    if (!color) {
-                        return label;
-                    }
-                    return '<span style="color:' + color + ';">' + label + '</span>';
-                }
-
-                let aboveBarText = '';
-                let infoText = '';
-                const rows = [];
-
-                upsKeys.forEach(function(upsKey) {
-                    const upsData = upsInfo[upsKey] || {};
-                    const charge = parseFloat(upsData['battery.charge']);
-                    const runtime = formatRuntime(upsData['battery.runtime']);
-                    const inputVoltage = parseFloat(upsData['input.voltage']);
-                    const load = parseFloat(upsData['ups.load']);
-                    const watts = parseFloat(upsData['ups.realpower']);
-                    const model = upsData['ups.model'] || upsData['device.model'] || upsKey;
-                    const serial = upsData['ups.serial'] || upsData['device.serial'] || '';
-                    const st = statusText(upsData['ups.status']);
-                    const testResult = upsData['ups.test.result'];
-                    const manufacturingDate = upsData['battery.mfr.date'];
-
-                    // Above the bar: Status and "Battery Capacity: X% (Runtime: ...)" on one line.
-                    let capacityLine = 'Battery Capacity: ' + (!isNaN(charge) ? (Math.round(charge) + '%') : '');
-                    if (runtime) {
-                        capacityLine += ' (' + runtime + ' left)';
-                    }
-                    aboveBarText =
-                        '<div style="display: flex; justify-content: space-between; gap: 8px;">' +
-                        '<span>' + (st.text ? 'Status: ' + colorize(st.text, st.color) : '') + '</span>' +
-                        '<span style="text-align: right;">' + capacityLine + '</span>' +
-                        '</div>';
-
-                    // Detailed information shown below the battery capacity bar.
-                    const infoBits = [];
-                    if (!isNaN(watts)) {
-                        infoBits.push('Output: ' + Math.round(watts) + 'W');
-                    }
-                    if (!isNaN(inputVoltage)) {
-                        const places = inputVoltage >= 50 ? 0 : 1;
-                        infoBits.push('Input: ' + inputVoltage.toFixed(places) + ' V');
-                    }
-                    if (!isNaN(load)) {
-                        infoBits.push('Load: ' + Math.round(load) + '%');
-                    }
-                    if (manufacturingDate) {
-                        infoBits.push('Manufacturing Date: ' + manufacturingDate);
-                    }
-                    if (testResult) {
-                        infoBits.push('Test: ' + testResult);
-                    }
-                    infoText = '<div style="text-align: right;">' + infoBits.join(' | ') + '</div>';
-
-                    rows.push(
-                        '<tr>' +
-                        '<td style="padding: 2px 10px 2px 0; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">' + model + ' (' + serial + ')</td>' +
-                        '</tr>'
-                    );
-                });
-
-                // Stash for updateValue to consume — no DOM writes here.
-                this._pendingLoadText = aboveBarText;
-                this._pendingInfoText = infoText;
-
-                // Becomes the `text` argument passed to updateValue (model and serial column).
-                return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">' + rows.join('') + '</table></div>';
-            }
         },
         {
             xtype: 'box',
@@ -1554,6 +1431,9 @@ Ext.define('PVE.node.StatusView', {
             if (state === 'disabled') {
                 field.setVisible(false);
                 field.modMetricReady = false;
+                if (field.itemId === 'upsc' && field.upsWindow) {
+                    field.upsWindow.close();
+                }
                 return;
             }
             if (state === 'pending') {
@@ -1566,6 +1446,9 @@ Ext.define('PVE.node.StatusView', {
         this.callParent([field]);
         if (field.itemId === 'thermalCpu') {
             refreshCpuThermalDetails(field);
+        }
+        if (field.itemId === 'upsc') {
+            refreshUpsDetails(field);
         }
     },
 
@@ -1612,7 +1495,7 @@ Ext.define('PVE.node.StatusView', {
 
         me.callParent();
         me.modMetricIds.forEach(id => me.down('#' + id).setVisible(false));
-        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals'].forEach(function(itemId) {
+        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals', 'upsc'].forEach(function(itemId) {
             me.down('#' + itemId).getComponent('label').tpl = new Ext.XTemplate(
                 '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',
                 '<div style="width: 100%; white-space: normal;">{usage}</div>'
