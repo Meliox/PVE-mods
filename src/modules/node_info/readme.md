@@ -109,7 +109,11 @@ setcap -r /usr/bin/intel_gpu_top
 
 ### GPU graphs and history
 
-The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Use a graph's menu to switch between usage, frequency, power and temperature, and its legend to show or hide series.
+The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
+
+![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel-simulated.png)
+
+![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia-simulated.png)
 
 `pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
 
@@ -137,6 +141,14 @@ The node summary shows the UPS status, battery capacity with the runtime left, a
 ![UPS details window](images/ups-details.png)
 
 Configuration: `device_name=ups@localhost`
+
+### CPU and memory graphs
+
+The node summary CPU and Memory graphs include the matching pressure stall (PSI) series on a secondary right-hand axis, instead of separate pressure graphs. The CPU graph adds CPU pressure (Some); the Memory graph adds memory pressure (Some and Full).
+
+![CPU graph with CPU pressure on the right axis](images/cpu-dual-axis.png)
+
+![Memory graph with memory pressure on the right axis](images/memory-dual-axis.png)
 
 ### System Information
 
