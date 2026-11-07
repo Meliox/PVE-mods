@@ -2,6 +2,8 @@
 
 Extends the Proxmox VE node status view with live hardware sensor data. A background daemon collects data from the configured sources and exposes it through the PVE API.
 
+![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
+
 ## Features
 
 ### Temperature Sensors (lm-sensors)
