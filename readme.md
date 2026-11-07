@@ -3,7 +3,9 @@ Optional UI mods for Proxmox Virtual Environment (PVE), packaged as a Debian pac
 
 If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
 
-![PVE-mods node summary on a simulated Proxmox VE node](images/proxmox-node-overview.png)
+[![PVE-mods node summary on a simulated Proxmox VE node](images/proxmox-node-overview-small.png)](images/proxmox-node-overview.png)
+
+*Click the image to view it in full size.*
 
 Compatibility: PVE 9.0+
 
