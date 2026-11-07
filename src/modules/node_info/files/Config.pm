@@ -170,6 +170,17 @@ sub _load_ini_file {
             elsif ($section eq 'system_info' && exists $config{system_info}{$key}) {
                 $config{system_info}{$key} = $val;
             }
+            elsif ($section eq 'intervals' && exists $config{intervals}{$key}) {
+                # Bound values before numeric conversion to avoid overflow in sleep().
+                if ($val !~ /\A[0-9]+\z/ || length($val) > 10
+                    || $val < 1 || $val > 2147483647) {
+                    warn "pve-mods: $path line $.: invalid [intervals] $key "
+                        . "(expected integer seconds 1..2147483647); "
+                        . "keeping $config{intervals}{$key}\n";
+                    next;
+                }
+                $config{intervals}{$key} = 0 + $val;
+            }
             elsif ($section eq 'debug' && exists $config{debug}{$key}) {
                 $config{debug}{$key} = $val;
             }

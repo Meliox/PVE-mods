@@ -312,6 +312,7 @@ node_info_defaults() {
     ENABLE_STORAGE_HEALTH=0; STORAGE_SMART_ENABLED=1
     STORAGE_LIFE_WARNING=20; STORAGE_LIFE_CRITICAL=10
     STORAGE_ZFS_INTERVAL=15; STORAGE_SMART_INTERVAL=1800; STORAGE_SMART_WAKE=0
+    DATA_PULL_INTERVAL=1; COLLECTOR_TIMEOUT=10
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
@@ -362,6 +363,8 @@ node_info_load_conf() {
             storage_health.zfs_interval)    STORAGE_ZFS_INTERVAL="$val" ;;
             storage_health.smart_interval)  STORAGE_SMART_INTERVAL="$val" ;;
             storage_health.smart_wake_disks) STORAGE_SMART_WAKE="$val" ;;
+            intervals.data_pull)            DATA_PULL_INTERVAL="$val" ;;
+            intervals.collector_timeout)    COLLECTOR_TIMEOUT="$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
@@ -814,13 +817,25 @@ node_info_configure() {
         info "DMI data cached to $cache_file"
     fi
     #endregion System info
+
+    _configure_intervals
 }
 #endregion node-info wizard
+
+# Pre-filled with the saved values (1 and 10 seconds on a first run); press Enter to keep them.
+_configure_intervals() {
+    section "Collector Intervals"
+    echo "  Press Enter to accept each value, or edit it first. Values apply after pveproxy restarts."
+    DATA_PULL_INTERVAL=$(_ask_int "Seconds between collector data polls" "$DATA_PULL_INTERVAL" 1 2147483647 1)
+    echo "  Use a timeout above the polling interval of any external API client, e.g. Home Assistant."
+    COLLECTOR_TIMEOUT=$(_ask_int "Seconds without a request before collectors stop" "$COLLECTOR_TIMEOUT" 1 2147483647 10)
+}
 
 node_info_write_conf() {
     cat > "$NODE_INFO_CONF" <<EOF
 # pve-mods :: node_info mod configuration
 # Managed by pve-mods-configure. Re-run to update.
+# After editing this file manually, restart pveproxy (systemctl restart pveproxy).
 
 [gpu]
 intel_enabled=${ENABLE_INTEL_GPU_INFO}
@@ -850,6 +865,13 @@ life_critical_percent=${STORAGE_LIFE_CRITICAL}
 zfs_interval=${STORAGE_ZFS_INTERVAL}
 smart_interval=${STORAGE_SMART_INTERVAL}
 smart_wake_disks=${STORAGE_SMART_WAKE}
+
+[intervals]
+# Seconds between collector data polls
+data_pull=${DATA_PULL_INTERVAL}
+# Seconds without a request before collectors stop. Keep above the polling
+# interval of external clients (e.g. Home Assistant).
+collector_timeout=${COLLECTOR_TIMEOUT}
 
 [system_info]
 enabled=${ENABLE_SYSTEM_INFO}

@@ -246,6 +246,20 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | Storage health | `zfsutils-linux` (`zpool`) for pools; `smartmontools` (`smartctl`) for drive health |
 | System information | `dmidecode` (run once via `pve-mods-configure`) |
 
+## Collector intervals
+
+Collectors only run while something is reading the data: they start on a request and stop after `collector_timeout` seconds without one. The Proxmox web interface keeps them running, so the defaults suit normal use. Change them when:
+
+- **An external client polls less often than the timeout.** Home Assistant or another tool reading the Proxmox API every 60 seconds finds the collectors stopped, and its temperature entities can become unknown or unavailable. Set `collector_timeout` above its polling interval, e.g. `120` for a 60 second poll.
+- **You want less load.** A higher `data_pull` (e.g. `5`) polls the hardware less often, at the cost of less frequent updates.
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `data_pull` | `1` | Seconds between collector data polls. |
+| `collector_timeout` | `10` | Seconds without a request before collectors stop. |
+
+Set them in `/etc/pve-mods/conf.d/node_info.conf` or when running `pve-mods-configure` (current values are pre-filled), then restart `pveproxy`. Invalid values are ignored with a warning.
+
 ## Debug Mode
 
 Each collector supports a debug mode that reads from a local file instead of executing the real tool. Useful for development and testing without physical hardware.
