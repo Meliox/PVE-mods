@@ -1,0 +1,4 @@
+# pve-mods :: guest_info patch manifest
+# Format: <patch-file> [section.key=value]
+
+01-guest-summary-graphs.patch
