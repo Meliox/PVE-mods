@@ -2,8 +2,6 @@
 
 Extends the Proxmox VE node status view with live hardware sensor data. A background daemon collects data from the configured sources and exposes it through the PVE API.
 
-![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
-
 ## Table of contents
 
 - [Features](#features)
@@ -26,6 +24,13 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 - [Debug Mode](#debug-mode)
   - [Per-collector debug files](#per-collector-debug-files)
   - [Verbose module logging (mod_debug)](#verbose-module-logging-mod_debug)
+
+<details>
+<summary>Show a full node summary with all sensors and graphs enabled</summary>
+
+![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
+
+</details>
 
 ## Features
 
