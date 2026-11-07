@@ -253,7 +253,7 @@ The `[intervals]` section accepts the following options, in whole seconds:
 | Option | Default | Purpose |
 |--------|---------|---------|
 | `data_pull` | `1` | Delay between collector data polls. Increasing it reduces polling frequency. |
-| `collector_timeout` | `10` | Worker inactivity timeout, after which collectors stop. API requests reset the inactivity timer. |
+| `collector_timeout` | `10` | Worker inactivity timeout, after which collectors stop. API requests reset the inactivity timer. Raise it above the polling interval of external clients such as Home Assistant (see [below](#recommended-for-home-assistant-and-other-external-clients)). |
 
 Only known keys and positive integers from `1` to `2147483647` are accepted.
 Invalid values produce a warning and retain the previous valid value (or the
@@ -265,13 +265,27 @@ the current values pre-filled (`1` and `10` on a first run); press Enter to keep
 them. You can also edit the file directly. Restart `pveproxy`
 (`systemctl restart pveproxy`) after changing them.
 
-### Recommended for Home Assistant and other API clients
+### Recommended for Home Assistant and other external clients
 
-The collectors stop after `collector_timeout` seconds without a request. A
-client that polls less often than that finds the collectors stopped, and its
-temperature entities can become unknown or unavailable until the next
-successful read. Set the timeout above the client's polling interval, with
-margin for delays. For a client polling about every 60 seconds:
+Sensor data is collected only while something is reading it. The collectors
+start on a request and stop after `collector_timeout` seconds without one. The
+Proxmox web interface keeps them running, but an external client that reads the
+sensors through the Proxmox API, such as the Home Assistant Proxmox VE
+integration, or another monitoring tool or script, may poll less often than
+that. Its hardware temperature entities can then become unknown or unavailable
+until the collectors have started again, for example when Home Assistant polls
+every 60 seconds and the timeout is the default 10.
+
+Set `collector_timeout` above the client's polling interval, with margin for
+delays, for example about twice the interval:
+
+| Client polling interval | Suggested `collector_timeout` |
+|-------------------------|-------------------------------|
+| 30 seconds | `60` |
+| 60 seconds (typical Home Assistant) | `120` |
+| 5 minutes | `600` |
+
+For a client polling every 60 seconds:
 
 ```ini
 [intervals]
