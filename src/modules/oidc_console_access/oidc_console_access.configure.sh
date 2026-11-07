@@ -35,17 +35,48 @@ oidc_console_access_load_conf() {
 }
 
 oidc_console_access_configure() {
-    echo "Members of these Proxmox groups skip the root@pam restriction. They also need"
-    echo "Sys.Console on /nodes/<node>. Enter '-' to disable a feature, empty to keep it."
-    local input
-    input=$(ask "Groups allowed to use the node 'Upgrade' console [${OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS:-none}]")
-    if [[ "$input" == "-" ]]; then OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS=""
-    elif [[ -n "$input" ]]; then OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS="$(echo "$input" | tr -d '[:space:]')"; fi
-    warn "Shell groups get a passwordless ROOT shell in the node 'Shell' tab."
-    input=$(ask "Groups allowed to use the node 'Shell' tab without login [${OIDC_CONSOLE_ACCESS_SHELL_GROUPS:-none}]")
-    if [[ "$input" == "-" ]]; then OIDC_CONSOLE_ACCESS_SHELL_GROUPS=""
-    elif [[ -n "$input" ]]; then OIDC_CONSOLE_ACCESS_SHELL_GROUPS="$(echo "$input" | tr -d '[:space:]')"; fi
+    local input default choice_hint
+    echo "Enabled features grant root access. Members also need Sys.Console on /nodes/<node>."
+
+    default="N"
+    choice_hint="[y/N]"
+    [[ -n "$OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS" ]] && default="Y"
+    [[ "$default" == "Y" ]] && choice_hint="[Y/n]"
+    if _oidc_console_access_ask_yes_no "Enable the node 'Upgrade' console? $choice_hint" "$default"; then
+        input=$(ask "Groups allowed to use the node 'Upgrade' console (comma-separated; empty disables)")
+        OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS="$(echo "$input" | tr -d '[:space:]')"
+    else
+        OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS=""
+    fi
+
+    warn "Shell access provides a passwordless ROOT shell on the node."
+    default="N"
+    choice_hint="[y/N]"
+    [[ -n "$OIDC_CONSOLE_ACCESS_SHELL_GROUPS" ]] && default="Y"
+    [[ "$default" == "Y" ]] && choice_hint="[Y/n]"
+    if _oidc_console_access_ask_yes_no "Enable passwordless access to the node 'Shell' tab? $choice_hint" "$default"; then
+        input=$(ask "Groups allowed to use the node 'Shell' tab (comma-separated; empty disables)")
+        OIDC_CONSOLE_ACCESS_SHELL_GROUPS="$(echo "$input" | tr -d '[:space:]')"
+    else
+        OIDC_CONSOLE_ACCESS_SHELL_GROUPS=""
+    fi
     return 0
+}
+
+_oidc_console_access_ask_yes_no() {
+    local prompt="$1" default="$2" input
+    while true; do
+        input=$(ask "$prompt")
+        case "$input" in
+            [Yy]) return 0 ;;
+            [Nn]) return 1 ;;
+            "")
+                [[ "$default" == "Y" ]] && return 0
+                return 1
+                ;;
+            *) warn "Please enter Y or N." ;;
+        esac
+    done
 }
 
 oidc_console_access_write_conf() {

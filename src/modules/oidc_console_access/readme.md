@@ -27,9 +27,10 @@ Each feature is controlled independently. Members must also have the
 
 ## Configuration
 
-Use the `pve-mods-configure` bash script to enable or disable this module and
-choose the Proxmox groups allowed to use each feature. The script derives each
-feature flag from its group list: an empty list disables that feature.
+Use the `pve-mods-configure` bash script to choose whether to enable each
+feature, then enter the allowed Proxmox groups. Leave a group's field empty to
+disable that feature. The module is enabled when at least one feature has a
+non-empty group list.
 
 The script stores the settings in
 `/etc/pve-mods/conf.d/oidc_console_access.conf`, using this format:

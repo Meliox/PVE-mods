@@ -134,7 +134,7 @@ main() {
     echo -e "  [4] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
     echo    "                    pve-manager is upgraded"
     echo    "  [n] None / cancel"
-    local modChoice selected_mod="" patching_needed=0
+    local modChoice selected_mod="" patching_needed=0 refresh_patches=0
     modChoice=$(ask "Select an option (1/2/3/4/n)")
     case "$modChoice" in
         1)
@@ -163,12 +163,15 @@ main() {
             ;;
         3)
             selected_mod="oidc_console_access"
-            if [[ "$MOD_OIDC_CONSOLE_ACCESS" == "1" ]]; then
-                MOD_OIDC_CONSOLE_ACCESS=0; info "OIDC Console Access will be removed."
+            section "OIDC Console Access Configuration"
+            oidc_console_access_configure
+            if [[ -n "$OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS" || -n "$OIDC_CONSOLE_ACCESS_SHELL_GROUPS" ]]; then
+                MOD_OIDC_CONSOLE_ACCESS=1
+                patching_needed=1
+                refresh_patches=1
             else
-                MOD_OIDC_CONSOLE_ACCESS=1; patching_needed=1
-                section "OIDC Console Access Configuration"
-                oidc_console_access_configure
+                MOD_OIDC_CONSOLE_ACCESS=0
+                info "No OIDC Console Access features enabled; the module will be removed."
             fi
             write_main_conf; oidc_console_access_write_conf
             ;;
@@ -186,6 +189,12 @@ main() {
 
     # ── Apply / revert patches ────────────────────────────────────────────────
     # Config is already written above; pveproxy will restart with new settings.
+    if [[ "$refresh_patches" == "1" ]]; then
+        section "Refreshing patches"
+        if ! "$REVERT_PATCHES" "$selected_mod"; then
+            err "Could not revert existing patches for $selected_mod."
+        fi
+    fi
     if [[ "$patching_needed" == "1" ]]; then
         section "Applying patches"
         if ! "$APPLY_PATCHES" "$selected_mod"; then
