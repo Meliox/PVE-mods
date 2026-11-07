@@ -865,12 +865,9 @@ zfs_interval=${STORAGE_ZFS_INTERVAL}
 smart_interval=${STORAGE_SMART_INTERVAL}
 smart_wake_disks=${STORAGE_SMART_WAKE}
 
-# Seconds, 1-2147483647. Set by pve-mods-configure (Enter keeps the value shown);
-# can also be edited here. Restart pveproxy afterwards.
+# Seconds
 [intervals]
-# Seconds between collector data polls
 data_pull=${DATA_PULL_INTERVAL}
-# Stop collectors after this many seconds without a request
 collector_timeout=${COLLECTOR_TIMEOUT}
 
 [system_info]
