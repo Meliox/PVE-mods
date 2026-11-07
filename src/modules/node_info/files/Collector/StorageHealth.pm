@@ -649,7 +649,7 @@ sub collector_for_storage_health {
     }
 
     debug(__LINE__, "Storage health collector shutting down");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 sub _collect_storage_health {

@@ -6,6 +6,7 @@ use Exporter 'import';
 
 use POSIX qw(WNOHANG setsid);
 use File::Path qw(remove_tree);
+use Sys::Syslog qw(openlog syslog LOG_ERR LOG_WARNING);
 
 use PVE::PVEMods::Config qw(
     %config $process_type
@@ -14,7 +15,7 @@ use PVE::PVEMods::Config qw(
     $pve_mods_worker_lock $startup_lock
 );
 use PVE::PVEMods::Utils qw(
-    debug is_process_alive get_process_ppid read_lock_pid
+    debug close_worker_logs is_process_alive get_process_ppid read_lock_pid
     acquire_exclusive_lock ensure_pve_mods_directory_exists
     check_executable startup_message
 );
@@ -72,7 +73,7 @@ sub pve_mods_starter {
     $startup_fh->flush();
     debug(__LINE__, "Wrote PID $$ to startup lock");
 
-    _pve_mods_worker();
+    _pve_mods_worker($startup_fh);
 
     unlink($startup_lock);
     debug(__LINE__, "Released startup lock");
@@ -179,9 +180,29 @@ sub _worker_lock_file_exists {
     return 0;
 }
 
-# Double-forks so the worker is reparented to init (PID 1) instead of the
-# caller; init reaps it on exit, so it never lingers as a <defunct> zombie.
+# Close inherited API resources before creating any worker-owned descriptors.
+sub _detach_worker_fds {
+    # Forked workers/collectors use _exit after cleanup: inherited Perl handles
+    # must not run destructors against descriptor numbers reused after detachment.
+    close_worker_logs();
+    opendir(my $fd_dir, '/proc/self/fd') or die "Cannot enumerate worker descriptors: $!\n";
+    my $dir_fd = fileno($fd_dir);
+    my @fds = grep { /^\d+$/ && $_ > 2 && $_ != $dir_fd } readdir($fd_dir);
+    closedir($fd_dir) or die "Cannot close descriptor directory: $!\n";
+
+    close(STDIN);
+    close(STDOUT);
+    close(STDERR);
+    for my $fd (@fds) {
+        POSIX::close($fd) == 0 or die "Cannot close worker descriptor $fd: $!\n";
+    }
+    open(STDIN, '<', '/dev/null') or die "Cannot redirect worker stdin: $!\n";
+    open(STDOUT, '>', '/dev/null') or die "Cannot redirect worker stdout: $!\n";
+    open(STDERR, '>', '/dev/null') or die "Cannot redirect worker stderr: $!\n";
+}
+
 sub _pve_mods_worker {
+    my ($startup_fh) = @_;
     debug(__LINE__, "_pve_mods_worker called");
 
     my $pve_mods_worker_fh =
@@ -213,6 +234,16 @@ sub _pve_mods_worker {
 
         if ($worker_pid == 0) {
             # Grandchild — the actual worker
+            close($startup_fh) if $startup_fh;
+            eval { _detach_worker_fds(); };
+            my $detach_error = $@;
+            openlog('pve-mods', 'pid', 'user');
+            if ($detach_error) {
+                syslog(LOG_ERR, 'Worker descriptor detachment failed: %s', $detach_error);
+                unlink($pve_mods_worker_lock);
+                POSIX::_exit(1);
+            }
+            $SIG{__WARN__} = sub { syslog(LOG_WARNING, '%s', join('', @_)); };
             $0 = "pve_mods_worker_controller";
             if (open my $fh, '>', $pve_mods_worker_lock) {
                 print $fh "$$\n";
@@ -223,7 +254,7 @@ sub _pve_mods_worker {
             }
             debug(__LINE__, "Worker process forked, calling _pve_mods_keep_alive");
             _pve_mods_keep_alive();
-            exit(0);
+            POSIX::_exit(0);
         }
 
         debug(__LINE__, "Intermediate process exiting, worker PID $worker_pid reparented to init");
@@ -278,13 +309,13 @@ sub _pve_mods_keep_alive {
         debug(__LINE__, "pve_mods_worker received SIGTERM, shutting down");
         _stop_child_collectors();
         unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
-        exit(0);
+        POSIX::_exit(0);
     };
     $SIG{INT} = sub {
         debug(__LINE__, "pve_mods_worker received SIGINT, shutting down");
         _stop_child_collectors();
         unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
-        exit(0);
+        POSIX::_exit(0);
     };
 
     _reap_orphaned_collectors();
@@ -329,7 +360,7 @@ sub _pve_mods_keep_alive {
                 _stop_child_collectors();
                 debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
                 unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
-                exit(0);
+                POSIX::_exit(0);
             }
         } elsif ($ui_collectors_idle) {
             debug(__LINE__, "Activity resumed: restarting sensors/UPS collectors");

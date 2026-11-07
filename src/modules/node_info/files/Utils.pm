@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use JSON;
 use Fcntl qw(O_CREAT O_EXCL O_WRONLY);
-use Sys::Syslog qw(openlog syslog LOG_DEBUG);
+use Sys::Syslog qw(openlog closelog syslog LOG_DEBUG);
 
 use PVE::PVEMods::Config qw($DEBUG_ENABLED $VERSION $pve_mods_working_dir %config);
 
@@ -16,6 +16,7 @@ openlog('pve-mods', 'pid', 'user');
 
 our @EXPORT_OK = qw(
     debug
+    close_worker_logs
     read_sysfs
     is_process_alive
     get_process_ppid
@@ -33,6 +34,14 @@ our @EXPORT_OK = qw(
 # ============================================================================
 # Debug
 # ============================================================================
+
+sub close_worker_logs {
+    if (defined $debug_log_fh) {
+        close($debug_log_fh) or die "Failed to close debug log: $!\n";
+        undef $debug_log_fh;
+    }
+    closelog();
+}
 
 # debug function showing line number and call chain
 # Usage: debug(__LINE__, "message")

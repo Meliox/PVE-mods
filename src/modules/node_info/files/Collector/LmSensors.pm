@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX ();
 use Exporter 'import';
 
 use JSON;
@@ -43,7 +44,7 @@ sub collector_for_temperature_sensors {
     }
 
     debug(__LINE__, "Temperature sensor collector shutting down");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 # ============================================================================

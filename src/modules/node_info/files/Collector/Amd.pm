@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX ();
 use Exporter 'import';
 
 use PVE::PVEMods::Config qw($process_type);
@@ -27,7 +28,7 @@ sub collector_for_amd_device {
     $process_type = 'collector';
     # TODO: Implement AMD GPU collector
     debug(__LINE__, "AMD GPU collector not yet implemented");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 1;

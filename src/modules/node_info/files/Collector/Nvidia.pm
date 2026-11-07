@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX ();
 use Exporter 'import';
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
@@ -218,7 +219,7 @@ sub collector_for_nvidia_devices {
     }
 
     debug(__LINE__, "NVIDIA collector shutting down");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 1;
