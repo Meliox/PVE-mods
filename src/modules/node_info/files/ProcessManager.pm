@@ -478,9 +478,7 @@ sub _initialise_graphics_collectors {
     }
 
     # AMD (each GPU has its own collector)
-    if ($config{gpu}{amd_enabled} && check_executable('/usr/bin/rocm-smi', 'AMD',
-                                                      $config{debug}{amd_mode},
-                                                      $config{debug}{amd_devices_file})) {
+    if ($config{gpu}{amd_enabled}) {
         my @amd_devices = get_amd_gpu_devices();
         for my $device (@amd_devices) {
             push @all_devices,        $device;

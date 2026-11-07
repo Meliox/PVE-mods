@@ -140,7 +140,17 @@ sub _load_graphics_data {
 
     debug(__LINE__, "Found " . scalar(@stat_files) . " device stat file(s): " . join(', ', @stat_files));
 
-    my @filepaths = map { "$stats_dir/$_" } @stat_files;
+    my @filepaths = map { "$stats_dir/$_" } sort @stat_files;
+
+    # Atomic AMD publication can replace a file twice within one mtime second.
+    my $signature = join('|', map {
+        my @st = stat($_);
+        join(':', $_, @st ? @st[1, 7, 9] : ());
+    } @filepaths);
+    if (($graphics_cache->{signature} // '') ne $signature) {
+        $graphics_cache->{mtime} = -1;
+        $graphics_cache->{signature} = $signature;
+    }
 
     my $data = _read_state_file_cached(
         \@filepaths,
