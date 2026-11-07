@@ -530,7 +530,7 @@ Ext.define('PVE.node.StatusView', {
                 html += '</table>';
 				
                 return html.indexOf('<tr>') > 0
-                    ? '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>'
+                    ? html
                     : 'N/A';
             }
         },
@@ -674,7 +674,7 @@ Ext.define('PVE.node.StatusView', {
                 if (html.indexOf('<tr>') <= 0) {
                     return '';
                 }
-                return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+                return html;
             },
         },
         {
@@ -797,7 +797,7 @@ Ext.define('PVE.node.StatusView', {
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
 			}
 		},       
         {
@@ -874,7 +874,7 @@ Ext.define('PVE.node.StatusView', {
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
             }
         },
         {
@@ -966,7 +966,7 @@ Ext.define('PVE.node.StatusView', {
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
             }
         },
 
