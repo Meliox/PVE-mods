@@ -91,9 +91,12 @@ sub _merge_graphics_files {
         my $device_type = ($file =~ /^stats-card/)   ? 'Intel'
                         : ($file =~ /^stats-nvidia/) ? 'NVIDIA'
                         :                              'AMD';
+        # Identifier used for the GPU's RRD file (card0, nvidia0, ...)
+        my ($card_id) = $file =~ /^stats-(.+)\.json$/;
 
         foreach my $node_name (keys %$device_data) {
             $merged->{Graphics}->{$device_type}->{$node_name} = $device_data->{$node_name};
+            $merged->{Graphics}->{$device_type}->{$node_name}{card} = $card_id;
             my $stats = $device_data->{$node_name}{stats};
             if (ref($stats) eq 'HASH' && ref($stats->{fan}) eq 'HASH' && defined $stats->{fan}{speed}) {
                 $merged->{enable_fans} = \1;
@@ -171,6 +174,10 @@ sub get_graphics_info {
 
     # Notify pve_mods_worker of activity
     notify_pve_mods_worker();
+
+    # Tells the UI whether to draw GPU graphs from RRD history or from live samples
+    $data->{gpu_history} = $config{gpu}{gpu_history} ? \1 : \0
+        if ref($data) eq 'HASH' && $data->{enable_gpu};
 
     return $data;
 }

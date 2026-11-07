@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
 use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json parse_csv_line);
-use PVE::PVEMods::Store  qw(update_nvidia_gpu_rrd);
+use PVE::PVEMods::Store  qw(update_nvidia_gpu_rrd gpu_history_id);
 
 our @EXPORT_OK = qw(
     get_nvidia_gpu_devices
@@ -16,6 +16,15 @@ our @EXPORT_OK = qw(
 # ============================================================================
 # NVIDIA GPU — device discovery
 # ============================================================================
+
+sub _nvidia_device {
+    my ($index, $name, $pci_bus_id) = @_;
+    return {
+        index      => $index,
+        name       => $name,
+        history_id => gpu_history_id($pci_bus_id, "nvidia$index"),
+    };
+}
 
 sub get_nvidia_gpu_devices {
     my @devices = ();
@@ -30,7 +39,7 @@ sub get_nvidia_gpu_devices {
                 next if $line_num == 1 || /^\s*$/;
                 my @values = parse_csv_line($_, 2);
                 if (@values) {
-                    push @devices, { index => $values[0], name => $values[1] };
+                    push @devices, _nvidia_device(@values);
                     debug(__LINE__, "Found NVIDIA GPU device (debug): $values[1] (index: $values[0])");
                 }
             }
@@ -39,7 +48,7 @@ sub get_nvidia_gpu_devices {
             debug(__LINE__, "Failed to open debug file $config{debug}{nvidia_devices_file}: $!");
         }
     } else {
-        if (open my $fh, '-|', 'nvidia-smi --query-gpu=index,name --format=csv') {
+        if (open my $fh, '-|', 'nvidia-smi --query-gpu=index,name,pci.bus_id --format=csv') {
             my $line_num = 0;
             while (<$fh>) {
                 chomp;
@@ -47,7 +56,7 @@ sub get_nvidia_gpu_devices {
                 next if $line_num == 1 || /^\s*$/;
                 my @values = parse_csv_line($_, 2);
                 if (@values) {
-                    push @devices, { index => $values[0], name => $values[1] };
+                    push @devices, _nvidia_device(@values);
                     debug(__LINE__, "Found NVIDIA GPU device: $values[1] (index: $values[0])");
                 }
             }
@@ -160,23 +169,26 @@ sub _get_and_write_nvidia_stats {
         my $device_state_file = "$pve_mods_working_dir/stats-nvidia$device_index.json";
 
         my $device_name = $stats->{name};
+        my $history_id  = "nvidia$device_index";
         foreach my $dev (@$devices) {
             if ($dev->{index} == $device_index) {
                 $device_name = $dev->{name};
+                $history_id  = $dev->{history_id} if $dev->{history_id};
                 last;
             }
         }
 
         my $device_data = {
             $node_name => {
-                name  => $device_name,
-                index => $device_index,
-                stats => $stats,
+                name       => $device_name,
+                index      => $device_index,
+                history_id => $history_id,
+                stats      => $stats,
             }
         };
 
         safe_write_json($device_state_file, $device_data);
-        update_nvidia_gpu_rrd($device_index, $stats);
+        update_nvidia_gpu_rrd($history_id, $stats);
     }
 
     unless (@all_stats) {

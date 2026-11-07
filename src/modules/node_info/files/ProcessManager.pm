@@ -10,6 +10,7 @@ use File::Path qw(remove_tree);
 use PVE::PVEMods::Config qw(
     %config $process_type
     $pve_mods_working_dir $state_file
+    $sensors_state_file $ups_state_file
     $pve_mods_worker_lock $startup_lock
 );
 use PVE::PVEMods::Utils qw(
@@ -26,12 +27,17 @@ use PVE::PVEMods::Collector::Ups     qw(collector_for_ups);
 
 our @EXPORT_OK = qw(
     pve_mods_starter
+    pve_mods_run_service
     notify_pve_mods_worker
 );
 
 # Collector registry — only populated inside the worker process.
 # Each forked child has its own copy; the parent never accesses this after forking.
 my %collectors = ();
+
+# GPU collectors the last device discovery decided should run. Compared with
+# %collectors to notice collectors that died or never started.
+my %expected_gpu_collectors = ();
 
 # ============================================================================
 # Public API (called from SensorInfo)
@@ -105,6 +111,37 @@ sub notify_pve_mods_worker {
     } else {
         debug(__LINE__, "Failed to open pve_mods_worker lock file: $!");
     }
+}
+
+# Runs the worker in the foreground, for the pve-mods-gpu-history systemd
+# service. Unlike pve_mods_starter() it does not detach, so systemd supervises
+# it. An already running (UI-started) worker is replaced so only one exists.
+sub pve_mods_run_service {
+    ensure_pve_mods_directory_exists();
+
+    if (_worker_lock_file_exists()) {
+        my $old_pid = read_lock_pid($pve_mods_worker_lock);
+        if (defined $old_pid && $old_pid =~ /^(\d+)$/ && $1 != $$) {
+            my $pid = $1;
+            debug(__LINE__, "Replacing running worker PID $pid with the service worker");
+            kill('TERM', $pid);
+            for (1 .. 50) {
+                last unless is_process_alive($pid);
+                select(undef, undef, undef, 0.1);
+            }
+            # The old worker removes the working directory when it exits
+            ensure_pve_mods_directory_exists();
+        }
+    }
+
+    my $fh = acquire_exclusive_lock($pve_mods_worker_lock, 'pve_mods_worker lock');
+    die "Could not acquire the pve_mods_worker lock\n" unless $fh;
+    print $fh "$$\n";
+    close($fh);
+
+    $0 = "pve_mods_worker_controller";
+    _pve_mods_keep_alive();
+    exit(0);
 }
 
 # ============================================================================
@@ -260,6 +297,15 @@ sub _pve_mods_keep_alive {
     debug(__LINE__,
         "Entering pve_mods_worker loop, timeout=$config{intervals}{collector_timeout}s");
 
+    # With GPU history enabled the worker never idles out, so the RRD keeps
+    # recording without anyone viewing the UI. The sensors and UPS collectors
+    # are only needed for the UI and still stop while it is idle.
+    my $record_history      = ($config{gpu}{gpu_history}
+        && ($config{gpu}{intel_enabled} || $config{gpu}{amd_enabled} || $config{gpu}{nvidia_enabled}))
+        ? 1 : 0;
+    my $ui_collectors_idle  = 0;
+    my $last_gpu_check      = time();
+
     while (1) {
         debug(__LINE__, "pve_mods_worker loop start: checking activity");
 
@@ -269,16 +315,67 @@ sub _pve_mods_keep_alive {
             . "timeout=$config{intervals}{collector_timeout}s");
 
         if ($idle_time > $config{intervals}{collector_timeout}) {
-            debug(__LINE__, "Timeout reached, stopping collectors");
-            _stop_child_collectors();
-            debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
-            unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
-            exit(0);
+            if ($record_history) {
+                unless ($ui_collectors_idle) {
+                    debug(__LINE__, "Idle: stopping sensors/UPS collectors, GPU history keeps recording");
+                    _stop_named_collectors('sensors', 'ups');
+                    unlink($sensors_state_file, $ups_state_file);
+                    $ui_collectors_idle = 1;
+                }
+            } else {
+                debug(__LINE__, "Timeout reached, stopping collectors");
+                _stop_child_collectors();
+                debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
+                unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
+                exit(0);
+            }
+        } elsif ($ui_collectors_idle) {
+            debug(__LINE__, "Activity resumed: restarting sensors/UPS collectors");
+            _initialise_sensors_collector();
+            _initialise_ups_collector();
+            $ui_collectors_idle = 0;
+        }
+
+        # Rediscover GPUs and restart collectors that died or never started (for
+        # example a driver that was not ready at boot), so history has no
+        # permanent gaps.
+        if ($record_history && time() - $last_gpu_check >= 30) {
+            $last_gpu_check = time();
+            my @missing = grep { !exists $collectors{$_} } keys %expected_gpu_collectors;
+            if (!%expected_gpu_collectors || @missing) {
+                debug(__LINE__, "GPU collectors missing (" . (join(', ', @missing) || 'none discovered yet')
+                    . "), running discovery again");
+                _initialise_graphics_collectors();
+            }
         }
         sleep(1);
     }
 
     debug(__LINE__, "pve_mods_worker loop exited unexpectedly!");
+}
+
+# Stops only the named collectors, leaving the rest and the working directory.
+sub _stop_named_collectors {
+    my (@names) = @_;
+
+    my @pids;
+    foreach my $name (@names) {
+        next unless exists $collectors{$name};
+        push @pids, $collectors{$name};
+        delete $collectors{$name};
+    }
+    return unless @pids;
+
+    kill('TERM', $_) foreach grep { kill(0, $_) } @pids;
+
+    my $start = time();
+    while (time() - $start < 2) {
+        last unless grep { is_process_alive($_) } @pids;
+        select(undef, undef, undef, 0.1);
+    }
+    foreach my $pid (@pids) {
+        kill('KILL', $pid) if is_process_alive($pid);
+    }
 }
 
 # ============================================================================
@@ -321,6 +418,7 @@ sub _initialise_graphics_collectors {
 
     debug(__LINE__, "Starting graphics collectors");
 
+    %expected_gpu_collectors = ();
     my (@all_devices, @all_types, @all_collector_subs);
     my @nvidia_devices;
 
@@ -370,12 +468,14 @@ sub _initialise_graphics_collectors {
         my $collector_sub = $all_collector_subs[$i];
         my $device_name   = $device->{card} // $device->{name} // "device$i";
 
+        $expected_gpu_collectors{$device_name} = 1;
         my $pid = _start_collector($device_name, $type, $collector_sub, $device);
         $started_count++ if $pid;
     }
 
     # NVIDIA — single collector for all GPUs
     if (@nvidia_devices) {
+        $expected_gpu_collectors{'nvidia-all'} = 1;
         my $pid = _start_collector('nvidia-all', 'nvidia',
                                    \&collector_for_nvidia_devices,
                                    \@nvidia_devices);
