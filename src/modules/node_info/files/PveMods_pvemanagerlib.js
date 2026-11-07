@@ -1694,6 +1694,40 @@ Ext.define('PVE.mod.SummaryChart', {
             overflowHandler: 'scroller',
             items: [legend],
         })[0];
+        if (config.splitAxisLegend) {
+            legend.flex = 1;
+            const alignLegend = function() {
+                const container = legend.el.down('.x-legend-container');
+                if (!container) {
+                    return;
+                }
+                legend.el.down('.x-legend-inner').setStyle('width', '100%');
+                container.setStyle({ display: 'flex', width: '100%', 'text-align': 'left' });
+                let firstRight = true;
+                const items = legend.el.query('.x-legend-item');
+                const firstStyle = items.length ? getComputedStyle(items[0]) : null;
+                items.forEach((item, index) => {
+                    const record = legend.getStore().getAt(Number(item.getAttribute('data-recordindex')));
+                    const series = me.getSeries().map[record.get('series')];
+                    const right = series.getYAxis().getPosition() === 'right';
+                    const startsRight = right && firstRight;
+                    item.style.marginLeft = startsRight ? 'auto' : '';
+                    item.style.borderLeft = startsRight ? firstStyle.borderLeft : '';
+                    item.style.borderTopLeftRadius = startsRight ? firstStyle.borderTopLeftRadius : '';
+                    item.style.borderBottomLeftRadius = startsRight ? firstStyle.borderBottomLeftRadius : '';
+                    if (right) {
+                        firstRight = false;
+                    }
+                    if (startsRight && index > 0) {
+                        items[index - 1].style.borderTopRightRadius = firstStyle.borderTopLeftRadius;
+                        items[index - 1].style.borderBottomRightRadius = firstStyle.borderBottomLeftRadius;
+                    }
+                });
+            };
+            me.mon(legend, 'refresh', alignLegend);
+            me.mon(legend, 'itemupdate', alignLegend);
+            me.mon(legend, 'afterrender', alignLegend);
+        }
     },
 });
 
@@ -1711,9 +1745,9 @@ Ext.define('PVE.mod.GpuChart', {
         me.stateKey = `pvemods-gpu-chart-${config.nodename}-${config.card}`;
         let saved = sp?.get(me.stateKey);
         me.shownByUnit = Ext.isObject(saved?.shown) ? saved.shown : {};
-        let units = [...new Set(metrics.map((m) => m.unit))];
+        let units = [...new Set(metrics.filter(m => m.unit !== '%').map((m) => m.unit))];
         me.selectedUnit = units.includes(saved?.unit) ? saved.unit : units[0];
-        let shown = me.getShownMetrics(me.selectedUnit, metrics);
+        let shownPercent = me.getShownMetrics('%', metrics);
 
         me.callParent([
             Ext.apply(
@@ -1721,8 +1755,9 @@ Ext.define('PVE.mod.GpuChart', {
                     fields: metrics.map((m) => ({
                         yField: m.field,
                         title: m.title,
-                        showInLegend: m.unit === me.selectedUnit,
-                        hidden: m.unit !== me.selectedUnit || !shown.includes(m.field),
+                        showInLegend: m.unit === '%',
+                        hidden: m.unit === '%' ? !shownPercent.includes(m.field)
+                            : m.unit !== me.selectedUnit,
                         tooltip: {
                             trackMouse: true,
                             renderer: function (toolTip, record) {
@@ -1738,20 +1773,53 @@ Ext.define('PVE.mod.GpuChart', {
                         },
                     })),
                     colors: metrics.map((m) => m.color),
+                    axes: [
+                        {
+                            type: 'numeric', position: 'left',
+                            fields: metrics.filter(m => m.unit === '%').map(m => m.field),
+                            minimum: 0, maximum: 100, grid: true,
+                            renderer: 'leftAxisRenderer',
+                        },
+                        ...(units.length ? [{
+                            type: 'numeric', position: 'right',
+                            fields: metrics.filter(m => m.unit !== '%').map(m => m.field),
+                            minimum: 0, title: me.selectedUnit,
+                            renderer: 'leftAxisRenderer',
+                        }] : []),
+                        { type: 'time', position: 'bottom', fields: ['time'], grid: true },
+                    ],
                 },
                 config,
             ),
         ]);
 
-        me.axes[0].setTitle(me.selectedUnit);
-        me.unitButton = me.controls.insert(0, {
-            xtype: 'button',
-            text: me.unitLabel(me.selectedUnit),
-            menu: units.map((unit) => ({
-                text: me.unitLabel(unit),
-                handler: () => me.selectUnit(unit),
-            })),
-        });
+        me.axes[0].setTitle('%');
+        const legend = me.controls.items.first();
+        legend.flex = 1;
+        const alignLeftLegend = function() {
+            const container = legend.el.down('.x-legend-container');
+            if (container) {
+                container.setStyle('text-align', 'left');
+            }
+        };
+        me.mon(legend, 'refresh', alignLeftLegend);
+        me.mon(legend, 'afterrender', alignLeftLegend);
+        me.unitLegend = units.length ? me.controls.add(Ext.create('Ext.chart.legend.Legend', {
+            padding: 0,
+            style: 'cursor: pointer;',
+            store: {
+                fields: ['unit', 'name', 'mark', 'disabled'],
+                data: units.map(unit => ({
+                    unit,
+                    name: me.unitLabel(unit),
+                    mark: metrics.find(metric => metric.unit === unit).color,
+                    disabled: unit !== me.selectedUnit,
+                })),
+            },
+            toggleItem: function(index) {
+                me.selectUnit(this.getStore().getAt(index).get('unit'));
+            },
+        })) : null;
         me.mon(me.getLegendStore(), 'update', me.saveLegendState, me);
     },
 
@@ -1762,7 +1830,7 @@ Ext.define('PVE.mod.GpuChart', {
             'W': gettext('Power'),
             '°C': gettext('Temperature'),
         };
-        return `${names[unit] || unit} (${unit})`;
+        return names[unit] || unit;
     },
 
     getShownMetrics: function (unit, metrics) {
@@ -1786,9 +1854,10 @@ Ext.define('PVE.mod.GpuChart', {
         if (this.switchingUnit) {
             return;
         }
-        this.shownByUnit[this.selectedUnit] = store.getRange()
+        const shown = store.getRange()
             .filter((record) => !record.get('disabled'))
             .map((record) => this.getSeries().map[record.get('series')].getYField());
+        this.shownByUnit['%'] = shown;
         this.saveChartState();
     },
 
@@ -1797,17 +1866,18 @@ Ext.define('PVE.mod.GpuChart', {
         if (unit === me.selectedUnit) {
             return;
         }
-        let shown = me.getShownMetrics(unit, me.metrics);
         me.switchingUnit = true;
         me.selectedUnit = unit;
         me.getSeries().forEach((series) => {
             let metric = me.metrics.find((m) => m.field === series.getYField());
-            series.setShowInLegend(metric.unit === unit);
-            series.setHidden(metric.unit !== unit || !shown.includes(metric.field));
+            if (metric.unit === '%') {
+                return;
+            }
+            series.setHidden(metric.unit !== unit);
         });
         me.refreshLegendStore();
-        me.axes[0].setTitle(unit);
-        me.unitButton.setText(me.unitLabel(unit));
+        me.axes[1].setTitle(unit);
+        me.unitLegend.getStore().each(record => record.set('disabled', record.get('unit') !== unit));
         me.redraw();
         me.switchingUnit = false;
         me.saveChartState();
@@ -2025,22 +2095,62 @@ Ext.define('PVE.node.Summary', {
                         nodeStatus,
                         {
                             xtype: 'pveModSummaryChart',
-                            title: gettext('CPU Usage'),
-                            fields: ['cpu', 'iowait'],
-                            fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
+                            title: gettext('CPU'),
+                            splitAxisLegend: true,
+                            fields: ['cpu', 'iowait', {
+                                yField: 'pressurecpusome',
+                                title: gettext('CPU pressure (Some)'),
+                                fill: false,
+                            }, {
+                                yField: 'loadavg',
+                                title: gettext('Load average'),
+                                fill: false,
+                                tooltip: {
+                                    trackMouse: true,
+                                    renderer: function(tooltip, record) {
+                                        const value = record.get('loadavg');
+                                        tooltip.setHtml(value === null || value === undefined
+                                            ? gettext('No Data')
+                                            : `${gettext('Load average')}: ${Ext.util.Format.number(value, '0.##')}<br>${new Date(record.get('time'))}`);
+                                    },
+                                },
+                            }, {
+                                yField: 'maxcpu',
+                                title: gettext('Logical CPUs'),
+                                fill: false,
+                                style: { lineWidth: 1.5, lineDash: [6, 4], opacity: 1 },
+                                tooltip: {
+                                    trackMouse: true,
+                                    renderer: function(tooltip, record) {
+                                        const value = record.get('maxcpu');
+                                        tooltip.setHtml(value === null || value === undefined
+                                            ? gettext('No Data')
+                                            : `${gettext('Logical CPUs')}: ${Ext.util.Format.number(value, '0')}<br>${new Date(record.get('time'))}`);
+                                    },
+                                },
+                            }],
+                            fieldTitles: [gettext('CPU usage'), gettext('IO delay'), gettext('CPU pressure (Some)'),
+                                gettext('Load average'), gettext('Logical CPUs')],
+                            colors: ['#115fa6', '#94ae0a', '#FFD13E', '#a61187', '#7c7474'],
+                            axes: [
+                                {
+                                    type: 'numeric', position: 'left', fields: ['cpu', 'iowait', 'pressurecpusome'],
+                                    minimum: 0, maximum: 100, grid: true, renderer: 'leftAxisRenderer',
+                                },
+                                {
+                                    type: 'numeric', position: 'right', fields: ['loadavg', 'maxcpu'],
+                                    minimum: 0, title: gettext('Load average / Logical CPUs'),
+                                    renderer: (axis, value) => Ext.util.Format.number(value, '0.##'),
+                                },
+                                { type: 'time', position: 'bottom', fields: ['time'], grid: true },
+                            ],
                             unit: 'percent',
                             store: rrdstore,
                         },
                         {
                             xtype: 'pveModSummaryChart',
-                            title: gettext('Server Load'),
-                            fields: ['loadavg'],
-                            fieldTitles: [gettext('Load average')],
-                            store: rrdstore,
-                        },
-                        {
-                            xtype: 'pveModSummaryChart',
-                            title: gettext('Memory usage'),
+                            title: gettext('Memory'),
+                            splitAxisLegend: true,
                             fields: [
                                 {
                                     yField: 'memtotal',
@@ -2109,14 +2219,52 @@ Ext.define('PVE.node.Summary', {
                                         opacity: 1,
                                     },
                                 },
+                                ...[
+                                    ['pressurememorysome', gettext('Memory pressure (Some)')],
+                                    ['pressurememoryfull', gettext('Memory pressure (Full)')],
+                                ].map(([yField, title]) => ({
+                                    yField,
+                                    title,
+                                    fill: false,
+                                    tooltip: {
+                                        trackMouse: true,
+                                        renderer: function(tooltip, record) {
+                                            const value = record.get(yField);
+                                            tooltip.setHtml(value === null || value === undefined
+                                                ? gettext('No Data')
+                                                : `${Ext.htmlEncode(title)}: ${Ext.util.Format.number(value, '0.##')}%<br>${new Date(record.get('time'))}`);
+                                        },
+                                    },
+                                })),
                             ],
                             fieldTitles: [
                                 gettext('Total'),
                                 gettext('Used'),
                                 gettext('ZFS ARC'),
                                 gettext('Available'),
+                                gettext('Memory pressure (Some)'),
+                                gettext('Memory pressure (Full)'),
                             ],
-                            colors: ['#94ae0a', '#115fa6', '#24AD9A', '#bbde0d'],
+                            colors: ['#94ae0a', '#115fa6', '#24AD9A', '#bbde0d', '#FFD13E', '#A61120'],
+                            axes: [
+                                {
+                                    type: 'numeric', position: 'left',
+                                    fields: ['memtotal', 'memused', 'arcsize', 'memavailable'],
+                                    minimum: 0, grid: true, renderer: 'leftAxisRenderer',
+                                },
+                                {
+                                    type: 'numeric', position: 'right',
+                                    fields: ['pressurememorysome', 'pressurememoryfull'],
+                                    minimum: 0, maximum: 100, title: gettext('Pressure stall (%)'),
+                                    renderer: (axis, value) => Ext.util.Format.number(value, '0.##'),
+                                },
+                                { type: 'time', position: 'bottom', fields: ['time'], grid: true },
+                            ],
+                            listeners: {
+                                afterrender: function(chart) {
+                                    chart.getAxes().find(axis => axis.getPosition() === 'right').setSegmenter('numeric');
+                                },
+                            },
                             unit: 'bytes',
                             powerOfTwo: true,
                             store: rrdstore,
@@ -2130,27 +2278,9 @@ Ext.define('PVE.node.Summary', {
                         },
                         {
                             xtype: 'pveModSummaryChart',
-                            title: gettext('CPU Pressure Stall'),
-                            fieldTitles: ['Some'],
-                            fields: ['pressurecpusome'],
-                            colors: ['#FFD13E', '#A61120'],
-                            store: rrdstore,
-                            unit: 'percent',
-                        },
-                        {
-                            xtype: 'pveModSummaryChart',
                             title: gettext('IO Pressure Stall'),
                             fieldTitles: ['Some', 'Full'],
                             fields: ['pressureiosome', 'pressureiofull'],
-                            colors: ['#FFD13E', '#A61120'],
-                            store: rrdstore,
-                            unit: 'percent',
-                        },
-                        {
-                            xtype: 'pveModSummaryChart',
-                            title: gettext('Memory Pressure Stall'),
-                            fieldTitles: ['Some', 'Full'],
-                            fields: ['pressurememorysome', 'pressurememoryfull'],
                             colors: ['#FFD13E', '#A61120'],
                             store: rrdstore,
                             unit: 'percent',
