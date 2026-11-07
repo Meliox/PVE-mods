@@ -2,6 +2,37 @@
 
 Extends the Proxmox VE node status view with live hardware sensor data. A background daemon collects data from the configured sources and exposes it through the PVE API.
 
+<details>
+<summary>Show a full node summary with all sensors and graphs enabled</summary>
+
+![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
+
+</details>
+
+## Table of contents
+
+- [Features](#features)
+  - [Temperature Sensors (lm-sensors)](#temperature-sensors-lm-sensors)
+    - [CPU](#cpu)
+    - [Memory](#memory)
+    - [HDD/SSD and NVMe](#hddssd-and-nvme)
+    - [Other](#other)
+  - [NVIDIA GPU](#nvidia-gpu)
+  - [Intel GPU](#intel-gpu)
+    - [Security concern: the `CAP_PERFMON` capability](#security-concern-the-cap_perfmon-capability)
+  - [GPU summary and details](#gpu-summary-and-details)
+  - [GPU graphs and history](#gpu-graphs-and-history)
+  - [AMD GPU](#amd-gpu)
+  - [UPS (Network UPS Tools)](#ups-network-ups-tools)
+  - [CPU and memory graphs](#cpu-and-memory-graphs)
+  - [System Information](#system-information)
+  - [Storage health (ZFS and SMART)](#storage-health-zfs-and-smart)
+- [Requirements](#requirements)
+- [Debug Mode](#debug-mode)
+  - [Per-collector debug files](#per-collector-debug-files)
+  - [Verbose module logging (mod_debug)](#verbose-module-logging-mod_debug)
+
+
 ## Features
 
 ### Temperature Sensors (lm-sensors)
@@ -20,6 +51,8 @@ The node summary shows one row per CPU package with the minimum, average and max
 #### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
 SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually.
+
+![RAM temperatures](images/ram-temperatures.png)
 
 Note: This is an example and you must replace registers with your findings.
 
@@ -60,6 +93,18 @@ EOF
 10) Remove apt-get remove i2c-dev
 
 To uninstall delete the module load and udev rule.
+
+#### HDD/SSD and NVMe
+Drives are listed with model and serial number.
+
+![HDD/SSD temperatures](images/hdd-ssd-temperatures.png)
+
+![NVMe temperatures](images/nvme-temperatures.png)
+
+#### Other
+Remaining temperature sensors are grouped together.
+
+![Other temperatures](images/other-temperatures.png)
 
 ### NVIDIA GPU
 
@@ -123,9 +168,9 @@ The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA
 
 The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
 
-![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel-simulated.png)
+![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel.png)
 
-![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia-simulated.png)
+![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia.png)
 
 `pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
 
@@ -175,6 +220,8 @@ Reads hardware identity from `dmidecode` (cached at configure time, no runtime r
 |--------|-------------|----------------|
 | `1` | DMI System | Manufacturer, Product Name, Serial Number |
 | `2` | DMI Baseboard | Manufacturer, Product Name, Serial Number |
+
+![System information row](images/system-information.png)
 
 ### Storage health (ZFS and SMART)
 
