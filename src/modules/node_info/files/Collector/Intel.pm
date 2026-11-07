@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX ();
 use Exporter 'import';
 use JSON::PP;
 
@@ -295,7 +296,7 @@ sub collector_for_intel_device {
 
         unless (defined $intel_gpu_top_pid && $intel_gpu_top_pid > 0) {
             debug(__LINE__, "Failed to run intel_gpu_top for $drm_dev: $!");
-            exit 1;
+            POSIX::_exit(1);
         }
 
         debug(__LINE__, "Pipe opened successfully, PID=$intel_gpu_top_pid");
@@ -325,8 +326,7 @@ sub collector_for_intel_device {
     }
 
     debug(__LINE__, "Collector for $device->{card} shutting down");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 1;
-

@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX ();
 use Exporter 'import';
 
 use JSON;
@@ -44,7 +45,7 @@ sub collector_for_ups {
     }
 
     debug(__LINE__, "UPS collector shutting down");
-    exit 0;
+    POSIX::_exit(0);
 }
 
 # ============================================================================
