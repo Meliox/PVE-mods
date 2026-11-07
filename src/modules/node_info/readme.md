@@ -144,9 +144,14 @@ Configuration: `device_name=ups@localhost`
 
 ### CPU and memory graphs
 
-The node summary CPU and Memory graphs include the matching pressure stall (PSI) series on a secondary right-hand axis, instead of separate pressure graphs. The CPU graph adds CPU pressure (Some); the Memory graph adds memory pressure (Some and Full).
+The node summary CPU and Memory graphs include the matching pressure stall (PSI) series instead of separate pressure graphs.
 
-![CPU graph with CPU pressure on the right axis](images/cpu-dual-axis.png)
+The CPU graph plots CPU usage, IO delay and CPU pressure (Some) on the left (%) axis. The right axis shows load average together with the number of logical CPUs (dashed line), so you can see at a glance when the load exceeds the available CPUs.
+
+![CPU graph with CPU usage on the left axis and load average on the right](images/cpu-dual-axis.png)
+
+The Memory graph shows memory usage on the left axis and memory pressure (Some and Full) on the right.
+
 
 ![Memory graph with memory pressure on the right axis](images/memory-dual-axis.png)
 

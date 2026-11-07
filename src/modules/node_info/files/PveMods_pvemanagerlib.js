@@ -409,7 +409,10 @@ function renderUpsSummary(info) {
         const bar = chargeAvailable
             ? `<div class="x-progress x-progress-default ${capacityClass}" role="progressbar" aria-label="${encode(gettext('Battery capacity'))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${charge}" aria-valuetext="${capacityLabel}" title="${capacityLabel}" style="height: 5px; margin-top: 3px;"><div class="x-progress-bar x-progress-bar-default" style="height: 5px; width: ${charge}%;"></div></div>`
             : '';
-        return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${encode(data['ups.model'] || data['device.model'] || key)}</td>`
+        const serial = data['ups.serial'] || data['device.serial'];
+        const modelLabel = encode(data['ups.model'] || data['device.model'] || key)
+            + (serial ? ` (${encode(serial)})` : '');
+        return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${modelLabel}</td>`
             + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; overflow-wrap: anywhere;">${summary}${bar}</td></tr>`;
     });
     return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows.join('')}</table>`;
@@ -1701,17 +1704,28 @@ Ext.define('PVE.mod.SummaryChart', {
                 legend.el.down('.x-legend-inner').setStyle('width', '100%');
                 container.setStyle({ display: 'flex', width: '100%', 'text-align': 'left' });
                 let firstRight = true;
-                legend.el.query('.x-legend-item').forEach(item => {
+                const items = legend.el.query('.x-legend-item');
+                const firstStyle = items.length ? getComputedStyle(items[0]) : null;
+                items.forEach((item, index) => {
                     const record = legend.getStore().getAt(Number(item.getAttribute('data-recordindex')));
                     const series = me.getSeries().map[record.get('series')];
                     const right = series.getYAxis().getPosition() === 'right';
-                    item.style.marginLeft = right && firstRight ? 'auto' : '';
+                    const startsRight = right && firstRight;
+                    item.style.marginLeft = startsRight ? 'auto' : '';
+                    item.style.borderLeft = startsRight ? firstStyle.borderLeft : '';
+                    item.style.borderTopLeftRadius = startsRight ? firstStyle.borderTopLeftRadius : '';
+                    item.style.borderBottomLeftRadius = startsRight ? firstStyle.borderBottomLeftRadius : '';
                     if (right) {
                         firstRight = false;
+                    }
+                    if (startsRight && index > 0) {
+                        items[index - 1].style.borderTopRightRadius = firstStyle.borderTopLeftRadius;
+                        items[index - 1].style.borderBottomRightRadius = firstStyle.borderBottomLeftRadius;
                     }
                 });
             };
             me.mon(legend, 'refresh', alignLegend);
+            me.mon(legend, 'itemupdate', alignLegend);
             me.mon(legend, 'afterrender', alignLegend);
         }
     },
@@ -2087,29 +2101,50 @@ Ext.define('PVE.node.Summary', {
                                 yField: 'pressurecpusome',
                                 title: gettext('CPU pressure (Some)'),
                                 fill: false,
+                            }, {
+                                yField: 'loadavg',
+                                title: gettext('Load average'),
+                                fill: false,
+                                tooltip: {
+                                    trackMouse: true,
+                                    renderer: function(tooltip, record) {
+                                        const value = record.get('loadavg');
+                                        tooltip.setHtml(value === null || value === undefined
+                                            ? gettext('No Data')
+                                            : `${gettext('Load average')}: ${Ext.util.Format.number(value, '0.##')}<br>${new Date(record.get('time'))}`);
+                                    },
+                                },
+                            }, {
+                                yField: 'maxcpu',
+                                title: gettext('Logical CPUs'),
+                                fill: false,
+                                style: { lineWidth: 1.5, lineDash: [6, 4], opacity: 1 },
+                                tooltip: {
+                                    trackMouse: true,
+                                    renderer: function(tooltip, record) {
+                                        const value = record.get('maxcpu');
+                                        tooltip.setHtml(value === null || value === undefined
+                                            ? gettext('No Data')
+                                            : `${gettext('Logical CPUs')}: ${Ext.util.Format.number(value, '0')}<br>${new Date(record.get('time'))}`);
+                                    },
+                                },
                             }],
-                            fieldTitles: [gettext('CPU usage'), gettext('IO delay'), gettext('CPU pressure (Some)')],
-                            colors: ['#115fa6', '#94ae0a', '#FFD13E'],
+                            fieldTitles: [gettext('CPU usage'), gettext('IO delay'), gettext('CPU pressure (Some)'),
+                                gettext('Load average'), gettext('Logical CPUs')],
+                            colors: ['#115fa6', '#94ae0a', '#FFD13E', '#a61187', '#7c7474'],
                             axes: [
                                 {
-                                    type: 'numeric', position: 'left', fields: ['cpu', 'iowait'],
+                                    type: 'numeric', position: 'left', fields: ['cpu', 'iowait', 'pressurecpusome'],
                                     minimum: 0, maximum: 100, grid: true, renderer: 'leftAxisRenderer',
                                 },
                                 {
-                                    type: 'numeric', position: 'right', fields: ['pressurecpusome'],
-                                    minimum: 0, maximum: 100, title: gettext('Pressure stall (%)'),
+                                    type: 'numeric', position: 'right', fields: ['loadavg', 'maxcpu'],
+                                    minimum: 0, title: gettext('Load average / Logical CPUs'),
                                     renderer: (axis, value) => Ext.util.Format.number(value, '0.##'),
                                 },
                                 { type: 'time', position: 'bottom', fields: ['time'], grid: true },
                             ],
                             unit: 'percent',
-                            store: rrdstore,
-                        },
-                        {
-                            xtype: 'pveModSummaryChart',
-                            title: gettext('Server Load'),
-                            fields: ['loadavg'],
-                            fieldTitles: [gettext('Load average')],
                             store: rrdstore,
                         },
                         {
