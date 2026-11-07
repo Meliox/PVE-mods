@@ -253,10 +253,13 @@ function renderCpuThermal(info) {
         const average = values.reduce((sum, value) => sum + value, 0) / values.length;
         const averageState = group.selected.some(row => Number.isFinite(row.critical) && average >= row.critical)
             ? 'critical' : group.selected.some(row => Number.isFinite(row.max) && average >= row.max) ? 'warning' : 'ok';
-        const summary = `${gettext('Min')}: ${colored(minimum.value, minimum.state)}`
-            + ` &middot; ${gettext('Avg')}: ${colored(average, averageState)}`
-            + ` &middot; ${gettext('Max')}: ${colored(maximum.value, maximum.state)}`
-            + ` <span style="white-space: nowrap; opacity: 0.7;">(${values.length} ${Ext.htmlEncode(gettext('sensors'))})</span>`;
+        const count = values.length;
+        const countLabel = `<span style="white-space: nowrap; opacity: 0.7;">(${count} ${Ext.htmlEncode(count === 1 ? gettext('sensor') : gettext('sensors'))})</span>`;
+        const summary = count === 1
+            ? `${colored(minimum.value, minimum.state)} ${countLabel}`
+            : `${gettext('Min')}: ${colored(minimum.value, minimum.state)}`
+                + ` &middot; ${gettext('Avg')}: ${colored(average, averageState)}`
+                + ` &middot; ${gettext('Max')}: ${colored(maximum.value, maximum.state)} ${countLabel}`;
         const label = Ext.htmlEncode(group.model || gettext('Unknown CPU'));
         return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${label}</td>`
             + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; white-space: normal; overflow-wrap: anywhere;">${summary}</td></tr>`;
