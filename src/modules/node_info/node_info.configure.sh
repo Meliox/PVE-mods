@@ -266,7 +266,7 @@ _is_intel_pci_device() {
 
 node_info_defaults() {
     LM_SENSORS_ENABLED=0
-    ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
+    ENABLE_CPU=0
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
@@ -307,7 +307,6 @@ node_info_load_conf() {
             gpu.gpu_history)                ENABLE_GPU_HISTORY="$val" ;;
             lm_sensors.enabled)             LM_SENSORS_ENABLED="$val" ;;
             lm_sensors.enable_cpu)          ENABLE_CPU="$val" ;;
-            lm_sensors.cpu_temp_target)     CPU_TEMP_TARGET="$val" ;;
             lm_sensors.enable_ram_temp)     ENABLE_RAM_TEMP="$val" ;;
             lm_sensors.enable_hdd_temp)     ENABLE_HDD_TEMP="$val" ;;
             lm_sensors.enable_nvme_temp)    ENABLE_NVME_TEMP="$val" ;;
@@ -353,7 +352,7 @@ node_info_load_conf() {
 node_info_configure() {
     # Initialize all variables to off
     LM_SENSORS_ENABLED=0
-    ENABLE_CPU=0; CPU_TEMP_TARGET="Core"
+    ENABLE_CPU=0
     ENABLE_RAM_TEMP=0; ENABLE_HDD_TEMP=0; ENABLE_NVME_TEMP=0; ENABLE_OTHER_TEMP=0
     ENABLE_FAN_SPEED=0; DISPLAY_ZERO_SPEED_FANS=0
     ENABLE_INTEL_GPU_INFO=0; ENABLE_NVIDIA_GPU_INFO=0; ENABLE_AMD_GPU_INFO=0
@@ -411,25 +410,6 @@ node_info_configure() {
         if [[ "$ENABLE_CPU" -eq 1 ]]; then
             info "Detected CPU sensors ($cpuCount): $cpuList"
             sensors_detected=true
-            local bRpiOnly=false
-            if [[ "$cpuList" == *"cpu_thermal-virtual-"* ]] && \
-               [[ "$cpuList" != *"coretemp-isa-"* ]] && \
-               [[ "$cpuList" != *"k10temp-pci-"* ]]; then
-                bRpiOnly=true
-            fi
-            if [[ "$bRpiOnly" == true ]]; then
-                CPU_TEMP_TARGET="Core"
-            else
-                while true; do
-                    local choice
-                    choice=$(ask "Display temperatures for all cores [C] or average per CPU [a]? (C/a)")
-                    case "$choice" in
-                        [cC]|"") CPU_TEMP_TARGET="Core"; info "Showing per-core temperatures."; break ;;
-                        [aA])    CPU_TEMP_TARGET="Package"; info "Showing average per-CPU temperature."; break ;;
-                        *)       warn "Invalid input, choose C or a." ;;
-                    esac
-                done
-            fi
         else
             warn "No CPU temperature sensors found."
         fi
@@ -796,7 +776,6 @@ gpu_history=${ENABLE_GPU_HISTORY}
 [lm_sensors]
 enabled=${LM_SENSORS_ENABLED}
 enable_cpu=${ENABLE_CPU}
-cpu_temp_target=${CPU_TEMP_TARGET}
 enable_ram_temp=${ENABLE_RAM_TEMP}
 enable_hdd_temp=${ENABLE_HDD_TEMP}
 enable_nvme_temp=${ENABLE_NVME_TEMP}

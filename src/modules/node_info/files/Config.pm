@@ -70,7 +70,6 @@ our %config = (
     lm_sensors => {
         enabled               => 0,
         enable_cpu            => 0,
-        cpu_temp_target       => 'Core',
         enable_ram_temp       => 0,
         enable_hdd_temp       => 0,
         enable_nvme_temp      => 0,

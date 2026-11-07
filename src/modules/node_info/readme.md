@@ -8,6 +8,12 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry with context. CPU, RAM, HDD/SSD, NVME are directly supported and other temperature sensors can be bundled and displayed together.
 
+#### CPU
+The node summary shows one row per CPU package with the minimum, average and maximum temperature across its core sensors (or the package sensor when no per-core sensors exist) and the sensor count. Click the info icon on a row to open a live table of every sensor of that CPU.
+
+![Node summary CPU temperatures on a dual-socket Intel system](images/cpu-temperature-summary-dual-intel.png)
+
+![Live CPU temperature sensors table on a dual-socket Intel system](images/cpu-temperature-live-dual-intel.png)
 
 #### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
