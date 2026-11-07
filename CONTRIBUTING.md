@@ -49,7 +49,8 @@ bash build/test/test-upgrade-revert.sh
 ```
 
 The pull request workflows also build and validate the package. Their
-Proxmox-dependent patch tests run in the configured CI environment.
+Proxmox-dependent patch tests run in the configured CI environment. The
+`validate-mods` workflow must pass before a pull request is merged.
 
 ## Pull requests
 
