@@ -522,7 +522,7 @@ Ext.define('PVE.node.StatusView', {
                         let cpuModelStr = cpuData.model || 'Unknown CPU';
                         
                         html += '<tr>';
-                        html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${cpuModelStr}</td>`;
+                        html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${cpuModelStr}</td>`;
                         html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${strCoreTemps.join('')}</td>`;
                         html += '</tr>';
                     }
@@ -530,7 +530,7 @@ Ext.define('PVE.node.StatusView', {
                 html += '</table>';
 				
                 return html.indexOf('<tr>') > 0
-                    ? '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>'
+                    ? html
                     : 'N/A';
             }
         },
@@ -596,7 +596,7 @@ Ext.define('PVE.node.StatusView', {
                         }
                         
                         html += '<tr>';
-                        html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuData.name}</td>`;
+                        html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuData.name}</td>`;
                         html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${details.join(' | ')}</td>`;
                         html += '</tr>';
                     });
@@ -664,7 +664,7 @@ Ext.define('PVE.node.StatusView', {
                         }
                         
                         html += '<tr>';
-                        html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${stats.name}</td>`;
+                        html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${stats.name}</td>`;
                         html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${details.join(' | ')}</td>`;
                         html += '</tr>';
                     });
@@ -674,7 +674,7 @@ Ext.define('PVE.node.StatusView', {
                 if (html.indexOf('<tr>') <= 0) {
                     return '';
                 }
-                return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+                return html;
             },
         },
         {
@@ -792,12 +792,12 @@ Ext.define('PVE.node.StatusView', {
 					let deviceName = `${index + 1}. ${data.model}`;
                     if (data.serial != "unknown") deviceName += `&nbsp;(${data.serial})`;
 					html += '<tr>';
-					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
+					html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
 					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
 			}
 		},       
         {
@@ -869,12 +869,12 @@ Ext.define('PVE.node.StatusView', {
 						deviceName += `&nbsp;(${data.serial})`;
 					}
 					html += '<tr>';
-                    html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
+                    html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${deviceName}</td>`;
                     html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;"><span style="${data.tempStyle}">${Ext.util.Format.number(data.temp, '0.0')}${data.unit}</span></td>`;
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
             }
         },
         {
@@ -961,12 +961,12 @@ Ext.define('PVE.node.StatusView', {
 				let html = '<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">';
 				rows.forEach(row => {
 					html += '<tr>';
-					html += `<td style="padding: 2px 10px 2px 0; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${row.label}</td>`;
+					html += `<td style="padding: 2px 10px 2px 20px; text-align: left; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${row.label}</td>`;
 					html += `<td style="padding: 2px 0 2px 10px; text-align: right; width: 50%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${row.temps}</td>`;
 					html += '</tr>';
 				});
 				html += '</table>';
-				return '<div style="padding: 0 10px; box-sizing: border-box;">' + html + '</div>';
+				return html;
             }
         },
 
