@@ -259,16 +259,18 @@ Only known keys and positive integers from `1` to `2147483647` are accepted.
 Invalid values produce a warning and retain the previous valid value (or the
 default); unknown keys are ignored.
 
-The main file `/etc/pve-mods/pve-mods.conf` is read first, followed by
-`/etc/pve-mods/conf.d/*.conf` in lexical filename order. Later valid values
-override earlier ones. For persistent custom settings, create a separate file
-such as `/etc/pve-mods/conf.d/90-intervals.conf`; the configuration wizard
-manages `node_info.conf`, so keep custom overrides separate from that file.
-An override must sort after any other file that sets the same options.
+These are advanced settings in `/etc/pve-mods/conf.d/node_info.conf`. The
+configuration wizard does not prompt for them, but it keeps your values when
+you re-run it to configure anything else. Edit the file, then restart
+`pveproxy` (`systemctl restart pveproxy`).
 
-For an external client such as Home Assistant polling approximately every
-60 seconds, use a collector timeout greater than the client's API polling
-interval, with margin for delays. For example:
+### Recommended for Home Assistant and other API clients
+
+The collectors stop after `collector_timeout` seconds without a request. A
+client that polls less often than that finds the collectors stopped, and its
+temperature entities can become unknown or unavailable until the next
+successful read. Set the timeout above the client's polling interval, with
+margin for delays. For a client polling about every 60 seconds:
 
 ```ini
 [intervals]
@@ -276,11 +278,9 @@ data_pull=5
 collector_timeout=120
 ```
 
-Restart `pveproxy` after changing these settings (`systemctl restart pveproxy`).
-No packaged Perl files need editing, and no additional service is required.
-Defaults remain unchanged when the section is absent. A longer timeout keeps
-collectors running between requests; it does not guarantee fresh data on the
-first request after a collector starts.
+`data_pull=5` also reduces polling load when one-second updates are not
+needed. A longer timeout keeps collectors running between requests; it does
+not guarantee fresh data on the first request after a collector starts.
 
 ## Debug Mode
 

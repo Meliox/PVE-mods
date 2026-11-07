@@ -312,6 +312,7 @@ node_info_defaults() {
     ENABLE_STORAGE_HEALTH=0; STORAGE_SMART_ENABLED=1
     STORAGE_LIFE_WARNING=20; STORAGE_LIFE_CRITICAL=10
     STORAGE_ZFS_INTERVAL=15; STORAGE_SMART_INTERVAL=1800; STORAGE_SMART_WAKE=0
+    DATA_PULL_INTERVAL=1; COLLECTOR_TIMEOUT=10
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
@@ -324,6 +325,28 @@ node_info_defaults() {
     DEBUG_SMARTCTL_FILE="/tmp/smartctl-output.json"
     DEBUG_LOG=0;         DEBUG_LOG_FILE="/tmp/pve-mods-debug.log"
     DEBUG_MOD=0
+}
+
+# Same rule as the [intervals] parser in Config.pm: whole seconds, 1..2147483647.
+# Prints the normalized value and succeeds, or fails for anything else.
+_valid_interval() {
+    local val="$1"
+    [[ "$val" =~ ^[0-9]+$ ]] && (( ${#val} <= 10 )) || return 1
+    (( 10#$val >= 1 && 10#$val <= 2147483647 )) || return 1
+    echo "$((10#$val))"
+}
+
+# Loads one [intervals] value into the named variable; an invalid value keeps
+# the current one, as Config.pm does at runtime.
+_load_interval() {
+    local var="$1" key="$2" val="$3" parsed
+    val="${val%%#*}"                      # Config.pm also accepts inline comments
+    val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+    if parsed=$(_valid_interval "$val"); then
+        printf -v "$var" '%s' "$parsed"
+    else
+        warn "Ignoring invalid [intervals] $key='$val' in $NODE_INFO_CONF (expected 1-2147483647); keeping ${!var}."
+    fi
 }
 
 node_info_load_conf() {
@@ -362,6 +385,8 @@ node_info_load_conf() {
             storage_health.zfs_interval)    STORAGE_ZFS_INTERVAL="$val" ;;
             storage_health.smart_interval)  STORAGE_SMART_INTERVAL="$val" ;;
             storage_health.smart_wake_disks) STORAGE_SMART_WAKE="$val" ;;
+            intervals.data_pull)            _load_interval DATA_PULL_INTERVAL data_pull "$val" ;;
+            intervals.collector_timeout)    _load_interval COLLECTOR_TIMEOUT collector_timeout "$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
@@ -850,6 +875,14 @@ life_critical_percent=${STORAGE_LIFE_CRITICAL}
 zfs_interval=${STORAGE_ZFS_INTERVAL}
 smart_interval=${STORAGE_SMART_INTERVAL}
 smart_wake_disks=${STORAGE_SMART_WAKE}
+
+# Advanced, not prompted by the wizard: edit here, then restart pveproxy.
+# Whole seconds, 1-2147483647. See the node_info readme before changing them.
+[intervals]
+# Seconds between collector data polls
+data_pull=${DATA_PULL_INTERVAL}
+# Stop collectors after this many seconds without a request
+collector_timeout=${COLLECTOR_TIMEOUT}
 
 [system_info]
 enabled=${ENABLE_SYSTEM_INFO}

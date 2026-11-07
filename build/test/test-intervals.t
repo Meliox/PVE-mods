@@ -53,8 +53,31 @@ is($PVE::PVEMods::Config::config{lm_sensors}{enabled}, 1, 'sensor config preserv
 is($PVE::PVEMods::Config::config{system_info}{temp_unit}, 'F', 'system config preserved');
 is(scalar @warnings, 0, 'valid values and unknown keys do not warn');
 
-for my $bad ('', '0', '-1', '1.5', 'abc', '1e2', '+5', '5 seconds',
-             '2147483648', '999999999999999999999999999999') {
+sub read_vectors {
+    open my $fh, '<', "$FindBin::Bin/fixtures/interval-values.txt" or die $!;
+    my (@accept, @reject);
+    while (my $l = <$fh>) {
+        chomp $l;
+        next if $l =~ /^#/ || $l eq '';
+        my ($kind, $raw, $norm) = split /\|/, $l, 3;
+        $raw = '' unless defined $raw;
+        push @{ $kind eq 'accept' ? \@accept : \@reject }, [$raw, $norm];
+    }
+    return (\@accept, \@reject);
+}
+my ($accept, $reject) = read_vectors();
+
+for my $v (@$accept) {
+    my ($raw, $norm) = @$v;
+    @warnings = ();
+    load_ini("[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
+    is_deeply($PVE::PVEMods::Config::config{intervals},
+        { data_pull => $norm, collector_timeout => $norm }, "accept '$raw' as $norm");
+    is(scalar @warnings, 0, 'no warning for valid value');
+}
+load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
+
+for my $bad (map { $_->[0] } @$reject) {
     @warnings = ();
     load_ini("[intervals]\ndata_pull=$bad\ncollector_timeout=$bad\n");
     is_deeply($PVE::PVEMods::Config::config{intervals},
@@ -68,6 +91,18 @@ is($PVE::PVEMods::Config::config{intervals}{data_pull}, 5, 'missing assignment i
 is($PVE::PVEMods::Config::config{intervals}{collector_timeout}, 1, 'minimum accepted');
 load_ini("[intervals]\ndata_pull=2147483647\n");
 is($PVE::PVEMods::Config::config{intervals}{data_pull}, 2147483647, 'maximum accepted');
+
+my $wizard_conf = $ENV{INTERVALS_WIZARD_CONF};
+if (defined $wizard_conf) {
+    @warnings = ();
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    PVE::PVEMods::Config::_load_ini_file($wizard_conf);
+    is_deeply($PVE::PVEMods::Config::config{intervals},
+        { data_pull => 7, collector_timeout => 300 },
+        'wizard-written node_info.conf loads in Config.pm');
+    is(scalar @warnings, 0, 'wizard-written file loads without warnings');
+    load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
+}
 
 write_file("$dir/main.conf", "[intervals]\ndata_pull=2\ncollector_timeout=30\n");
 write_file("$dir/conf.d/10-first.conf", "[intervals]\ndata_pull=3\n");
@@ -99,6 +134,7 @@ $worker =~ s/use PVE::PVEMods::[^;]+;//gs;
 $worker =~ s/package PVE::PVEMods::ProcessManager;/package PVE::PVEMods::ProcessManager;
     use subs qw(time sleep exit);
     our (%config, \$process_type, \$pve_mods_working_dir, \$state_file,
+         \$sensors_state_file, \$ups_state_file, \$storage_health_state_file,
          \$pve_mods_worker_lock, \$startup_lock);
 /;
 {
@@ -119,6 +155,7 @@ die $@ if $@;
     *PVE::PVEMods::ProcessManager::_initialise_sensors_collector = sub { $WorkerTest::started++ };
     *PVE::PVEMods::ProcessManager::_initialise_graphics_collectors = sub {};
     *PVE::PVEMods::ProcessManager::_initialise_ups_collector = sub {};
+    *PVE::PVEMods::ProcessManager::_initialise_storage_health_collector = sub {};
     *PVE::PVEMods::ProcessManager::_stop_child_collectors = sub { $WorkerTest::stopped++ };
 }
 for my $case ([10, undef, 11], [120, undef, 121], [120, 60, 181]) {
@@ -129,6 +166,8 @@ for my $case ([10, undef, 11], [120, undef, 121], [120, 60, 181]) {
     write_file("$dir/worker.lock", "test\n");
     {
         local %SIG = %SIG;
+        no warnings 'redefine';
+        local *POSIX::_exit = sub { die "worker exited\n" };
         eval { PVE::PVEMods::ProcessManager::_pve_mods_keep_alive() };
     }
     is($@, "worker exited\n", 'worker exits normally on inactivity');

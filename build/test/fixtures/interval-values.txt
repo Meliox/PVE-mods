@@ -1,0 +1,19 @@
+# Shared by test-intervals.t (Config.pm) and test-intervals.sh (configure wizard)
+# so both validators agree. Format: accept|<raw value>|<normalized> or reject|<raw value>
+accept|1|1
+accept|5|5
+accept|120|120
+accept|007|7
+accept|2147483647|2147483647
+accept|5 # seconds|5
+accept| 5 |5
+reject|
+reject|0
+reject|-1
+reject|1.5
+reject|abc
+reject|1e2
+reject|+5
+reject|5 seconds
+reject|2147483648
+reject|999999999999999999999999999999
