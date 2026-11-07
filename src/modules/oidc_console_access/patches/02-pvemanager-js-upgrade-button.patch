@@ -1,0 +1,10 @@
+--- a/usr/share/pve-manager/js/pvemanagerlib.js
++++ b/usr/share/pve-manager/js/pvemanagerlib.js
+@@ -51051,7 +51051,6 @@
+                     itemId: 'apt',
+                     upgradeBtn: {
+                         xtype: 'pveConsoleButton',
+-                        disabled: Proxmox.UserName !== 'root@pam',
+                         text: gettext('Upgrade'),
+                         consoleType: 'upgrade',
+                         nodename: nodename,
