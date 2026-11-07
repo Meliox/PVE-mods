@@ -246,9 +246,7 @@ function renderCpuThermal(info) {
             : state === 'warning' ? 'color: #FFC300; font-weight: bold;' : '';
         return `<span style="${style}">${format(value)}</span>`;
     };
-    const detailsLabel = Ext.htmlEncode(gettext('CPU sensor details'));
     const rows = groups.map(group => {
-        const detailsButton = `<button type="button" class="pve-mods-cpu-details" data-cpu-group="${Ext.htmlEncode(group.id)}" aria-label="${detailsLabel}" title="${detailsLabel}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
         const values = group.selected.map(row => row.value);
         const minimum = group.selected.reduce((a, b) => a.value <= b.value ? a : b);
         const maximum = group.selected.reduce((a, b) => a.value >= b.value ? a : b);
@@ -258,7 +256,7 @@ function renderCpuThermal(info) {
         const summary = `${gettext('Min')}: ${colored(minimum.value, minimum.state)}`
             + ` &middot; ${gettext('Avg')}: ${colored(average, averageState)}`
             + ` &middot; ${gettext('Max')}: ${colored(maximum.value, maximum.state)}`
-            + ` <span style="white-space: nowrap;"><span style="opacity: 0.7;">(${values.length} ${Ext.htmlEncode(gettext('sensors'))})</span> ${detailsButton}</span>`;
+            + ` <span style="white-space: nowrap; opacity: 0.7;">(${values.length} ${Ext.htmlEncode(gettext('sensors'))})</span>`;
         const label = Ext.htmlEncode(group.model || gettext('Unknown CPU'));
         return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${label}</td>`
             + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; white-space: normal; overflow-wrap: anywhere;">${summary}</td></tr>`;
@@ -266,8 +264,8 @@ function renderCpuThermal(info) {
     return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows}</table>`;
 }
 
-function getCpuThermalDetailRows(widget) {
-    return widget.cpuThermalGroups.filter(group => group.id === widget.cpuThermalDetailGroup)
+function getCpuThermalDetailRows(widget, groupId) {
+    return widget.cpuThermalGroups.filter(group => group.id === groupId)
         .flatMap(group => group.rows.map(row => ({
         id: JSON.stringify([group.id, row.id]),
         group: group.label, model: group.model, sensor: row.label, value: row.value, state: row.state,
@@ -279,69 +277,74 @@ function refreshCpuThermalDetails(widget) {
     if (!win || win.destroyed) {
         return;
     }
-    const grid = win.down('grid');
-    const store = grid.getStore();
-    const rows = getCpuThermalDetailRows(widget);
-    const ids = new Set(rows.map(row => row.id));
-    store.remove(store.getRange().filter(record => !ids.has(record.getId())));
-    rows.forEach(row => {
-        const record = store.getById(row.id);
-        if (record) {
-            record.set(row);
-            record.commit();
-        } else {
-            store.add(row);
+    const tabs = win.down('tabpanel');
+    const groups = widget.cpuThermalGroups || [];
+    groups.forEach(group => {
+        let grid = tabs.items.items.find(tab => tab.deviceId === group.id);
+        if (!grid) {
+            grid = tabs.add({
+                xtype: 'grid',
+                deviceId: group.id,
+                title: Ext.htmlEncode(`${group.model || gettext('CPU')} (${group.label})`),
+                scrollable: true,
+                viewConfig: { preserveScrollOnRefresh: true },
+                store: { fields: ['id', 'group', 'model', 'sensor', 'value', 'state'] },
+                columns: [
+                    { text: gettext('Package'), dataIndex: 'group', width: 150, renderer: Ext.htmlEncode },
+                    { text: gettext('Sensor'), dataIndex: 'sensor', flex: 1, minWidth: 140, renderer: Ext.htmlEncode },
+                    { text: `\u00b0${widget.cpuThermalUnit}`, itemId: 'temperatureColumn', dataIndex: 'value', width: 90,
+                        renderer: function(value, metadata, record) {
+                            const state = record.get('state');
+                            metadata.tdStyle = state === 'critical' ? 'color: red; font-weight: bold;'
+                                : state === 'warning' ? 'color: #FFC300; font-weight: bold;' : '';
+                            return Ext.util.Format.number(value, '0.0');
+                        } },
+                ],
+            });
+        }
+        const store = grid.getStore();
+        const rows = getCpuThermalDetailRows(widget, group.id);
+        const ids = new Set(rows.map(row => row.id));
+        store.remove(store.getRange().filter(record => !ids.has(record.getId())));
+        rows.forEach(row => {
+            const record = store.getById(row.id);
+            if (record) {
+                record.set(row);
+                record.commit();
+            } else {
+                store.add(row);
+            }
+        });
+        grid.down('#temperatureColumn').setText(`\u00b0${widget.cpuThermalUnit}`);
+    });
+    tabs.items.items.slice().forEach(tab => {
+        if (!groups.some(group => group.id === tab.deviceId)) {
+            tabs.remove(tab);
         }
     });
-    grid.down('#temperatureColumn').setText(`\u00b0${widget.cpuThermalUnit}`);
+    if (!tabs.getActiveTab() && tabs.items.getCount()) {
+        tabs.setActiveTab(0);
+    }
 }
 
-function showCpuThermalDetails(widget, groupId) {
-    const group = widget.cpuThermalGroups?.find(group => group.id === groupId);
-    if (!group) {
-        return;
-    }
-    if (widget.cpuThermalWindow && widget.cpuThermalDetailGroup !== groupId) {
-        widget.cpuThermalWindow.close();
-    }
-    widget.cpuThermalDetailGroup = groupId;
+function showCpuThermalDetails(widget) {
     if (widget.cpuThermalWindow && !widget.cpuThermalWindow.destroyed) {
         widget.cpuThermalWindow.toFront();
         return;
     }
-    // Counts refer to temperature sensors, not logical threads; retain sparse core IDs per package.
-    const rows = getCpuThermalDetailRows(widget);
     const size = Ext.getBody().getViewSize();
     widget.cpuThermalWindow = Ext.create('Ext.window.Window', {
-        title: Ext.htmlEncode(gettext('CPU temperature sensors - live')
-            + (group.model ? ' - ' + group.model : '')),
+        title: gettext('CPU temperature sensors - live'),
         modal: true,
         width: Math.min(900, size.width - 32),
         height: Math.min(560, size.height - 64),
         layout: 'fit',
-        items: [{
-            xtype: 'grid',
-            scrollable: true,
-            store: {
-                fields: ['id', 'group', 'model', 'sensor', 'value', 'state'],
-                data: rows,
-            },
-            columns: [
-                { text: gettext('Package'), dataIndex: 'group', width: 150, renderer: Ext.htmlEncode },
-                { text: gettext('Sensor'), dataIndex: 'sensor', flex: 1, minWidth: 140, renderer: Ext.htmlEncode },
-                { text: `\u00b0${widget.cpuThermalUnit}`, itemId: 'temperatureColumn', dataIndex: 'value', width: 90,
-                    renderer: function(value, metadata, record) {
-                        const state = record.get('state');
-                        metadata.tdStyle = state === 'critical' ? 'color: red; font-weight: bold;'
-                            : state === 'warning' ? 'color: #FFC300; font-weight: bold;' : '';
-                        return Ext.util.Format.number(value, '0.0');
-                    } },
-            ],
-        }],
+        items: [{ xtype: 'tabpanel' }],
         buttons: [{ text: gettext('Close'), handler: button => button.up('window').close() }],
         listeners: { destroy: function() { widget.cpuThermalWindow = null; } },
     });
     widget.cpuThermalWindow.show();
+    refreshCpuThermalDetails(widget);
 }
 
 function getGpuDevices(info) {
@@ -564,13 +567,11 @@ function renderUpsSummary(info) {
         const status = getUpsStatus(data['ups.status']);
         const style = status.state === 'critical' ? 'color: red; font-weight: bold;'
             : status.state === 'warning' ? 'color: #FFC300; font-weight: bold;' : '';
-        const label = encode(gettext('UPS details'));
-        const button = `<button type="button" class="pve-mods-ups-details" data-ups-key="${encode(key)}" aria-label="${label}" title="${label}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
         const summary = `<div style="display: flex; justify-content: space-between; gap: 8px;">`
             + `<span style="text-align: left; ${style}">${encode(status.text)}</span>`
             + `<span>${encode(gettext('Capacity'))}: ${encode(percent(data['battery.charge']))}`
             + ` (${encode(formatUpsRuntime(data['battery.runtime']))} ${encode(gettext('left'))})`
-            + ` | <span style="white-space: nowrap;">${encode(gettext('Load'))}: ${encode(percent(data['ups.load']))} ${button}</span></span></div>`;
+            + ` | <span style="white-space: nowrap;">${encode(gettext('Load'))}: ${encode(percent(data['ups.load']))}</span></span></div>`;
         const charge = getSensorValue({ input: data['battery.charge'] }, 'input');
         const chargeAvailable = Number.isFinite(charge) && charge >= 0 && charge <= 100;
         const capacityLabel = encode(gettext('Battery capacity') + ': ' + percent(data['battery.charge']));
@@ -589,16 +590,11 @@ function renderUpsSummary(info) {
     return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows.join('')}</table>`;
 }
 
-function refreshUpsDetails(widget) {
-    const win = widget.upsWindow;
-    if (!win || win.destroyed) {
-        return;
-    }
-    const data = widget.upsInfo?.[widget.upsDetailKey];
+function getUpsDetailsHtml(data, key) {
     const encode = value => Ext.htmlEncode(String(value));
     const sections = [
         [gettext('Device'), [
-            [gettext('Connection'), null, widget.upsDetailKey],
+            [gettext('Connection'), null, key],
             [gettext('Manufacturer'), 'ups.mfr', data?.['device.mfr']],
             [gettext('Model'), 'ups.model', data?.['device.model']],
             [gettext('Serial number'), 'ups.serial', data?.['device.serial']],
@@ -637,41 +633,65 @@ function refreshUpsDetails(widget) {
         }).join('');
         return entries ? `<h3>${encode(title)}</h3><table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${entries}</table>` : '';
     }).join('');
-    win.down('#overview').update(data ? html : encode(gettext('UPS data unavailable')));
+    return data ? html : encode(gettext('UPS data unavailable'));
 }
 
-function showUpsDetails(widget, key) {
-    const data = widget.upsInfo?.[key];
-    if (!data) {
+function refreshUpsDetails(widget) {
+    const win = widget.upsWindow;
+    if (!win || win.destroyed) {
         return;
     }
-    if (widget.upsWindow && widget.upsDetailKey !== key) {
-        widget.upsWindow.close();
+    const tabs = win.down('tabpanel');
+    const devices = Object.entries(widget.upsInfo || {}).filter(([, data]) =>
+        data && typeof data === 'object' && !Array.isArray(data));
+    devices.forEach(([key, data]) => {
+        let panel = tabs.items.items.find(tab => tab.deviceId === key);
+        if (!panel) {
+            panel = tabs.add({
+                xtype: 'panel',
+                deviceId: key,
+                title: Ext.htmlEncode(`${data['ups.model'] || data['device.model'] || gettext('UPS')} (${key})`),
+                bodyPadding: 15,
+                scrollable: true,
+            });
+        }
+        const html = getUpsDetailsHtml(data, key);
+        if (panel.detailsHtml !== html) {
+            const scrollable = panel.getScrollable();
+            const position = scrollable.getPosition();
+            panel.update(html);
+            panel.detailsHtml = html;
+            scrollable.scrollTo(position.x, position.y);
+        }
+    });
+    tabs.items.items.slice().forEach(tab => {
+        if (!devices.some(([key]) => key === tab.deviceId)) {
+            tabs.remove(tab);
+        }
+    });
+    if (!tabs.getActiveTab() && tabs.items.getCount()) {
+        tabs.setActiveTab(0);
     }
-    widget.upsDetailKey = key;
+}
+
+function showUpsDetails(widget) {
     if (widget.upsWindow && !widget.upsWindow.destroyed) {
         widget.upsWindow.toFront();
         return;
     }
     const size = Ext.getBody().getViewSize();
     widget.upsWindow = Ext.create('Ext.window.Window', {
-        title: Ext.htmlEncode(gettext('UPS details - live') + ' - '
-            + (data['ups.model'] || data['device.model'] || key)),
+        title: gettext('UPS details - live'),
         modal: true,
         width: Math.min(760, size.width - 32),
         height: Math.min(560, size.height - 64),
         layout: 'fit',
-        items: [{
-            xtype: 'panel',
-            itemId: 'overview',
-            bodyPadding: 15,
-            scrollable: true,
-        }],
+        items: [{ xtype: 'tabpanel' }],
         buttons: [{ text: gettext('Close'), handler: button => button.up('window').close() }],
         listeners: { destroy: function() { widget.upsWindow = null; } },
     });
-    refreshUpsDetails(widget);
     widget.upsWindow.show();
+    refreshUpsDetails(widget);
 }
 
 function showStorageHealthDetails(widget) {
@@ -868,8 +888,7 @@ Ext.define('PVE.node.StatusView', {
                     text += ` <span style="opacity: 0.7;">(+${issues.length - 1} ${gettext('more')})</span>`;
                 }
 
-                const detailsLabel = Ext.htmlEncode(gettext('Storage health details'));
-                return `${text} <button type="button" class="pve-mods-storage-details" aria-label="${detailsLabel}" title="${detailsLabel}" style="margin-left: 4px; padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
+                return text;
             },
             value: '',
         },
@@ -905,8 +924,7 @@ Ext.define('PVE.node.StatusView', {
             listeners: {
                 afterrender: function(widget) {
                     widget.getEl().on('click', function(event) {
-                        const button = event.getTarget('button.pve-mods-cpu-details');
-                        showCpuThermalDetails(widget, button.getAttribute('data-cpu-group'));
+                        showCpuThermalDetails(widget);
                     }, null, { delegate: 'button.pve-mods-cpu-details' });
                 },
                 destroy: function(widget) {
@@ -1376,8 +1394,7 @@ Ext.define('PVE.node.StatusView', {
             listeners: {
                 afterrender: function(widget) {
                     widget.getEl().on('click', function(event) {
-                        const button = event.getTarget('button.pve-mods-ups-details');
-                        showUpsDetails(widget, button.getAttribute('data-ups-key'));
+                        showUpsDetails(widget);
                     }, null, { delegate: 'button.pve-mods-ups-details' });
                 },
                 destroy: function(widget) {
@@ -1489,6 +1506,9 @@ Ext.define('PVE.node.StatusView', {
                 if (field.itemId === 'gpu_details' && field.gpuWindow) {
                     field.gpuWindow.close();
                 }
+                if (field.itemId === 'thermalCpu' && field.cpuThermalWindow) {
+                    field.cpuThermalWindow.close();
+                }
                 return;
             }
             if (state === 'pending') {
@@ -1559,12 +1579,21 @@ Ext.define('PVE.node.StatusView', {
                 '<div style="width: 100%; white-space: normal;">{usage}</div>'
             );
         });
-        const gpuLabel = Ext.htmlEncode(gettext('GPU details - live'));
-        me.down('#gpu_details').getComponent('label').tpl = new Ext.XTemplate(
-            '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title} ',
-            `<button type="button" class="pve-mods-gpu-details" aria-label="${gpuLabel}" title="${gpuLabel}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button></div>`,
-            '<div style="width: 100%; white-space: normal;">{usage}</div>'
-        );
+        [
+            ['gpu_details', 'gpu', gettext('GPU details - live')],
+            ['thermalCpu', 'cpu', gettext('CPU temperature sensors - live')],
+            ['upsc', 'ups', gettext('UPS details - live')],
+            ['storageHealth', 'storage', gettext('Storage health details')],
+        ].forEach(([itemId, type, label]) => {
+            const encoded = Ext.htmlEncode(label);
+            const heading = '<tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title} '
+                + `<button type="button" class="pve-mods-${type}-details" aria-label="${encoded}" title="${encoded}" style="padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
+            me.down('#' + itemId).getComponent('label').tpl = new Ext.XTemplate(
+                itemId === 'storageHealth'
+                    ? `<div class="left-aligned">${heading}</div><div class="right-aligned">{usage}</div>`
+                    : `<div>${heading}</div><div style="width: 100%; white-space: normal;">{usage}</div>`
+            );
+        });
         me.down('#thermalRam').getComponent('label').tpl = new Ext.XTemplate(
             '<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start;">',
             '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',

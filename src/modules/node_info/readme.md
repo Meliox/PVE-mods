@@ -13,7 +13,9 @@ The node summary shows one row per CPU package with the minimum, average and max
 
 ![Node summary CPU temperatures on a dual-socket Intel system](images/cpu-temperature-summary-dual-intel.png)
 
-![Live CPU temperature sensors table on a dual-socket Intel system](images/cpu-temperature-live-dual-intel.png)
+![Live CPU temperature sensors table for package 0 on a dual-socket Intel system](images/cpu-temperature-live-dual-intel.png)
+
+![Live CPU temperature sensors table for package 1 on a dual-socket Intel system](images/cpu-temperature-live-dual-intel-package1.png)
 
 #### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
