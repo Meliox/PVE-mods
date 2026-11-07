@@ -19,9 +19,9 @@ and/or the passwordless root Shell, which Proxmox normally reserves for
 Each feature is controlled independently. Members must also have the
 `Sys.Console` privilege on `/nodes/<node>`.
 
-![Node Updates tab with the Upgrade console button](images/oidc-upgrade.png)
+<p align="center"><img src="images/oidc-upgrade.png" alt="Node Updates tab with the Upgrade console button"></p>
 
-![Node Shell tab with a passwordless root shell](images/oidc-shell.png)
+<p align="center"><img src="images/oidc-shell.png" alt="Node Shell tab with a passwordless root shell"></p>
 
 ## Security
 

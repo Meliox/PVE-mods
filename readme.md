@@ -1,50 +1,80 @@
-# Proxmox Virtual Environment mods and scripts
-A small collection of scripts and mods for Proxmox Virtual Environment (PVE)
+# PVE-mods
+PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
 
-If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
-
-| Version | Description | Status |
-|---------|-------------|--------|
-| **v2** (current) | Debian package (`pve-mods`) with interactive `pve-mods-configure` wizard | Recommended |
-| v1 (legacy) | Standalone bash scripts, manual install | Archived — see [Legacy section](#legacy-v1-shell-scripts) |
-
----
-
-## Version 2 (beta) — Debian package
+<p align="center">
+  <a href="images/proxmox-node-overview.png">
+    <img src="images/proxmox-node-overview-small.png" alt="PVE-mods node summary on a simulated Proxmox VE node">
+  </a>
+  <br>
+  <em>Click the image to view it in full size.</em>
+</p>
 
 Compatibility: PVE 9.0+
 
-TBD PICTURE
+All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
 
-`pve-mods` is a Debian package that installs UI patches and an interactive configuration wizard.
+## Table of contents
 
-### Mods
+- [Available mods](#available-mods)
+- [How it works](#how-it-works)
+- [Install](#install)
+  - [Migrating from v1 (legacy scripts)](#migrating-from-v1-legacy-scripts)
+  - [Manual configuration changes](#manual-configuration-changes)
+  - [Re-applying patches after PVE upgrades](#re-applying-patches-after-pve-upgrades)
+- [Upgrade](#upgrade)
+- [Uninstall](#uninstall)
+- [Notes](#notes)
+  - [Reverse proxy / CDN caching](#reverse-proxy--cdn-caching)
+- [Support and contributing](#support-and-contributing)
+  - [Donations](#donations)
+- [License](#license)
 
-| Mod | Description | Dependencies |
-|--------|-------------|--------------|
-| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node summary panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats and optional history graphs (Intel/NVIDIA), UPS status, ZFS/SMART storage health, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `upsc`<br>- Storage health: `zpool` and/or `smartmontools`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
-| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
-| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. | - |
+> Looking for the old standalone bash scripts (v1)? They are archived, see the [legacy scripts readme](https://github.com/Meliox/PVE-mods/blob/e1c3eb0524fbb8ca940454aef3a51c0644a2d170/legacy-scripts/readme.md).
+
+### Available mods
+
+Each mod is optional and enabled individually in `pve-mods-configure`. See the mod readmes for details and screenshots.
+
+| Mod | Description |
+|-----|-------------|
+| [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. |
+| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. |
+| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. |
+
+Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
 ### How it works
 
-1. The `pve-mods` package installs the mods installation, patch files under `/usr/lib/pve-mods/`.
-2. The mods main configuration file and mods can be found under `/etc/pve-mods/`.
-2. Running `pve-mods-configure` prompts for which modules to enable and configuration of mods.
-3. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
-4. When upgrading `pve-mods`, the previous patches are reverted before package files are replaced, then the new version's patches are applied.
+1. The `pve-mods` package installs the patch files and scripts under `/usr/lib/pve-mods/`.
+2. The main configuration file and per-mod settings are stored under `/etc/pve-mods/`.
+3. Running `pve-mods-configure` prompts for which mods to enable and how to configure them.
+4. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
+5. When upgrading `pve-mods`, the previous patches are reverted before package files are replaced, then the new version's patches are applied.
+6. Optionally, patches are re-applied automatically after a `pve-manager` upgrade (see [Re-applying patches after PVE upgrades](#re-applying-patches-after-pve-upgrades)).
 
 ### Install
 
-Commands and mod configuration must be run as `root`.
+1. Install `pve-mods`. The installer downloads the latest release, verifies its checksum and asks for confirmation:
+
+   ```bash
+   curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
+   ```
+
+2. Install the additional packages required by the mods you want to use - see each mod's readme linked in the [Available mods](#available-mods) section.
+3. Run `pve-mods-configure` to enable/disable and configure mods.
+4. Hard-refresh the browser (`Ctrl+F5`) so the patched web UI is loaded.
+
+For multiple nodes, install `pve-mods` on all nodes with identical configuration.
+
+#### Migrating from v1 (legacy scripts)
+
+`pve-mods-configure` refuses to run if it detects a v1 script installation. Remove it first with the legacy script you installed, for example:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
+bash pve-mods-gui-sensors.sh uninstall
 ```
 
-Install respective mod dependencies - see Mod table.
-
-Run `pve-mods-configure` to install/uninstall and configure mods.
+The scripts are available in [legacy-scripts/](legacy-scripts/readme.md).
 
 #### Manual configuration changes
 Configuration files are located in `/etc/pve-mods/`. After any manual edits, restart `pveproxy` to apply the changes:
@@ -52,6 +82,12 @@ Configuration files are located in `/etc/pve-mods/`. After any manual edits, res
 ```bash
 systemctl restart pveproxy
 ```
+
+#### Re-applying patches after PVE upgrades
+
+Upgrading Proxmox packages (e.g. `pve-manager`) can overwrite the patched files and remove the mods. Enable the "Auto re-patch on PVE upgrade" option in `pve-mods-configure` to have `pve-mods` re-apply the enabled patches automatically after such upgrades. Otherwise, run `pve-mods-configure` again after a PVE upgrade.
+
+If the patches of a mod are incompatible with the new PVE version, they are not applied: the mod is left unpatched (reverted to a clean state), a warning is printed, and the PVE upgrade itself is not blocked. Check for a newer `pve-mods` release that supports your PVE version, then run `pve-mods-configure` to apply the mod.
 
 ### Upgrade
 
@@ -65,16 +101,15 @@ curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh 
 
 ### Uninstall
 
-Commands and mod configuration must be run as `root`.
-
 ```bash
 apt-get remove pve-mods
 ```
-And remove dependencies needed by respective mods.
+
+Removing the package reverts all applied patches and asks whether to keep `/etc/pve-mods/pve-mods.conf`. Use `apt-get purge pve-mods` to also delete all configuration and state (`/etc/pve-mods`, `/var/lib/pve-mods`).
+
+Afterwards, remove the dependencies installed for the respective mods if no longer needed.
 
 ### Notes
-
-Multiple node support requires application to be installed on all nodes with identical configuration. (untested)
 
 #### Reverse proxy / CDN caching
 
@@ -82,92 +117,21 @@ If mod details appear when accessing a node directly but not through a reverse p
 
 ---
 
-## Legacy / v1 (shell scripts)
+## Support and contributing
 
-> **These scripts are archived.** For new installations, use the [v2 Debian package](#version-2--debian-package) above.
+- Report bugs or request features through [GitHub issues](https://github.com/Meliox/PVE-mods/issues) (include your PVE and `pve-mods` versions).
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute and run the tests.
+- Report security vulnerabilities as described in [security.md](security.md).
 
-### Node sensor readings view
+### Donations
 
-![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mods-sensors.png?raw=true)
+If you find this helpful, a small donation is appreciated:
 
-Compatibility:
-- 9.0-9.2. Newer versions may often work
-- Older version (7.x-8.x), use git version from Apr 6th 2025
+Paypal: [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W)
 
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) to display sensor readings in a flexible and readable manner.
-The following readings are possible:
-- CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit), fan speeds, ram temperatures via lm-sensors. Note: Hdds require kernel module *drivetemp* module installed.
-- UPS information via Network Monitoring Tool
-- ZFS pool and SMART drive health summary (degraded pools, resilver/scrub, failing drives, SSD/NVMe wear) via zpool and smartmontools
-- Motherboard information or system information via dmidecode
+Bitcoin (BTC): `16hg7syEJ3HkSP1PAANkpSW6pZ4vCdvUnK`
 
-#### How it works
-The modification involves the following steps:
-1. Backup original files in the home directory/backup
-   - `/usr/share/pve-manager/js/pvemanagerlib.js`
-   - `/usr/share/perl5/PVE/API2/Nodes.pm`   
-2. Patch `Nodes.pm` to enable readings.  
-3. Modify `pvemanagerlib.js` to:  
-   - Expand the node status view to full browser width.  
-   - Add reading (depending on  & selections).  
-   - Allow collapsing the panel vertically.  
-4. Restart the `pveproxy` service to apply changes.
+## License
 
-The script provides three options:
-| **Option**             | **Description**                                                             |
-|-------------------------|-----------------------------------------------------------------------------|
-| `install`              | Apply the modification.                |
-| `uninstall`            | Restore original files from backups.      |
-| `save-sensors-data`    | Save a local copy of detected sensor data for reference or troubleshooting.             |
+Released under the [MIT License](LICENSE).
 
-Notes:
-- UPS support in multi-node setups require identical login credentials across nodes. This has not been fully tested.  
-- Proxmox upgrades may overwrite modified files; reinstallation of this mod could be required.  
-
-#### Install
-Instructions be performed as 'root', as normal users do not have access to the files.
-
-```
-apt-get install lm-sensors
-# lm-sensors must be configured, run below to configure your sensors, apply temperature offsets. Refer to lm-sensors manual for more information.
-sensors-detect 
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mods-gui-sensors.sh
-bash pve-mods-gui-sensors.sh install
-# Then clear the browser cache to ensure all changes are visualized.
-```
-Additionally, adjustments are available in the first part of the script, where paths can be edited, cpucore offset and display information.
-
-### Nag screen deactivation
-(Tested compatibility: 7.x - 8.3.5)
-This bash script installs a modification to the Proxmox Virtual Environment (PVE) web user interface (UI) which deactivates the subscription nag screen.
-
-The modification includes two main steps:
-1. Create backups of the original files in the `backup` directory relative to the script location.
-2. Modify code.
-
-The script provides three options:
-| **Option**             | **Description**                                                             |
-|-------------------------|-----------------------------------------------------------------------------|
-| `install`              | Installs the modification by applying the necessary changes.                |
-| `uninstall`            | Removes the modification by restoring the original files from backups.      |
-
-#### Install
-Instructions be performed as 'root', as normal users do not have access to the files.
-```
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/pve-mods-nag-screen.sh
-bash pve-mods-nag-screen.sh install
-```
-
-### Script to update all containers
-(Tested compatibility: 7.x - 8.3.5)
-
-This script updates all running Proxmox containers, skipping specified excluded containers, and generates a separate log file for each container.
-The script first updates the Proxmox host system, then iterates through each container, updates the container, and reboots it if necessary.
-Each container's log file is stored in $log_path and the main script log file is named container-upgrade-main.log.
-
-#### Install
-```
-wget https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/legacy-scripts/updateallcontainers.sh
-```
-Or use git clone.
-Can be added to cron for e.g. monthly update: ```0 6 1 * * /root/scripts/updateallcontainers.sh```
