@@ -137,7 +137,11 @@ Reads hardware identity from `dmidecode` (cached at configure time, no runtime r
 
 ### Storage health (ZFS and SMART)
 
-Adds a **Volumes and drives** row to the node Summary: `OK`, or the highest-priority problem (e.g. `tank DEGRADED: drive removed`, `nvme6 life remaining: 7%`). Further problems are listed in a tooltip. Disabled by default. Settings are in the `[storage_health]` section of `node_info.conf`.
+Adds a **Volumes and drives** row to the node Summary: `OK`, or the highest-priority problem (e.g. `tank DEGRADED: drive removed`, `nvme6 life remaining: 7%`). Further problems are listed in the details window, opened with the info button next to the row. Disabled by default. Settings are in the `[storage_health]` section of `node_info.conf`.
+
+![Node summary with the Volumes and drives row](images/storage-health-summary.png)
+
+![Volumes and drives details window](images/storage-health-details-ok.png)
 
 Drives in standby are never woken by default (`smart_wake_disks=0`). SMART queries run from a small root service, `pve-mods-storage-smart.service`, which is installed and removed together with the setting. See the header of `Collector/StorageHealth.pm` for the checks, severities and design.
 
