@@ -248,22 +248,25 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 
 ## Collector intervals
 
-Set in `/etc/pve-mods/conf.d/node_info.conf`, in whole seconds. `pve-mods-configure` asks for both with the current values pre-filled; you can also edit the file. Restart `pveproxy` afterwards.
+Collectors only run while something is reading the data: they start on a request and stop after `collector_timeout` seconds without one. The Proxmox web interface keeps them running, so the defaults suit normal use. Change them when:
 
-| Option | Default | Purpose |
-|--------|---------|---------|
-| `data_pull` | `1` | Delay between collector data polls. |
-| `collector_timeout` | `10` | Collectors stop after this long without a request. |
+- **An external client polls less often than the timeout.** Home Assistant or another tool reading the Proxmox API every 60 seconds finds the collectors stopped, and its temperature entities can become unknown or unavailable. Set `collector_timeout` above its polling interval.
+- **You want less load.** A higher `data_pull` polls the hardware less often, at the cost of less frequent updates.
 
-Invalid values are ignored with a warning.
-
-**Home Assistant and other external clients:** if a client polls the Proxmox API less often than `collector_timeout`, its temperature entities can become unknown or unavailable. Set the timeout above its polling interval, for example for a 60 second poll:
+Example for a client polling every 60 seconds:
 
 ```ini
 [intervals]
 data_pull=5
 collector_timeout=120
 ```
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `data_pull` | `1` | Seconds between collector data polls. |
+| `collector_timeout` | `10` | Seconds without a request before collectors stop. |
+
+Set them in `/etc/pve-mods/conf.d/node_info.conf` or when running `pve-mods-configure` (current values are pre-filled), then restart `pveproxy`. Invalid values are ignored with a warning.
 
 ## Debug Mode
 
