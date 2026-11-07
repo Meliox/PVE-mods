@@ -224,15 +224,8 @@ Ext.define('PVE.node.StatusView', {
             criticalThreshold: 0.8,
             renderer: Proxmox.Utils.render_node_size_usage,
         },
-        // Fill the remaining cell so the next colspan:2 section header starts on a new row.
-        {
-            xtype: 'box',
-            html: '',
-            padding: 0,
-        },
         {
             itemId: 'storageHealth',
-            colspan: 2,
             printBar: false,
             title: gettext('Volumes and drives'),
             iconCls: 'fa fa-fw fa-heartbeat',
