@@ -50,4 +50,4 @@ jobs:
         run: bash build/test/test-storage-health.sh
 
       - name: Test collector interval configuration and lifecycle
-        run: bash build/test/test-intervals.sh
+        run: prove build/test/test-intervals.t

@@ -92,17 +92,78 @@ is($PVE::PVEMods::Config::config{intervals}{collector_timeout}, 1, 'minimum acce
 load_ini("[intervals]\ndata_pull=2147483647\n");
 is($PVE::PVEMods::Config::config{intervals}{data_pull}, 2147483647, 'maximum accepted');
 
-my $wizard_conf = $ENV{INTERVALS_WIZARD_CONF};
-if (defined $wizard_conf) {
-    @warnings = ();
-    local $SIG{__WARN__} = sub { push @warnings, @_ };
-    PVE::PVEMods::Config::_load_ini_file($wizard_conf);
-    is_deeply($PVE::PVEMods::Config::config{intervals},
-        { data_pull => 7, collector_timeout => 300 },
-        'wizard-written node_info.conf loads in Config.pm');
-    is(scalar @warnings, 0, 'wizard-written file loads without warnings');
-    load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
+# The configure wizard (bash) is exercised by running its real functions against
+# a temporary config directory; prompts are answered from stdin.
+my $wizard = "$root/../node_info.configure.sh";
+my $wdir = "$dir/wizard";
+my $wconf = "$wdir/node_info.conf";
+make_path($wdir);
+
+sub wizard {    # ($bash_body, $stdin) -> (last stdout line, stderr)
+    my ($body, $input) = @_;
+    write_file("$dir/in.txt", $input // '');
+    write_file("$dir/run.sh", <<"SH" . $body);
+CONFD_DIR='$wdir'
+warn() { echo "\$*" >&2; }
+info() { :; }
+section() { :; }
+source '$wizard'
+show() { echo "\$DATA_PULL_INTERVAL \$COLLECTOR_TIMEOUT"; }
+SH
+    my @out = `bash $dir/run.sh < $dir/in.txt 2> $dir/err.txt`;
+    open my $fh, '<', "$dir/err.txt" or die $!;
+    my $err = do { local $/; <$fh> };
+    my $last = @out ? $out[-1] : '';
+    chomp $last;
+    return ($last, $err // '');
 }
+my $reload = 'node_info_defaults; node_info_load_conf; ';
+
+is((wizard('node_info_defaults; show'))[0], '1 10', 'wizard defaults');
+is((wizard('node_info_defaults; _configure_intervals; show', "\n\n"))[0], '1 10',
+    'Enter accepts the defaults');
+is((wizard('node_info_defaults; _configure_intervals; show', "0\nabc\n2147483648\n7\n-1\n300\n"))[0],
+    '7 300', 'prompts reject invalid answers');
+
+# configure -> save -> reload
+is((wizard('node_info_defaults; _configure_intervals; node_info_write_conf; ' . $reload . 'show',
+    "9\n450\n"))[0], '9 450', 'configured values survive save and reload');
+{
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    @warnings = ();
+    PVE::PVEMods::Config::_load_ini_file($wconf);
+    is_deeply($PVE::PVEMods::Config::config{intervals},
+        { data_pull => 9, collector_timeout => 450 }, 'Config.pm loads the wizard-written file');
+    is(scalar @warnings, 0, 'no warnings for the wizard-written file');
+}
+is((wizard($reload . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT"', ''))[0], '0 9 450',
+    'saved values reload');
+is((wizard($reload . 'ENABLE_UPS=1; node_info_write_conf; ' . $reload
+    . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT"'))[0], '1 9 450',
+    'unrelated change keeps the saved values');
+my $saved = read_source($wconf);
+wizard($reload . 'node_info_write_conf');
+is(read_source($wconf), $saved, 'repeated save is stable');
+
+# Same accept/reject rules as Config.pm
+for my $v (@$accept) {
+    my ($raw, $norm) = @$v;
+    write_file($wconf, "[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
+    my ($got, $err) = wizard($reload . 'show');
+    is($got, "$norm $norm", "wizard accepts '$raw'");
+    is($err, '', 'no warning for valid value');
+}
+for my $v (@$reject) {
+    my $raw = $v->[0];
+    write_file($wconf, "[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
+    my ($got, $err) = wizard($reload . 'show');
+    is($got, '1 10', "wizard rejects '$raw' and keeps the defaults");
+    is(scalar(() = $err =~ /\n/g), 2, 'one warning per invalid option');
+}
+write_file($wconf, "[intervals]\ndata_pull=7\ncollector_timeout=0\n");
+is((wizard($reload . 'show'))[0], '7 10', 'invalid saved value falls back, valid one kept');
+
+load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
 
 write_file("$dir/main.conf", "[intervals]\ndata_pull=2\ncollector_timeout=30\n");
 write_file("$dir/conf.d/10-first.conf", "[intervals]\ndata_pull=3\n");
