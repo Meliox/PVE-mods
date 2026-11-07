@@ -48,7 +48,7 @@ No ACL or role can change this, even for an `Administrator`.
 | `03-nodes-pm-shell-access.patch` | `Nodes.pm` | Adds `pvemods_shell_allowed()`. Members of `shell_groups` get `/bin/login -f root` instead of the login prompt. Over an SSH tunnel to another node it uses the same no-nested-login behaviour as `root@pam`. |
 
 Both helpers read `/etc/pve-mods/conf.d/oidc_console_access.conf` on every request.
-They return true only if:
+They return true only if the matching feature flag is `1` and:
 
 1. the request is for that feature's command (`upgrade`, or `login`/the default shell);
 2. the group list for the feature is not empty;
@@ -79,7 +79,8 @@ shell_groups=pve-admins-authentik
 ```
 
 - `upgrade` / `shell` (0 or 1) decide which patches are applied. They are
-  conditions in `patches.list`.
+  conditions in `patches.list` and are checked on each request, so setting a
+  flag to `0` disables access immediately.
 - `upgrade_groups` / `shell_groups` are comma separated Proxmox group names.
   Use the full name as shown in Datacenter → Permissions → Groups.
 - `pve-mods-configure` sets the flag from the group list (empty list = disabled).

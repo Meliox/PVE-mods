@@ -1,6 +1,6 @@
 --- a/usr/share/perl5/PVE/API2/Nodes.pm
 +++ b/usr/share/perl5/PVE/API2/Nodes.pm
-@@ -1181,13 +1181,32 @@
+@@ -1181,13 +1181,36 @@
      },
  );
  
@@ -13,7 +13,11 @@
 +    my $conf = '/etc/pve-mods/conf.d/oidc_console_access.conf';
 +    return 0 if !-r $conf;
 +
-+    my ($groups) = file_get_contents($conf) =~ /^\s*upgrade_groups\s*=\s*(.*?)\s*$/m;
++    my $config = file_get_contents($conf);
++    my ($enabled) = $config =~ /^\s*upgrade\s*=\s*(1)\s*$/m;
++    return 0 if !defined($enabled);
++
++    my ($groups) = $config =~ /^\s*upgrade_groups\s*=\s*(.*?)\s*$/m;
 +    return 0 if !defined($groups) || $groups eq '';
 +
 +    my $usercfg = cfs_read_file('user.cfg');

@@ -10,7 +10,7 @@
      } else {
          # non-root must always login for now, we do not have a superuser role!
          $cmd = ['/bin/login'];
-@@ -1223,6 +1226,23 @@
+@@ -1223,6 +1226,27 @@
      return $is_ssh_tunneling ? [$tunnel_cmd->@*, $cmd->@*] : $cmd;
  }
  
@@ -21,7 +21,11 @@
 +    my $conf = '/etc/pve-mods/conf.d/oidc_console_access.conf';
 +    return 0 if !-r $conf;
 +
-+    my ($groups) = file_get_contents($conf) =~ /^\s*shell_groups\s*=\s*(.*?)\s*$/m;
++    my $config = file_get_contents($conf);
++    my ($enabled) = $config =~ /^\s*shell\s*=\s*(1)\s*$/m;
++    return 0 if !defined($enabled);
++
++    my ($groups) = $config =~ /^\s*shell_groups\s*=\s*(.*?)\s*$/m;
 +    return 0 if !defined($groups) || $groups eq '';
 +
 +    my $usercfg = cfs_read_file('user.cfg');
