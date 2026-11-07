@@ -1541,7 +1541,9 @@ Ext.define('PVE.mod.GpuGraphs', {
                 if (!card || !/^[a-zA-Z0-9]+$/.test(card) || !dev.stats) {
                     return;
                 }
-                res.push({ type, card, name: dev.name || dev.stats.name || card, stats: dev.stats });
+                // history_id (PCI based) names the RRD file; it stays the same when cardN/index change
+                let id = /^[a-zA-Z0-9]+$/.test(dev.history_id || '') ? dev.history_id : card;
+                res.push({ type, card, id, name: dev.name || dev.stats.name || card, stats: dev.stats });
             });
         });
         return res;
@@ -1865,7 +1867,7 @@ Ext.define('PVE.node.Summary', {
             let useHistory = info.gpu_history === true;
             let added = false;
             PVE.mod.GpuGraphs.devices(info).forEach((dev) => {
-                let entry = gpuCharts[dev.card];
+                let entry = gpuCharts[dev.id];
                 if (!entry) {
                     let metrics = PVE.mod.GpuGraphs.metricsFor(dev.type, dev.stats);
                     if (metrics.length === 0) {
@@ -1874,21 +1876,21 @@ Ext.define('PVE.node.Summary', {
                     let store = useHistory
                         ? Ext.create('PVE.data.GpuRRDStore', {
                               rrdurl: '/api2/json/nodes/' + nodename + '/gpurrddata',
-                              card: dev.card,
+                              card: dev.id,
                           })
                         : Ext.create('PVE.mod.GpuLiveStore');
                     let title = `${gettext('GPU')}: ${Ext.htmlEncode(dev.name)} (${dev.card})`;
                     let chart = container.add({
                         xtype: 'pveModGpuChart',
-                        itemId: `gpu-${dev.card}`,
+                        itemId: `gpu-${dev.id}`,
                         title: useHistory ? title : `${title} (${gettext('live')})`,
-                        card: dev.card,
+                        card: dev.id,
                         nodename: nodename,
                         columnWidth: 1 / (container.oldFactor || 1),
                         metrics: metrics,
                         store: store,
                     });
-                    entry = gpuCharts[dev.card] = { chart: chart, store: store };
+                    entry = gpuCharts[dev.id] = { chart: chart, store: store };
                     store.startUpdate();
                     added = true;
                 }

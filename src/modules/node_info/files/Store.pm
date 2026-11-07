@@ -13,6 +13,7 @@ use PVE::PVEMods::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
     get_nodename
+    gpu_history_id
     gpu_rrd_path
     update_intel_gpu_rrd
     update_nvidia_gpu_rrd
@@ -30,9 +31,23 @@ sub get_nodename {
 # RRD path helper
 # ============================================================================
 
+# Stable identifier of a GPU's RRD file, derived from its PCI address
+# ("0000:00:02.0" or "00000000:01:00.0" -> "pci000000020"). Unlike cardN or the
+# NVIDIA index it does not change when the enumeration order does. Falls back
+# to $fallback when the address is unknown. Matches [a-zA-Z0-9]+ as required by
+# the gpurrddata API.
+sub gpu_history_id {
+    my ($pci_addr, $fallback) = @_;
+    if (defined $pci_addr
+        && $pci_addr =~ /^(?:[0-9a-f]{4})?([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2})\.([0-7])$/i) {
+        return lc("pci$1$2$3$4");
+    }
+    return $fallback;
+}
+
 sub gpu_rrd_path {
-    my ($card) = @_;
-    return "$RRD_BASE/" . get_nodename() . "/$card";
+    my ($id) = @_;
+    return "$RRD_BASE/" . get_nodename() . "/$id";
 }
 
 # ============================================================================
@@ -42,8 +57,8 @@ sub gpu_rrd_path {
 sub _ensure_intel_gpu_rrd {
     return unless $config{gpu}{gpu_history};
 
-    my ($card) = @_;
-    my $path = gpu_rrd_path($card);
+    my ($id) = @_;
+    my $path = gpu_rrd_path($id);
     return if -f $path;
 
     my $dir = "$RRD_BASE/" . get_nodename();
@@ -77,11 +92,11 @@ sub _ensure_intel_gpu_rrd {
 }
 
 sub update_intel_gpu_rrd {
-    my ($card, $stats) = @_;
+    my ($id, $stats) = @_;
     return unless $config{gpu}{gpu_history};
 
-    _ensure_intel_gpu_rrd($card);
-    my $path = gpu_rrd_path($card);
+    _ensure_intel_gpu_rrd($id);
+    my $path = gpu_rrd_path($id);
 
     my $freq_req    = $stats->{frequency}{requested}        // 'U';
     my $freq_act    = $stats->{frequency}{actual}           // 'U';
@@ -100,7 +115,7 @@ sub update_intel_gpu_rrd {
         "N:$freq_req:$freq_act:$rc6:$power_gpu:$power_pkg:$render_busy:$blitter:$video:$videnh",
     );
     my $err = RRDs::error();
-    debug(__LINE__, "RRD update intel $card: $err") if $err;
+    debug(__LINE__, "RRD update intel $id: $err") if $err;
 }
 
 # ============================================================================
@@ -110,9 +125,8 @@ sub update_intel_gpu_rrd {
 sub _ensure_nvidia_gpu_rrd {
     return unless $config{gpu}{gpu_history};
 
-    my ($index) = @_;
-    my $card = "nvidia$index";
-    my $path = gpu_rrd_path($card);
+    my ($id) = @_;
+    my $path = gpu_rrd_path($id);
     return if -f $path;
 
     my $dir = "$RRD_BASE/" . get_nodename();
@@ -145,12 +159,11 @@ sub _ensure_nvidia_gpu_rrd {
 }
 
 sub update_nvidia_gpu_rrd {
-    my ($index, $stats) = @_;
+    my ($id, $stats) = @_;
     return unless $config{gpu}{gpu_history};
 
-    _ensure_nvidia_gpu_rrd($index);
-    my $card = "nvidia$index";
-    my $path = gpu_rrd_path($card);
+    _ensure_nvidia_gpu_rrd($id);
+    my $path = gpu_rrd_path($id);
 
     my $gpu_util    = $stats->{utilization}{gpu}    // 'U';
     my $mem_util    = $stats->{utilization}{memory} // 'U';
@@ -168,7 +181,7 @@ sub update_nvidia_gpu_rrd {
         "N:$gpu_util:$mem_util:$mem_used:$mem_total:$power_draw:$power_limit:$temp_gpu:$fan_speed",
     );
     my $err = RRDs::error();
-    debug(__LINE__, "RRD update nvidia$index: $err") if $err;
+    debug(__LINE__, "RRD update nvidia $id: $err") if $err;
 }
 
 1;

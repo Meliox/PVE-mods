@@ -30,7 +30,7 @@
 +        properties => {
 +            node => get_standard_option('pve-node'),
 +            card => {
-+                description => "The GPU card identifier (e.g. card0, nvidia0).",
++                description => "The GPU history identifier, derived from its PCI address (e.g. pci000000020).",
 +                type => 'string',
 +                pattern => '[a-zA-Z0-9]+',
 +            },

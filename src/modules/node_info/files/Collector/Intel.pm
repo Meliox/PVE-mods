@@ -7,7 +7,7 @@ use JSON::PP;
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
 use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json read_sysfs);
-use PVE::PVEMods::Store  qw(update_intel_gpu_rrd);
+use PVE::PVEMods::Store  qw(update_intel_gpu_rrd gpu_history_id);
 
 our @EXPORT_OK = qw(
     get_intel_gpu_devices
@@ -47,6 +47,19 @@ sub _get_pci_vendor_id {
     return undef;
 }
 
+# PCI address of a DRM card: taken from a "pci:<address>" descriptor, otherwise
+# resolved through the card's sysfs device link.
+sub _get_pci_address {
+    my ($card, $path) = @_;
+
+    return $1 if $path =~ m{^pci:([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.\d+)$};
+
+    my $link = readlink("/sys/class/drm/$card/device");
+    return $1 if defined $link && $link =~ m{([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.\d+)$};
+
+    return undef;
+}
+
 sub get_intel_gpu_devices {
     my @devices = ();
     my $fh;
@@ -81,12 +94,13 @@ sub get_intel_gpu_devices {
                 next;
             }
             push @devices, {
-                card     => $card,
-                name     => $name,
-                path     => $path,
-                drm_path => "/dev/dri/$card",
+                card       => $card,
+                name       => $name,
+                path       => $path,
+                drm_path   => "/dev/dri/$card",
+                history_id => gpu_history_id(_get_pci_address($card, $path), $card),
             };
-            debug(__LINE__, "Found Intel device: $card -> $name ($path)");
+            debug(__LINE__, "Found Intel device: $card -> $name ($path), history id $devices[-1]{history_id}");
         }
     }
     close $fh;
@@ -247,12 +261,13 @@ sub collector_for_intel_device {
                 name        => $device->{name},
                 device_path => $device->{path},
                 drm_path    => $device->{drm_path},
+                history_id  => $device->{history_id},
                 stats       => $stats,
             }
         };
 
         safe_write_json($device_state_file, $device_data);
-        update_intel_gpu_rrd($device->{card}, $stats);
+        update_intel_gpu_rrd($device->{history_id}, $stats);
     };
 
     if ($config{debug}{intel_mode} && -f $config{debug}{intel_output_file}) {

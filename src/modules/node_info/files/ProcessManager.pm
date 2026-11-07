@@ -35,6 +35,10 @@ our @EXPORT_OK = qw(
 # Each forked child has its own copy; the parent never accesses this after forking.
 my %collectors = ();
 
+# GPU collectors the last device discovery decided should run. Compared with
+# %collectors to notice collectors that died or never started.
+my %expected_gpu_collectors = ();
+
 # ============================================================================
 # Public API (called from SensorInfo)
 # ============================================================================
@@ -293,11 +297,12 @@ sub _pve_mods_keep_alive {
     debug(__LINE__,
         "Entering pve_mods_worker loop, timeout=$config{intervals}{collector_timeout}s");
 
-    # With GPU history enabled the GPU collectors never idle out, so the RRD
-    # keeps recording without anyone viewing the UI. The sensors and UPS
-    # collectors are only needed for the UI and still stop while it is idle.
-    my $record_history      = $config{gpu}{gpu_history} ? 1 : 0;
-    my $expected_gpu        = scalar(_running_gpu_collectors());
+    # With GPU history enabled the worker never idles out, so the RRD keeps
+    # recording without anyone viewing the UI. The sensors and UPS collectors
+    # are only needed for the UI and still stop while it is idle.
+    my $record_history      = ($config{gpu}{gpu_history}
+        && ($config{gpu}{intel_enabled} || $config{gpu}{amd_enabled} || $config{gpu}{nvidia_enabled}))
+        ? 1 : 0;
     my $ui_collectors_idle  = 0;
     my $last_gpu_check      = time();
 
@@ -310,7 +315,7 @@ sub _pve_mods_keep_alive {
             . "timeout=$config{intervals}{collector_timeout}s");
 
         if ($idle_time > $config{intervals}{collector_timeout}) {
-            if ($record_history && $expected_gpu > 0) {
+            if ($record_history) {
                 unless ($ui_collectors_idle) {
                     debug(__LINE__, "Idle: stopping sensors/UPS collectors, GPU history keeps recording");
                     _stop_named_collectors('sensors', 'ups');
@@ -331,11 +336,15 @@ sub _pve_mods_keep_alive {
             $ui_collectors_idle = 0;
         }
 
-        # Restart GPU collectors that died, so history has no permanent gaps
-        if ($record_history && $expected_gpu > 0 && time() - $last_gpu_check >= 30) {
+        # Rediscover GPUs and restart collectors that died or never started (for
+        # example a driver that was not ready at boot), so history has no
+        # permanent gaps.
+        if ($record_history && time() - $last_gpu_check >= 30) {
             $last_gpu_check = time();
-            if (scalar(_running_gpu_collectors()) < $expected_gpu) {
-                debug(__LINE__, "A GPU collector is no longer running, restarting");
+            my @missing = grep { !exists $collectors{$_} } keys %expected_gpu_collectors;
+            if (!%expected_gpu_collectors || @missing) {
+                debug(__LINE__, "GPU collectors missing (" . (join(', ', @missing) || 'none discovered yet')
+                    . "), running discovery again");
                 _initialise_graphics_collectors();
             }
         }
@@ -343,11 +352,6 @@ sub _pve_mods_keep_alive {
     }
 
     debug(__LINE__, "pve_mods_worker loop exited unexpectedly!");
-}
-
-# Registered collectors that gather GPU data (everything except sensors/UPS).
-sub _running_gpu_collectors {
-    return grep { $_ ne 'sensors' && $_ ne 'ups' } keys %collectors;
 }
 
 # Stops only the named collectors, leaving the rest and the working directory.
@@ -414,6 +418,7 @@ sub _initialise_graphics_collectors {
 
     debug(__LINE__, "Starting graphics collectors");
 
+    %expected_gpu_collectors = ();
     my (@all_devices, @all_types, @all_collector_subs);
     my @nvidia_devices;
 
@@ -463,12 +468,14 @@ sub _initialise_graphics_collectors {
         my $collector_sub = $all_collector_subs[$i];
         my $device_name   = $device->{card} // $device->{name} // "device$i";
 
+        $expected_gpu_collectors{$device_name} = 1;
         my $pid = _start_collector($device_name, $type, $collector_sub, $device);
         $started_count++ if $pid;
     }
 
     # NVIDIA — single collector for all GPUs
     if (@nvidia_devices) {
+        $expected_gpu_collectors{'nvidia-all'} = 1;
         my $pid = _start_collector('nvidia-all', 'nvidia',
                                    \&collector_for_nvidia_devices,
                                    \@nvidia_devices);
