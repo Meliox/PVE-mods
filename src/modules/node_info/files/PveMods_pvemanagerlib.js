@@ -409,10 +409,7 @@ function renderUpsSummary(info) {
         const bar = chargeAvailable
             ? `<div class="x-progress x-progress-default ${capacityClass}" role="progressbar" aria-label="${encode(gettext('Battery capacity'))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${charge}" aria-valuetext="${capacityLabel}" title="${capacityLabel}" style="height: 5px; margin-top: 3px;"><div class="x-progress-bar x-progress-bar-default" style="height: 5px; width: ${charge}%;"></div></div>`
             : '';
-        const serial = data['ups.serial'] || data['device.serial'];
-        const modelLabel = encode(data['ups.model'] || data['device.model'] || key)
-            + (serial ? ` (${encode(serial)})` : '');
-        return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${modelLabel}</td>`
+        return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${encode(data['ups.model'] || data['device.model'] || key)}</td>`
             + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; overflow-wrap: anywhere;">${summary}${bar}</td></tr>`;
     });
     return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows.join('')}</table>`;
