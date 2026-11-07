@@ -4,6 +4,29 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 
 ![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
 
+## Table of contents
+
+- [Features](#features)
+  - [Temperature Sensors (lm-sensors)](#temperature-sensors-lm-sensors)
+    - [CPU](#cpu)
+    - [Memory](#memory)
+    - [HDD/SSD and NVMe](#hddssd-and-nvme)
+    - [Other](#other)
+  - [NVIDIA GPU](#nvidia-gpu)
+  - [Intel GPU](#intel-gpu)
+    - [Security concern: the `CAP_PERFMON` capability](#security-concern-the-cap_perfmon-capability)
+  - [GPU summary and details](#gpu-summary-and-details)
+  - [GPU graphs and history](#gpu-graphs-and-history)
+  - [AMD GPU](#amd-gpu)
+  - [UPS (Network UPS Tools)](#ups-network-ups-tools)
+  - [CPU and memory graphs](#cpu-and-memory-graphs)
+  - [System Information](#system-information)
+  - [Storage health (ZFS and SMART)](#storage-health-zfs-and-smart)
+- [Requirements](#requirements)
+- [Debug Mode](#debug-mode)
+  - [Per-collector debug files](#per-collector-debug-files)
+  - [Verbose module logging (mod_debug)](#verbose-module-logging-mod_debug)
+
 ## Features
 
 ### Temperature Sensors (lm-sensors)
