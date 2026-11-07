@@ -35,14 +35,10 @@ oidc_console_access_load_conf() {
 }
 
 oidc_console_access_configure() {
-    local input default choice_hint
+    local input
     echo "Enabled features grant root access. Members also need Sys.Console on /nodes/<node>."
 
-    default="N"
-    choice_hint="[y/N]"
-    [[ -n "$OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS" ]] && default="Y"
-    [[ "$default" == "Y" ]] && choice_hint="[Y/n]"
-    if _oidc_console_access_ask_yes_no "Enable the node 'Upgrade' console? $choice_hint" "$default"; then
+    if _oidc_console_access_ask_yes_no "Enable the node 'Upgrade' console? (Y/N)"; then
         input=$(ask "Groups allowed to use the node 'Upgrade' console (comma-separated; empty disables)")
         OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS="$(echo "$input" | tr -d '[:space:]')"
     else
@@ -50,11 +46,7 @@ oidc_console_access_configure() {
     fi
 
     warn "Shell access provides a passwordless ROOT shell on the node."
-    default="N"
-    choice_hint="[y/N]"
-    [[ -n "$OIDC_CONSOLE_ACCESS_SHELL_GROUPS" ]] && default="Y"
-    [[ "$default" == "Y" ]] && choice_hint="[Y/n]"
-    if _oidc_console_access_ask_yes_no "Enable passwordless access to the node 'Shell' tab? $choice_hint" "$default"; then
+    if _oidc_console_access_ask_yes_no "Enable passwordless access to the node 'Shell' tab? (Y/N)"; then
         input=$(ask "Groups allowed to use the node 'Shell' tab (comma-separated; empty disables)")
         OIDC_CONSOLE_ACCESS_SHELL_GROUPS="$(echo "$input" | tr -d '[:space:]')"
     else
@@ -64,16 +56,12 @@ oidc_console_access_configure() {
 }
 
 _oidc_console_access_ask_yes_no() {
-    local prompt="$1" default="$2" input
+    local prompt="$1" input
     while true; do
         input=$(ask "$prompt")
         case "$input" in
             [Yy]) return 0 ;;
             [Nn]) return 1 ;;
-            "")
-                [[ "$default" == "Y" ]] && return 0
-                return 1
-                ;;
             *) warn "Please enter Y or N." ;;
         esac
     done
