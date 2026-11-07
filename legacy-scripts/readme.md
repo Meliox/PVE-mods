@@ -4,7 +4,7 @@
 
 ### Node sensor readings view
 
-![Proxmox temp mod](https://github.com/Meliox/PVE-mods/blob/main/pve-mods-sensors.png?raw=true)
+<p align="center"><img src="https://github.com/Meliox/PVE-mods/blob/main/pve-mods-sensors.png?raw=true" alt="Proxmox temp mod"></p>
 
 Compatibility:
 - 9.0-9.2. Newer versions may often work

@@ -5,7 +5,7 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
 <details>
 <summary>Show a full node summary with all sensors and graphs enabled</summary>
 
-![Node summary with all sensors and graphs enabled](images/summary-with-all-graphs.png)
+<p align="center"><img src="images/summary-with-all-graphs.png" alt="Node summary with all sensors and graphs enabled"></p>
 
 </details>
 
@@ -42,17 +42,17 @@ Reads hardware sensor data via `lm-sensors` and enriches each chip/adapter entry
 #### CPU
 The node summary shows one row per CPU package with the minimum, average and maximum temperature across its core sensors (or the package sensor when no per-core sensors exist) and the sensor count. Click the info icon on a row to open a live table of every sensor of that CPU.
 
-![Node summary CPU temperatures on a dual-socket Intel system](images/cpu-temperature-summary-dual-intel.png)
+<p align="center"><img src="images/cpu-temperature-summary-dual-intel.png" alt="Node summary CPU temperatures on a dual-socket Intel system"></p>
 
-![Live CPU temperature sensors table for package 0 on a dual-socket Intel system](images/cpu-temperature-live-dual-intel.png)
+<p align="center"><img src="images/cpu-temperature-live-dual-intel.png" alt="Live CPU temperature sensors table for package 0 on a dual-socket Intel system"></p>
 
-![Live CPU temperature sensors table for package 1 on a dual-socket Intel system](images/cpu-temperature-live-dual-intel-package1.png)
+<p align="center"><img src="images/cpu-temperature-live-dual-intel-package1.png" alt="Live CPU temperature sensors table for package 1 on a dual-socket Intel system"></p>
 
 #### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
 SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually.
 
-![RAM temperatures](images/ram-temperatures.png)
+<p align="center"><img src="images/ram-temperatures.png" alt="RAM temperatures"></p>
 
 Note: This is an example and you must replace registers with your findings.
 
@@ -97,14 +97,14 @@ To uninstall delete the module load and udev rule.
 #### HDD/SSD and NVMe
 Drives are listed with model and serial number.
 
-![HDD/SSD temperatures](images/hdd-ssd-temperatures.png)
+<p align="center"><img src="images/hdd-ssd-temperatures.png" alt="HDD/SSD temperatures"></p>
 
-![NVMe temperatures](images/nvme-temperatures.png)
+<p align="center"><img src="images/nvme-temperatures.png" alt="NVMe temperatures"></p>
 
 #### Other
 Remaining temperature sensors are grouped together.
 
-![Other temperatures](images/other-temperatures.png)
+<p align="center"><img src="images/other-temperatures.png" alt="Other temperatures"></p>
 
 ### NVIDIA GPU
 
@@ -158,19 +158,19 @@ setcap -r /usr/bin/intel_gpu_top
 
 The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA GPU: Render and Video engine load for Intel, GPU load and VRAM usage for NVIDIA, plus the temperature when available. Values turn amber from 70 % and red from 90 %. Click the info icon on the row to open a live window with every reported value, with one tab per GPU.
 
-![GPU Details row with one Intel and two NVIDIA GPUs](images/gpu-summary-three.png)
+<p align="center"><img src="images/gpu-summary-three.png" alt="GPU Details row with one Intel and two NVIDIA GPUs"></p>
 
-![Live details for an Intel GPU](images/gpu-details-intel.png)
+<p align="center"><img src="images/gpu-details-intel.png" alt="Live details for an Intel GPU"></p>
 
-![Live details for an NVIDIA GPU](images/gpu-details-rtx4070.png)
+<p align="center"><img src="images/gpu-details-rtx4070.png" alt="Live details for an NVIDIA GPU"></p>
 
 ### GPU graphs and history
 
 The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
 
-![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel.png)
+<p align="center"><img src="images/gpu-intel.png" alt="Intel GPU graph with utilisation on the left axis and frequency on the right"></p>
 
-![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia.png)
+<p align="center"><img src="images/gpu-nvidia.png" alt="NVIDIA GPU graph with utilisation on the left axis and temperature on the right"></p>
 
 `pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
 
@@ -193,9 +193,9 @@ Polls `upsc` for a configured NUT device and exposes all key-value pairs returne
 
 The node summary shows the UPS status, battery capacity with the runtime left, and load. Use the info button on the row to open a details window with the full device readings.
 
-![Node summary UPS row](images/ups-summary.png)
+<p align="center"><img src="images/ups-summary.png" alt="Node summary UPS row"></p>
 
-![UPS details window](images/ups-details.png)
+<p align="center"><img src="images/ups-details.png" alt="UPS details window"></p>
 
 Configuration: `device_name=ups@localhost`
 
@@ -205,12 +205,12 @@ The node summary CPU and Memory graphs include the matching pressure stall (PSI)
 
 The CPU graph plots CPU usage, IO delay and CPU pressure (Some) on the left (%) axis. The right axis shows load average together with the number of logical CPUs (dashed line), so you can see at a glance when the load exceeds the available CPUs.
 
-![CPU graph with CPU usage on the left axis and load average on the right](images/cpu-dual-axis.png)
+<p align="center"><img src="images/cpu-dual-axis.png" alt="CPU graph with CPU usage on the left axis and load average on the right"></p>
 
 The Memory graph shows memory usage on the left axis and memory pressure (Some and Full) on the right.
 
 
-![Memory graph with memory pressure on the right axis](images/memory-dual-axis.png)
+<p align="center"><img src="images/memory-dual-axis.png" alt="Memory graph with memory pressure on the right axis"></p>
 
 ### System Information
 
@@ -221,15 +221,15 @@ Reads hardware identity from `dmidecode` (cached at configure time, no runtime r
 | `1` | DMI System | Manufacturer, Product Name, Serial Number |
 | `2` | DMI Baseboard | Manufacturer, Product Name, Serial Number |
 
-![System information row](images/system-information.png)
+<p align="center"><img src="images/system-information.png" alt="System information row"></p>
 
 ### Storage health (ZFS and SMART)
 
 Adds a **Volumes and drives** row to the node Summary: `OK`, or the highest-priority problem (e.g. `tank DEGRADED: drive removed`, `nvme6 life remaining: 7%`). Further problems are listed in the details window, opened with the info button next to the row. Disabled by default. Settings are in the `[storage_health]` section of `node_info.conf`.
 
-![Node summary with the Volumes and drives row](images/storage-health-summary.png)
+<p align="center"><img src="images/storage-health-summary.png" alt="Node summary with the Volumes and drives row"></p>
 
-![Volumes and drives details window](images/storage-health-details-ok.png)
+<p align="center"><img src="images/storage-health-details-ok.png" alt="Volumes and drives details window"></p>
 
 Drives in standby are never woken by default (`smart_wake_disks=0`). SMART queries run from a small root service, `pve-mods-storage-smart.service`, which is installed and removed together with the setting. See the header of `Collector/StorageHealth.pm` for the checks, severities and design.
 
