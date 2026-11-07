@@ -230,6 +230,62 @@ Ext.define('PVE.node.StatusView', {
             html: '',
             padding: 0,
         },
+        {
+            itemId: 'storageHealth',
+            colspan: 2,
+            printBar: false,
+            title: gettext('Volumes and drives'),
+            iconCls: 'fa fa-fw fa-heartbeat',
+            textField: 'PveMods_storageHealth',
+            renderer: function(health) {
+                if (!health || typeof health !== 'object') {
+                    return '';
+                }
+                if (health.disabled === true) {
+                    this.hide();
+                    return '';
+                }
+                if (!health.status) {
+                    return gettext('Checking...');
+                }
+
+                const styles = {
+                    critical: 'color: red; font-weight: bold;',
+                    warning: 'color: #FFC300; font-weight: bold;',
+                };
+                const issues = Array.isArray(health.issues) ? health.issues : [];
+
+                let text = Ext.htmlEncode(health.summary || 'OK');
+                if (styles[health.status]) {
+                    text = `<span style="${styles[health.status]}">${text}</span>`;
+                }
+                if (issues.length > 1) {
+                    text += ` <span style="opacity: 0.7;">(+${issues.length - 1} ${gettext('more')})</span>`;
+                }
+
+                const lines = issues.map(issue => String(issue.text));
+                if (health.zfs && health.zfs.available === true) {
+                    lines.push(`${gettext('ZFS pools')}: ${health.zfs.pools}`);
+                }
+                if (health.smart && health.smart.available === true) {
+                    let smartLine = `${gettext('Drives checked by SMART')}: ${health.smart.devices}`;
+                    if (health.smart.sleeping > 0) {
+                        smartLine += `, ${health.smart.sleeping} ${gettext('sleeping (last result shown)')}`;
+                    }
+                    if (health.smart.unchecked > 0) {
+                        smartLine += `, ${health.smart.unchecked} ${gettext('not checked yet')}`;
+                    }
+                    lines.push(smartLine);
+                }
+                if (lines.length === 0) {
+                    return text;
+                }
+
+                const tip = Ext.htmlEncode(lines.map(line => Ext.htmlEncode(line)).join('<br>'));
+                return `<span data-qtip="${tip}">${text}</span>`;
+            },
+            value: '',
+        },
         
         // ========== Secondary Metrics ==========
         {

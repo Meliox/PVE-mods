@@ -1,0 +1,15 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 0},
+  "device": {"name": "/dev/nvme6", "info_name": "/dev/nvme6", "type": "nvme", "protocol": "NVMe"},
+  "model_name": "Samsung SSD 970 EVO Plus 500GB",
+  "serial_number": "S4EVNX0000006",
+  "smart_status": {"passed": true, "nvme": {"value": 0}},
+  "nvme_smart_health_information_log": {
+    "critical_warning": 0,
+    "temperature": 41,
+    "available_spare": 100,
+    "available_spare_threshold": 10,
+    "percentage_used": 93,
+    "media_errors": 0
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "smartctl": {
+    "version": [7, 4],
+    "exit_status": 2,
+    "messages": [{"string": "Device is in STANDBY mode, exit(2)", "severity": "information"}]
+  },
+  "device": {"name": "/dev/sdf", "info_name": "/dev/sdf [SAT]", "type": "sat", "protocol": "ATA"}
+}

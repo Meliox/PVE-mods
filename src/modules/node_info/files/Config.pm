@@ -8,7 +8,8 @@ our @EXPORT_OK = qw(
     %config
     $DEBUG_ENABLED $VERSION $process_type
     $pve_mods_working_dir $stats_dir $state_file
-    $sensors_state_file $ups_state_file
+    $sensors_state_file $ups_state_file $storage_health_state_file
+    $smart_snapshot_dir $smart_snapshot_file
     $pve_mods_worker_lock $startup_lock
     $RRD_SOCKET $RRD_BASE
 );
@@ -58,6 +59,9 @@ our %config = (
         amd_devices_file       => '/tmp/amd-gpu-devices.json',
         ups_mode               => 0,
         ups_output_file        => '/tmp/ups-output.json',
+        storage_health_mode    => 0,
+        zpool_output_file      => '/tmp/zpool-status.txt',
+        smartctl_output_file   => '/tmp/smartctl-output.json',
     },
     intervals => {
         data_pull         => 1,          # seconds between data pulls
@@ -77,6 +81,15 @@ our %config = (
     ups => {
         enabled     => 0,
         device_name => 'ups@localhost',
+    },
+    storage_health => {
+        enabled              => 0,
+        smart_enabled        => 1,     # 0 = ZFS checks only
+        life_warning_percent => 20,    # remaining SSD life at or below this is a warning
+        life_critical_percent => 10,   # remaining SSD life at or below this is critical
+        zfs_interval         => 15,    # seconds between 'zpool status' runs
+        smart_interval       => 1800,  # seconds between SMART queries of an active drive
+        smart_wake_disks     => 0,     # 1 = allow SMART queries to spin up sleeping drives
     },
     system_info => {
         enabled => 0,
@@ -98,6 +111,12 @@ our $stats_dir           = $pve_mods_working_dir;
 our $state_file          = "$pve_mods_working_dir/stats.json";
 our $sensors_state_file  = "$pve_mods_working_dir/sensors.json";
 our $ups_state_file      = "$pve_mods_working_dir/ups.json";
+our $storage_health_state_file = "$pve_mods_working_dir/storage_health.json";
+
+# SMART needs root, so a systemd service (outside pveproxy) queries the drives
+# and publishes its results here for the unprivileged collector to read.
+our $smart_snapshot_dir  = '/run/pve-mods-smart';
+our $smart_snapshot_file = "$smart_snapshot_dir/smart.json";
 our $pve_mods_worker_lock = "$pve_mods_working_dir/pve_mods_worker.lock";
 our $startup_lock        = "$pve_mods_working_dir/startup.lock";
 
@@ -145,6 +164,9 @@ sub _load_ini_file {
             }
             elsif ($section eq 'ups' && exists $config{ups}{$key}) {
                 $config{ups}{$key} = $val;
+            }
+            elsif ($section eq 'storage_health' && exists $config{storage_health}{$key}) {
+                $config{storage_health}{$key} = $val;
             }
             elsif ($section eq 'system_info' && exists $config{system_info}{$key}) {
                 $config{system_info}{$key} = $val;

@@ -1,0 +1,14 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 32},
+  "device": {"name": "/dev/sde", "info_name": "/dev/sde [SAT]", "type": "sat", "protocol": "ATA"},
+  "model_name": "ST4000VN006-3CW104",
+  "serial_number": "ZW60000004",
+  "rotation_rate": 5980,
+  "smart_status": {"passed": true},
+  "ata_smart_attributes": {
+    "revision": 10,
+    "table": [
+      {"id": 5, "name": "Reallocated_Sector_Ct", "value": 100, "worst": 99, "thresh": 10, "when_failed": "In_the_past", "raw": {"value": 8, "string": "8"}}
+    ]
+  }
+}

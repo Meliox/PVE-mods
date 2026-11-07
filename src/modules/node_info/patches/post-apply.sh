@@ -3,7 +3,8 @@
 # Runs after node_info patches are applied. Provided env: MOD_CONF, STASH_DIR,
 # CONFD_DIR. When GPU history is enabled, creates the GPU RRD storage directory
 # and installs/starts the service that records history around the clock; when
-# disabled, removes that service again.
+# disabled, removes that service again. Likewise installs/removes the root
+# service that collects SMART data when storage health is enabled.
 # Exit codes: 0 = no change, 100 = changed (restart pveproxy), other = error.
 
 set -u
@@ -84,6 +85,65 @@ elif [[ "$manage_service" == "1" && -f "$SERVICE_FILE" ]]; then
     systemctl daemon-reload
     echo "[pve-mods] Removed $SERVICE_NAME (GPU history disabled)"
     changed=1
+fi
+
+# SMART queries need root, which pveproxy (www-data) does not have, so storage
+# health runs them from a small root service that publishes its results to
+# /run/pve-mods-smart for the collector to read. Installed only when storage
+# health with SMART is enabled and smartctl is present (or debug mode is on,
+# where the collector reads sample files instead).
+storage_health="$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" storage_health enabled 0)"
+storage_smart="$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" storage_health smart_enabled 1)"
+storage_debug="$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" debug storage_health_mode 0)"
+
+SMART_SERVICE_NAME="pve-mods-storage-smart.service"
+SMART_SERVICE_FILE="/etc/systemd/system/$SMART_SERVICE_NAME"
+
+smart_service_unit() {
+    cat <<'UNIT'
+[Unit]
+Description=pve-mods storage SMART collector
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/perl -I/usr/share/perl5 -MPVE::PVEMods::Collector::StorageHealth=smart_service_main -e 'smart_service_main()'
+RuntimeDirectory=pve-mods-smart
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+Nice=10
+IOSchedulingClass=idle
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+}
+
+if [[ "$manage_service" == "1" ]]; then
+    if [[ "$storage_health" == "1" && "$storage_smart" == "1" && "$storage_debug" != "1" ]] \
+            && command -v smartctl &>/dev/null; then
+        if [[ "$(smart_service_unit)" != "$(cat "$SMART_SERVICE_FILE" 2>/dev/null)" ]]; then
+            smart_service_unit > "$SMART_SERVICE_FILE"
+            systemctl daemon-reload
+            echo "[pve-mods] Installed $SMART_SERVICE_NAME"
+            changed=1
+        fi
+        systemctl enable "$SMART_SERVICE_NAME" &>/dev/null || true
+        # Restart so the service always runs with the current configuration
+        if systemctl restart "$SMART_SERVICE_NAME"; then
+            echo "[pve-mods] Storage SMART service (re)started"
+        else
+            echo "[pve-mods] WARNING: could not start $SMART_SERVICE_NAME" >&2
+        fi
+    elif [[ -f "$SMART_SERVICE_FILE" ]]; then
+        systemctl disable --now "$SMART_SERVICE_NAME" &>/dev/null || true
+        rm -f "$SMART_SERVICE_FILE"
+        systemctl daemon-reload
+        echo "[pve-mods] Removed $SMART_SERVICE_NAME (storage SMART checks disabled)"
+        changed=1
+    fi
 fi
 
 [[ "$changed" == "1" ]] && exit 100

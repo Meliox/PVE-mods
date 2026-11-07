@@ -1,0 +1,8 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 0},
+  "device": {"name": "/dev/sdg", "info_name": "/dev/sdg", "type": "scsi", "protocol": "SCSI"},
+  "scsi_model_name": "ST4000NM0023",
+  "serial_number": "Z1Z00000000G",
+  "rotation_rate": 7200,
+  "smart_status": {"passed": true}
+}

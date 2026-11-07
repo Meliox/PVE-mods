@@ -1,0 +1,18 @@
+  pool: tank
+ state: ONLINE
+status: One or more devices has experienced an unrecoverable error.  An
+	attempt was made to correct the error.  Applications are unaffected.
+action: Determine if the device needs to be replaced, and clear the errors
+	using 'zpool clear' or replace the device with 'zpool replace'.
+  scan: scrub repaired 0B in 00:10:03 with 0 errors on Sun Nov  1 00:34:04 2026
+config:
+
+	NAME              STATE     READ WRITE CKSUM
+	tank              ONLINE       0     0     0
+	  mirror-0        ONLINE       0     0     0
+	    /dev/sda1     ONLINE       3     0     0
+	    /dev/sdb1     ONLINE       0     0     0
+	cache
+	  /dev/nvme0n1p4  ONLINE       0     0     0
+
+errors: No known data errors

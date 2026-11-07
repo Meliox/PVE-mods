@@ -22,7 +22,7 @@ TBD PICTURE
 
 | Mod | Description | Dependencies |
 |--------|-------------|--------------|
-| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node summary panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats and optional history graphs (Intel/NVIDIA), UPS status, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `upsc`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
+| [`node_info`](src/modules/node_info/readme.md) | Displays sensor readings in the node summary panel: CPU, NVMe/HDD/SSD temperatures (°C/°F), fan speeds, RAM temperatures, GPU stats and optional history graphs (Intel/NVIDIA), UPS status, ZFS/SMART storage health, and system/motherboard info. <br> Can optionally run as background sensor daemon |  - General sensors: `lm-sensors`<br>- HDD/SSD: Kernal module `drivetemp`<br>- UPS: `upsc`<br>- Storage health: `zpool` and/or `smartmontools`<br>- GPU: INTEL `intel-gpu-tools` and/or NVIDIA `nvidia-driver-* `
 | [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | - |
 | [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. | - |
 
@@ -98,6 +98,7 @@ This bash script installs a modification to the Proxmox Virtual Environment (PVE
 The following readings are possible:
 - CPU, NVMe/HDD/SSD temperatures (Celsius/Fahrenheit), fan speeds, ram temperatures via lm-sensors. Note: Hdds require kernel module *drivetemp* module installed.
 - UPS information via Network Monitoring Tool
+- ZFS pool and SMART drive health summary (degraded pools, resilver/scrub, failing drives, SSD/NVMe wear) via zpool and smartmontools
 - Motherboard information or system information via dmidecode
 
 #### How it works

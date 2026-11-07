@@ -135,6 +135,12 @@ Reads hardware identity from `dmidecode` (cached at configure time, no runtime r
 | `1` | DMI System | Manufacturer, Product Name, Serial Number |
 | `2` | DMI Baseboard | Manufacturer, Product Name, Serial Number |
 
+### Storage health (ZFS and SMART)
+
+Adds a **Volumes and drives** row to the node Summary: `OK`, or the highest-priority problem (e.g. `tank DEGRADED: drive removed`, `nvme6 life remaining: 7%`). Further problems are listed in a tooltip. Disabled by default. Settings are in the `[storage_health]` section of `node_info.conf`.
+
+Drives in standby are never woken by default (`smart_wake_disks=0`). SMART queries run from a small root service, `pve-mods-storage-smart.service`, which is installed and removed together with the setting. See the header of `Collector/StorageHealth.pm` for the checks, severities and design.
+
 ## Requirements
 
 Each feature requires the corresponding tool to be installed on the Proxmox host:
@@ -145,6 +151,7 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | NVIDIA GPU | `nvidia-smi` |
 | Intel GPU | `intel-gpu-tools` (`intel_gpu_top` binary) |
 | UPS | `nut-client` (`upsc` binary) |
+| Storage health | `zfsutils-linux` (`zpool`) for pools; `smartmontools` (`smartctl`) for drive health |
 | System information | `dmidecode` (run once via `pve-mods-configure`) |
 
 ## Debug Mode
@@ -164,6 +171,10 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 | | | `nvidia_output_file` | Stats CSV | `nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,nounits > /tmp/nvidia-smi-output.csv` |
 | AMD GPU | `amd_mode` | `amd_devices_file` | Placeholder — collector not yet implemented | — |
 | UPS | `ups_mode` | `ups_output_file` | Raw `upsc` key: value output (despite the `.json` name, it's plain text, not JSON) | `upsc ups@192.168.1.50 > /tmp/ups-output.json` |
+| Storage health | `storage_health_mode` | `zpool_output_file` | Raw `zpool status -LP` output | `zpool status -LP > /tmp/zpool-status.txt` |
+| | | `smartctl_output_file` | `smartctl -a -j` JSON of one drive, or a JSON array of several (read directly by the collector; the SMART service is not used) | `smartctl -a -j /dev/sda > /tmp/smartctl-output.json` |
+
+Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`.
 
 ### Verbose module logging (mod_debug)
 

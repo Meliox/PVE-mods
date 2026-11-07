@@ -1,0 +1,15 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 8},
+  "device": {"name": "/dev/nvme1", "info_name": "/dev/nvme1", "type": "nvme", "protocol": "NVMe"},
+  "model_name": "WD_BLACK SN850X 1000GB",
+  "serial_number": "23010E000001",
+  "smart_status": {"passed": false, "nvme": {"value": 4}},
+  "nvme_smart_health_information_log": {
+    "critical_warning": 5,
+    "temperature": 38,
+    "available_spare": 8,
+    "available_spare_threshold": 10,
+    "percentage_used": 12,
+    "media_errors": 0
+  }
+}

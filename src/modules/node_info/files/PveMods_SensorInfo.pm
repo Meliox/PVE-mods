@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use PVE::PVEMods::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file);
+use PVE::PVEMods::Config         qw(%config $VERSION $stats_dir $sensors_state_file $ups_state_file $storage_health_state_file);
 use PVE::PVEMods::Utils          qw(debug safe_read_json);
 use PVE::PVEMods::ProcessManager qw(pve_mods_starter notify_pve_mods_worker);
 use PVE::PVEMods::Collector::SystemInformation qw(get_system_information_data);
@@ -12,6 +12,7 @@ use PVE::PVEMods::Collector::SystemInformation qw(get_system_information_data);
 my $graphics_cache     = { data => {},        mtime => 0 };
 my $sensors_cache      = { data => {},  mtime => 0 };
 my $ups_cache          = { data => {},  mtime => 0 };
+my $storage_health_cache = { data => {},  mtime => 0 };
 my $system_info_cache  = undef;
 
 
@@ -211,6 +212,24 @@ sub get_ups_info {
     pve_mods_starter();
 
     my $data = _read_state_file_cached($ups_state_file, $ups_cache, 0, {});
+
+    # Notify pve_mods_worker of activity
+    notify_pve_mods_worker();
+
+    return $data;
+}
+
+sub get_storage_health_info {
+    debug(__LINE__, "get_storage_health_info called");
+    if (!$config{storage_health}{enabled}) {
+        debug(__LINE__, "Storage health collection is disabled");
+        return { disabled => \1 };
+    }
+
+    # Start PVE Mod
+    pve_mods_starter();
+
+    my $data = _read_state_file_cached($storage_health_state_file, $storage_health_cache, 0, {});
 
     # Notify pve_mods_worker of activity
     notify_pve_mods_worker();
