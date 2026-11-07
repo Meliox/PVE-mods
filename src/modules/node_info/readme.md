@@ -17,6 +17,7 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
     - [Memory](#memory)
     - [HDD/SSD and NVMe](#hddssd-and-nvme)
     - [Other](#other)
+  - [Fan speeds](#fan-speeds)
   - [NVIDIA GPU](#nvidia-gpu)
   - [Intel GPU](#intel-gpu)
     - [Security concern: the `CAP_PERFMON` capability](#security-concern-the-cap_perfmon-capability)
@@ -105,6 +106,12 @@ Drives are listed with model and serial number.
 Remaining temperature sensors are grouped together.
 
 <p align="center"><img src="images/other-temperatures.png" alt="Other temperatures"></p>
+
+### Fan speeds
+
+Shows system fans (CPU, chassis) from `lm-sensors` and the fans of NVIDIA, AMD and Intel GPUs when available. Fans reporting zero speed can optionally be shown or hidden during `pve-mods-configure`.
+
+<p align="center"><img src="images/fan-speeds.png" alt="System and GPU fan speeds"></p>
 
 ### NVIDIA GPU
 
