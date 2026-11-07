@@ -21,6 +21,7 @@ Collector/Nvidia.pm                     usr/share/perl5/PVE/PVEMods/Collector/Nv
 Collector/Amd.pm                        usr/share/perl5/PVE/PVEMods/Collector/Amd.pm
 Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMods/Collector/LmSensors.pm
 Collector/Ups.pm                        usr/share/perl5/PVE/PVEMods/Collector/Ups.pm
+Collector/StorageHealth.pm              usr/share/perl5/PVE/PVEMods/Collector/StorageHealth.pm
 Collector/systemInformation.pm          usr/share/perl5/PVE/PVEMods/Collector/SystemInformation.pm
 
 # JS module (rename to match loader reference)

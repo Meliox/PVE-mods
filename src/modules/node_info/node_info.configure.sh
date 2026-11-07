@@ -123,6 +123,43 @@ _check_or_install_tool() {
             ;;
     esac
 }
+# Prompts with the current value pre-filled so it can be edited in place; Enter
+# accepts it. Without a terminal (no readline) an empty reply keeps the value.
+_ask_prefilled() {
+    local label="$1" current="$2" reply
+    read -r -e -i "$current" -p $'\001\e[1;36m\002'"${label}:"$'\001\e[0m\002 ' reply
+    echo "${reply:-$current}"
+}
+
+# Prompts for a whole number in min..max, pre-filled with the current value.
+# Prints the result on stdout.
+_ask_int() {
+    local label="$1" current="$2" min="$3" max="$4" reply
+    while true; do
+        reply=$(_ask_prefilled "$label ($min-$max)" "$current")
+        if [[ "$reply" =~ ^[0-9]+$ ]] && (( 10#$reply >= min && 10#$reply <= max )); then
+            echo "$((10#$reply))"; return
+        fi
+        warn "Enter a whole number from $min to $max." >&2
+        current="$reply"
+    done
+}
+
+# Prompts for y/n, pre-filled with the current 1/0 value. Prints 1 or 0.
+_ask_yes_no() {
+    local label="$1" current="$2" shown="n" reply
+    [[ "$current" == "1" ]] && shown="y"
+    while true; do
+        reply=$(_ask_prefilled "$label (y/n)" "$shown")
+        case "$reply" in
+            [yY]*) echo 1; return ;;
+            [nN]*) echo 0; return ;;
+        esac
+        warn "Answer y or n." >&2
+        shown="$reply"
+    done
+}
+
 _check_setcap_available() {
     command -v setcap &>/dev/null && return 0
     warn "'setcap' is not installed (needed to grant intel_gpu_top permission to run as www-data)."
@@ -236,6 +273,9 @@ node_info_defaults() {
     ENABLE_GPU_HISTORY=0
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1; TEMP_UNIT="C"; IGNORE_TEMP_BELOW=5
+    ENABLE_STORAGE_HEALTH=0; STORAGE_SMART_ENABLED=1
+    STORAGE_LIFE_WARNING=20; STORAGE_LIFE_CRITICAL=10
+    STORAGE_ZFS_INTERVAL=15; STORAGE_SMART_INTERVAL=1800; STORAGE_SMART_WAKE=0
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
@@ -243,6 +283,9 @@ node_info_defaults() {
                          DEBUG_NVIDIA_DEVICES_FILE="/tmp/nvidia-smi-devices.csv"
     DEBUG_AMD=0;         DEBUG_AMD_FILE="/tmp/amd-gpu-devices.json"
     DEBUG_UPS=0;         DEBUG_UPS_FILE="/tmp/ups-output.json"
+    DEBUG_STORAGE_HEALTH=0
+    DEBUG_ZPOOL_FILE="/tmp/zpool-status.txt"
+    DEBUG_SMARTCTL_FILE="/tmp/smartctl-output.json"
     DEBUG_LOG=0;         DEBUG_LOG_FILE="/tmp/pve-mods-debug.log"
     DEBUG_MOD=0
 }
@@ -277,6 +320,13 @@ node_info_load_conf() {
             system_info.type)               SYSTEM_INFO_TYPE="$val" ;;
             system_info.temp_unit)          TEMP_UNIT="$val" ;;
             system_info.ignore_temp_below)  IGNORE_TEMP_BELOW="$val" ;;
+            storage_health.enabled)         ENABLE_STORAGE_HEALTH="$val" ;;
+            storage_health.smart_enabled)   STORAGE_SMART_ENABLED="$val" ;;
+            storage_health.life_warning_percent)  STORAGE_LIFE_WARNING="$val" ;;
+            storage_health.life_critical_percent) STORAGE_LIFE_CRITICAL="$val" ;;
+            storage_health.zfs_interval)    STORAGE_ZFS_INTERVAL="$val" ;;
+            storage_health.smart_interval)  STORAGE_SMART_INTERVAL="$val" ;;
+            storage_health.smart_wake_disks) STORAGE_SMART_WAKE="$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
@@ -289,6 +339,9 @@ node_info_load_conf() {
             debug.amd_devices_file)         DEBUG_AMD_FILE="$val" ;;
             debug.ups_mode)                 DEBUG_UPS="$val" ;;
             debug.ups_output_file)          DEBUG_UPS_FILE="$val" ;;
+            debug.storage_health_mode)      DEBUG_STORAGE_HEALTH="$val" ;;
+            debug.zpool_output_file)        DEBUG_ZPOOL_FILE="$val" ;;
+            debug.smartctl_output_file)     DEBUG_SMARTCTL_FILE="$val" ;;
             debug.log_enabled)              DEBUG_LOG="$val" ;;
             debug.log_file)                 DEBUG_LOG_FILE="$val" ;;
             debug.mod_debug)                DEBUG_MOD="$val" ;;
@@ -307,6 +360,8 @@ node_info_configure() {
     ENABLE_GPU_HISTORY=0
     ENABLE_UPS=0; UPS_DEVICE_NAME="ups@localhost"
     ENABLE_SYSTEM_INFO=0; SYSTEM_INFO_TYPE=1; TEMP_UNIT="C"; IGNORE_TEMP_BELOW=5
+    # Storage health thresholds and intervals are kept as loaded from the config
+    ENABLE_STORAGE_HEALTH=0; STORAGE_SMART_ENABLED=1
 
     local lm_sensors_ok=false
     local sensors_detected=false
@@ -666,6 +721,39 @@ node_info_configure() {
     esac
     #endregion UPS
 
+    #region Storage health
+    section "Storage Health"
+    local choiceStorage
+    choiceStorage=$(ask "Enable storage health information? (y/N)")
+    case "$choiceStorage" in
+        [yY])
+            ENABLE_STORAGE_HEALTH=1
+            if [[ "$DEBUG_STORAGE_HEALTH" -eq 1 ]]; then
+                info "[debug] Using storage data from $DEBUG_ZPOOL_FILE and $DEBUG_SMARTCTL_FILE"
+            elif ! _check_or_install_tool smartctl smartmontools "smartmontools (smartctl)" \
+                    "smartmontools is not installed. SMART drive health needs it; ZFS pool health does not."; then
+                STORAGE_SMART_ENABLED=0
+                warn "SMART checks disabled. Only ZFS pool health will be shown."
+            fi
+            info "Storage health will be shown on the node Summary."
+
+            echo "  Each value is pre-filled; press Enter to accept it or edit it first."
+            STORAGE_ZFS_INTERVAL=$(_ask_int "ZFS pool check interval in seconds, while the Summary is open" "$STORAGE_ZFS_INTERVAL" 5 3600)
+            if [[ "$STORAGE_SMART_ENABLED" -eq 1 ]]; then
+                STORAGE_SMART_INTERVAL=$(_ask_int "SMART check interval in seconds for spinning drives" "$STORAGE_SMART_INTERVAL" 60 86400)
+                STORAGE_LIFE_WARNING=$(_ask_int "Warn when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_WARNING" 0 100)
+                STORAGE_LIFE_CRITICAL=$(_ask_int "Critical when SSD/NVMe life remaining is at or below (%)" "$STORAGE_LIFE_CRITICAL" 0 100)
+                if (( STORAGE_LIFE_WARNING < STORAGE_LIFE_CRITICAL )); then
+                    warn "The warning level cannot be below the critical level. Using ${STORAGE_LIFE_CRITICAL}% for both."
+                    STORAGE_LIFE_WARNING="$STORAGE_LIFE_CRITICAL"
+                fi
+                STORAGE_SMART_WAKE=$(_ask_yes_no "Allow SMART checks to wake sleeping drives?" "$STORAGE_SMART_WAKE")
+            fi
+        ;;
+        *) info "Storage health information disabled." ;;
+    esac
+    #endregion Storage health
+
     #region System info
     section "System Information"
     echo "  type 1) System information (manufacturer, product, serial)"
@@ -720,6 +808,15 @@ display_zero_speed_fans=${DISPLAY_ZERO_SPEED_FANS}
 enabled=${ENABLE_UPS}
 device_name=${UPS_DEVICE_NAME}
 
+[storage_health]
+enabled=${ENABLE_STORAGE_HEALTH}
+smart_enabled=${STORAGE_SMART_ENABLED}
+life_warning_percent=${STORAGE_LIFE_WARNING}
+life_critical_percent=${STORAGE_LIFE_CRITICAL}
+zfs_interval=${STORAGE_ZFS_INTERVAL}
+smart_interval=${STORAGE_SMART_INTERVAL}
+smart_wake_disks=${STORAGE_SMART_WAKE}
+
 [system_info]
 enabled=${ENABLE_SYSTEM_INFO}
 type=${SYSTEM_INFO_TYPE}
@@ -745,6 +842,9 @@ amd_mode=${DEBUG_AMD}
 amd_devices_file=${DEBUG_AMD_FILE}
 ups_mode=${DEBUG_UPS}
 ups_output_file=${DEBUG_UPS_FILE}
+storage_health_mode=${DEBUG_STORAGE_HEALTH}
+zpool_output_file=${DEBUG_ZPOOL_FILE}
+smartctl_output_file=${DEBUG_SMARTCTL_FILE}
 log_enabled=${DEBUG_LOG}
 log_file=${DEBUG_LOG_FILE}
 EOF

@@ -1,0 +1,16 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 24},
+  "device": {"name": "/dev/sdc", "info_name": "/dev/sdc [SAT]", "type": "sat", "protocol": "ATA"},
+  "model_name": "WDC WD40EFRX-68N32N0",
+  "serial_number": "WD-WCC7K0000003",
+  "rotation_rate": 5400,
+  "smart_status": {"passed": false},
+  "ata_smart_attributes": {
+    "revision": 16,
+    "table": [
+      {"id": 5, "name": "Reallocated_Sector_Ct", "value": 1, "worst": 1, "thresh": 140, "when_failed": "FAILING_NOW", "raw": {"value": 3500, "string": "3500"}},
+      {"id": 197, "name": "Current_Pending_Sector", "value": 200, "worst": 200, "thresh": 0, "when_failed": "", "raw": {"value": 0, "string": "0"}},
+      {"id": 177, "name": "Wear_Leveling_Count", "value": 1, "worst": 1, "thresh": 0, "when_failed": "", "raw": {"value": 0, "string": "0"}}
+    ]
+  }
+}

@@ -20,7 +20,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates git sudo wget xz-utils dpkg nodejs patch
+            ca-certificates git sudo wget xz-utils dpkg nodejs patch libjson-perl
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -45,3 +45,6 @@ jobs:
 
       - name: Validate source syntax
         run: bash build/test/test-syntax.sh all 
+
+      - name: Test storage health parsers
+        run: bash build/test/test-storage-health.sh

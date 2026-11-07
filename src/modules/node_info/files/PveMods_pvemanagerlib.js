@@ -137,6 +137,70 @@ function getSensorIgnoreThreshold(sensorInfo, tempHelper) {
     return tempHelper.getTemp(Number.isFinite(threshold) ? threshold : 5);
 }
 
+function showStorageHealthDetails(widget) {
+    const health = widget.storageHealthSnapshot;
+    if (!health || !health.status || health.disabled === true) {
+        return;
+    }
+    if (widget.storageHealthWindow && !widget.storageHealthWindow.destroyed) {
+        widget.storageHealthWindow.toFront();
+        return;
+    }
+
+    const encode = value => Ext.htmlEncode(String(value));
+    const row = (label, value) => `<div style="margin-bottom: 8px;"><strong>${encode(label)}:</strong> ${encode(value)}</div>`;
+    let html = row(gettext('Status'), health.summary || health.status);
+    if (Number.isFinite(health.updated)) {
+        html += row(gettext('Last updated'), new Date(health.updated * 1000).toLocaleString());
+    }
+    html += row(gettext('ZFS pools'), health.zfs && health.zfs.available === true
+        ? health.zfs.pools : gettext('Unavailable'));
+    if (health.smart && health.smart.enabled === false) {
+        html += row(gettext('SMART'), gettext('Disabled'));
+    } else if (health.smart && health.smart.available === true) {
+        html += row(gettext('Drives checked by SMART'), health.smart.devices);
+        html += row(gettext('Sleeping (last result shown)'), health.smart.sleeping || 0);
+        html += row(gettext('Not checked yet'), health.smart.unchecked || 0);
+        if (Number.isFinite(health.smart.updated)) {
+            html += row(gettext('SMART last updated'), new Date(health.smart.updated * 1000).toLocaleString());
+        }
+    } else {
+        html += row(gettext('SMART'), gettext('Unavailable'));
+    }
+    const issues = Array.isArray(health.issues) ? health.issues : [];
+    html += `<h3>${encode(gettext('Issues'))}</h3>`;
+    html += issues.length
+        ? `<ul>${issues.map(issue => `<li>${encode(issue.severity || health.status)}: ${encode(issue.text)}</li>`).join('')}</ul>`
+        : `<p>${encode(gettext('No issues detected'))}</p>`;
+
+    const size = Ext.getBody().getViewSize();
+    widget.storageHealthWindow = Ext.create('Ext.window.Window', {
+        title: gettext('Volumes and drives - snapshot'),
+        modal: true,
+        width: Math.min(600, size.width - 32),
+        height: Math.min(480, size.height - 64),
+        layout: 'fit',
+        items: [{
+            xtype: 'panel',
+            bodyPadding: 15,
+            scrollable: true,
+            html: html,
+        }],
+        buttons: [{
+            text: gettext('Close'),
+            handler: function(button) {
+                button.up('window').close();
+            },
+        }],
+        listeners: {
+            destroy: function() {
+                widget.storageHealthWindow = null;
+            },
+        },
+    });
+    widget.storageHealthWindow.show();
+}
+
 Ext.define('PVE.node.StatusView', {
     extend: 'Proxmox.panel.StatusView',
     alias: 'widget.pveNodeStatus',
@@ -224,11 +288,55 @@ Ext.define('PVE.node.StatusView', {
             criticalThreshold: 0.8,
             renderer: Proxmox.Utils.render_node_size_usage,
         },
-        // Fill the remaining cell so the next colspan:2 section header starts on a new row.
         {
-            xtype: 'box',
-            html: '',
-            padding: 0,
+            itemId: 'storageHealth',
+            printBar: false,
+            title: gettext('Volumes and drives'),
+            iconCls: 'fa fa-fw fa-heartbeat',
+            textField: 'PveMods_storageHealth',
+            listeners: {
+                afterrender: function(widget) {
+                    widget.getEl().on('click', function() {
+                        showStorageHealthDetails(widget);
+                    }, null, { delegate: 'button.pve-mods-storage-details' });
+                },
+                destroy: function(widget) {
+                    if (widget.storageHealthWindow) {
+                        widget.storageHealthWindow.destroy();
+                    }
+                },
+            },
+            renderer: function(health) {
+                this.storageHealthSnapshot = health;
+                if (!health || typeof health !== 'object') {
+                    return '';
+                }
+                if (health.disabled === true) {
+                    this.hide();
+                    return '';
+                }
+                if (!health.status) {
+                    return gettext('Checking...');
+                }
+
+                const styles = {
+                    critical: 'color: red; font-weight: bold;',
+                    warning: 'color: #FFC300; font-weight: bold;',
+                };
+                const issues = Array.isArray(health.issues) ? health.issues : [];
+
+                let text = Ext.htmlEncode(health.summary || 'OK');
+                if (styles[health.status]) {
+                    text = `<span style="${styles[health.status]}">${text}</span>`;
+                }
+                if (issues.length > 1) {
+                    text += ` <span style="opacity: 0.7;">(+${issues.length - 1} ${gettext('more')})</span>`;
+                }
+
+                const detailsLabel = Ext.htmlEncode(gettext('Storage health details'));
+                return `${text} <button type="button" class="pve-mods-storage-details" aria-label="${detailsLabel}" title="${detailsLabel}" style="margin-left: 4px; padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;"><i class="fa fa-info-circle" aria-hidden="true"></i></button>`;
+            },
+            value: '',
         },
         
         // ========== Secondary Metrics ==========

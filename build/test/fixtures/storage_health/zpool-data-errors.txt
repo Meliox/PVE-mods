@@ -1,0 +1,16 @@
+  pool: tank
+ state: ONLINE
+status: One or more devices has experienced an error resulting in data
+	corruption.  Applications may be affected.
+action: Restore the file in question if possible.  Otherwise restore the
+	entire pool from backup.
+  scan: scrub repaired 0B in 00:10:03 with 2 errors on Sun Nov  1 00:34:04 2026
+config:
+
+	NAME            STATE     READ WRITE CKSUM
+	tank            ONLINE       0     0     0
+	  /dev/sda1     ONLINE       0     0     0
+
+errors: Permanent errors have been detected in the following files:
+
+        /tank/data/file.bin

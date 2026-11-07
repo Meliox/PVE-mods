@@ -1,0 +1,18 @@
+  pool: tank
+ state: ONLINE
+status: One or more devices is currently being resilvered.  The pool will
+	continue to function, possibly in a degraded state.
+action: Wait for the resilver to complete.
+  scan: resilver in progress since Mon Nov  2 21:00:00 2026
+	1.20T / 3.24T scanned at 1.50G/s, 600G / 3.24T issued at 750M/s
+	200G resilvered, 37.00% done, 0 days 00:12:00 to go
+config:
+
+	NAME                        STATE     READ WRITE CKSUM
+	tank                        ONLINE       0     0     0
+	  raidz1-0                  ONLINE       0     0     0
+	    /dev/sda1               ONLINE       0     0     0
+	    /dev/sdb1               ONLINE       0     0     0
+	    /dev/sdc1               ONLINE       0     0     0  (resilvering)
+
+errors: No known data errors

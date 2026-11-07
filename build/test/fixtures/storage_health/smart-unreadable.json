@@ -1,0 +1,8 @@
+{
+  "smartctl": {
+    "version": [7, 4],
+    "exit_status": 2,
+    "messages": [{"string": "Read Device Identity failed: scsi error unsupported field in scsi command", "severity": "error"}]
+  },
+  "device": {"name": "/dev/sdh", "info_name": "/dev/sdh", "type": "scsi", "protocol": "SCSI"}
+}

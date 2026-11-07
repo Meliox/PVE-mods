@@ -10,7 +10,7 @@ use File::Path qw(remove_tree);
 use PVE::PVEMods::Config qw(
     %config $process_type
     $pve_mods_working_dir $state_file
-    $sensors_state_file $ups_state_file
+    $sensors_state_file $ups_state_file $storage_health_state_file
     $pve_mods_worker_lock $startup_lock
 );
 use PVE::PVEMods::Utils qw(
@@ -24,6 +24,7 @@ use PVE::PVEMods::Collector::Nvidia  qw(get_nvidia_gpu_devices  collector_for_nv
 use PVE::PVEMods::Collector::Amd     qw(get_amd_gpu_devices    collector_for_amd_device);
 use PVE::PVEMods::Collector::LmSensors qw(collector_for_temperature_sensors);
 use PVE::PVEMods::Collector::Ups     qw(collector_for_ups);
+use PVE::PVEMods::Collector::StorageHealth qw(collector_for_storage_health);
 
 our @EXPORT_OK = qw(
     pve_mods_starter
@@ -292,6 +293,7 @@ sub _pve_mods_keep_alive {
     _initialise_sensors_collector();
     _initialise_graphics_collectors();
     _initialise_ups_collector();
+    _initialise_storage_health_collector();
     debug(__LINE__, "All collectors started by worker");
 
     debug(__LINE__,
@@ -317,9 +319,9 @@ sub _pve_mods_keep_alive {
         if ($idle_time > $config{intervals}{collector_timeout}) {
             if ($record_history) {
                 unless ($ui_collectors_idle) {
-                    debug(__LINE__, "Idle: stopping sensors/UPS collectors, GPU history keeps recording");
-                    _stop_named_collectors('sensors', 'ups');
-                    unlink($sensors_state_file, $ups_state_file);
+                    debug(__LINE__, "Idle: stopping sensors/UPS/storage health collectors, GPU history keeps recording");
+                    _stop_named_collectors('sensors', 'ups', 'storage_health');
+                    unlink($sensors_state_file, $ups_state_file, $storage_health_state_file);
                     $ui_collectors_idle = 1;
                 }
             } else {
@@ -333,6 +335,7 @@ sub _pve_mods_keep_alive {
             debug(__LINE__, "Activity resumed: restarting sensors/UPS collectors");
             _initialise_sensors_collector();
             _initialise_ups_collector();
+            _initialise_storage_health_collector();
             $ui_collectors_idle = 0;
         }
 
@@ -406,6 +409,15 @@ sub _initialise_ups_collector {
     debug(__LINE__, "Starting UPS collector: $config{ups}{device_name}");
     _start_collector('ups', 'ups', \&collector_for_ups,
                      { ups_name => $config{ups}{device_name} });
+}
+
+sub _initialise_storage_health_collector {
+    return unless $config{storage_health}{enabled};
+    # The collector copes with a missing zpool or SMART data, so it is not
+    # gated on a single executable; zpool/smartctl are probed when it runs.
+    debug(__LINE__, "Starting storage health collector");
+    _start_collector('storage_health', 'storage_health',
+                     \&collector_for_storage_health, {});
 }
 
 sub _initialise_graphics_collectors {

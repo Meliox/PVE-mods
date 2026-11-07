@@ -1,0 +1,16 @@
+{
+  "smartctl": {"version": [7, 4], "exit_status": 0},
+  "device": {"name": "/dev/sda", "info_name": "/dev/sda [SAT]", "type": "sat", "protocol": "ATA"},
+  "model_name": "Samsung SSD 870 EVO 1TB",
+  "serial_number": "S5Y2NX0T000001A",
+  "rotation_rate": 0,
+  "smart_status": {"passed": true},
+  "ata_smart_attributes": {
+    "revision": 1,
+    "table": [
+      {"id": 5, "name": "Reallocated_Sector_Ct", "value": 100, "worst": 100, "thresh": 10, "when_failed": "", "raw": {"value": 0, "string": "0"}},
+      {"id": 9, "name": "Power_On_Hours", "value": 97, "worst": 97, "thresh": 0, "when_failed": "", "raw": {"value": 14210, "string": "14210"}},
+      {"id": 177, "name": "Wear_Leveling_Count", "value": 95, "worst": 95, "thresh": 0, "when_failed": "", "raw": {"value": 52, "string": "52"}}
+    ]
+  }
+}

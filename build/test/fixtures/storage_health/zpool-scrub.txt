@@ -1,0 +1,14 @@
+  pool: tank
+ state: ONLINE
+  scan: scrub in progress since Sun Nov  1 00:24:01 2026
+	4.36T / 21.8T scanned at 1.00G/s, 3.1T / 21.8T issued at 700M/s
+	0B repaired, 14.22% done, 07:35:20 to go
+config:
+
+	NAME            STATE     READ WRITE CKSUM
+	tank            ONLINE       0     0     0
+	  mirror-0      ONLINE       0     0     0
+	    /dev/sda1   ONLINE       0     0     0
+	    /dev/sdb1   ONLINE       0     0     0
+
+errors: No known data errors
