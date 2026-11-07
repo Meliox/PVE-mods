@@ -107,6 +107,16 @@ setcap -r /usr/bin/intel_gpu_top
 
 **Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mods-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
 
+### GPU summary and details
+
+The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA GPU: Render and Video engine load for Intel, GPU load and VRAM usage for NVIDIA, plus the temperature when available. Values turn amber from 70 % and red from 90 %. Click the info icon on the row to open a live window with every reported value, with one tab per GPU.
+
+![GPU Details row with one Intel and two NVIDIA GPUs](images/gpu-summary-three.png)
+
+![Live details for an Intel GPU](images/gpu-details-intel.png)
+
+![Live details for an NVIDIA GPU](images/gpu-details-rtx4070.png)
+
 ### GPU graphs and history
 
 The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
