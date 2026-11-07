@@ -1,17 +1,19 @@
 # PVE-mods
-Optional UI mods for Proxmox Virtual Environment (PVE), packaged as a Debian package (`pve-mods`) and managed with an interactive `pve-mods-configure` wizard.
+PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
 
 If you find this helpful, a small donation is appreciated, [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W).
 
-[![PVE-mods node summary on a simulated Proxmox VE node](images/proxmox-node-overview-small.png)](images/proxmox-node-overview.png)
-
-*Click the image to view it in full size.*
+<p align="center">
+  <a href="images/proxmox-node-overview.png">
+    <img src="images/proxmox-node-overview-small.png" alt="PVE-mods node summary on a simulated Proxmox VE node">
+  </a>
+  <br>
+  <em>Click the image to view it in full size.</em>
+</p>
 
 Compatibility: PVE 9.0+
 
 All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
-
-> Looking for the old standalone bash scripts (v1)? They are archived, see the [legacy scripts readme](legacy-scripts/readme.md).
 
 ## Table of contents
 
@@ -27,6 +29,8 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
   - [Reverse proxy / CDN caching](#reverse-proxy--cdn-caching)
 - [Support and contributing](#support-and-contributing)
 - [License](#license)
+
+> Looking for the old standalone bash scripts (v1)? They are archived, see the [legacy scripts readme](https://github.com/Meliox/PVE-mods/blob/e1c3eb0524fbb8ca940454aef3a51c0644a2d170/legacy-scripts/readme.md).
 
 ### Available mods
 
