@@ -132,6 +132,40 @@ function isSensorEnabled(sensorInfo, sensorType) {
         && sensorInfo[sensorType] === true;
 }
 
+function getModMetricState(itemId, payload) {
+    if (!payload || typeof payload !== 'object') {
+        return 'pending';
+    }
+    const sensors = {
+        thermalCpu: 'cpu', thermalRam: 'ram', thermalHdd: 'hdd',
+        thermalNvme: 'nvme', otherThermals: 'other', speedFan: 'fans',
+    };
+    if (payload.disabled === true) {
+        return 'disabled';
+    }
+    if (sensors[itemId]) {
+        const enabled = payload[sensors[itemId]];
+        if (enabled === false) {
+            return 'disabled';
+        }
+        return enabled === true && payload.enhanced_sensors
+            && typeof payload.enhanced_sensors === 'object' ? 'ready' : 'pending';
+    }
+    if (itemId === 'gpu_details' || itemId === 'gpuFans') {
+        if (payload.enable_gpu === false || (itemId === 'gpuFans' && payload.enable_fans === false)) {
+            return 'disabled';
+        }
+        return payload.enable_gpu === true && payload.Graphics
+            && typeof payload.Graphics === 'object'
+            && (itemId !== 'gpuFans' || payload.enable_fans === true) ? 'ready' : 'pending';
+    }
+    if (itemId === 'storageHealth') {
+        return payload.status ? 'ready' : 'pending';
+    }
+    return Object.values(payload).some(value => value && typeof value === 'object'
+        && !Array.isArray(value)) ? 'ready' : 'pending';
+}
+
 function getSensorIgnoreThreshold(sensorInfo, tempHelper) {
     const threshold = Number(sensorInfo.ignore_temp_below);
     return tempHelper.getTemp(Number.isFinite(threshold) ? threshold : 5);
@@ -214,7 +248,6 @@ Ext.define('PVE.node.StatusView', {
     layout: {
         type: 'table',
         columns: 2,
-        trAttrs: { valign: 'top' },
 	tableAttrs: {
             style: {
                 width: '100%',
@@ -312,7 +345,6 @@ Ext.define('PVE.node.StatusView', {
                     return '';
                 }
                 if (health.disabled === true) {
-                    this.hide();
                     return '';
                 }
                 if (!health.status) {
@@ -373,7 +405,6 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     if (!isSensorEnabled(cpuInfo, 'cpu')) {
-                        this.hide();
                         return '';
                     }
                     objValue = getSensorPayload(cpuInfo);
@@ -544,7 +575,6 @@ Ext.define('PVE.node.StatusView', {
             renderer: function(gpuInfo) {
                 try {
                     if (gpuInfo.enable_gpu !== true) {
-                        this.hide();
                         return '';
                     }
                 } catch (e) {
@@ -691,7 +721,6 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
                     if (!isSensorEnabled(ramInfo, 'ram')) {
-                        this.hide();
                         return '';
                     }
 					objValue = getSensorPayload(ramInfo);
@@ -745,7 +774,6 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
                     if (!isSensorEnabled(hddInfo, 'hdd')) {
-                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(hddInfo);
@@ -817,7 +845,6 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
                     if (!isSensorEnabled(nvmeInfo, 'nvme')) {
-                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(nvmeInfo);
@@ -898,7 +925,6 @@ Ext.define('PVE.node.StatusView', {
 				let objValue;
 				try {
                     if (!isSensorEnabled(otherInfo, 'other')) {
-                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(otherInfo);
@@ -989,7 +1015,6 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     if (!isSensorEnabled(fansInfo, 'fans')) {
-                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(fansInfo);
@@ -1075,7 +1100,6 @@ Ext.define('PVE.node.StatusView', {
             renderer: function(gpuStats) {
                 try {
                     if ((gpuStats.enable_gpu !== true || gpuStats.enable_fans !== true)) {
-                        this.hide();
                         return '';
                     }
                 } catch (e) {
@@ -1294,7 +1318,6 @@ Ext.define('PVE.node.StatusView', {
             renderer: function(upsInfo) {
                 try {  
                     if (upsInfo.disabled === true) {
-                        this.hide();
                         this.setPrintBar(false);
                         return '';
                     }
@@ -1502,14 +1525,51 @@ Ext.define('PVE.node.StatusView', {
 		},        
     ],
 
+    updateField: function(field) {
+        if (this.modMetricIds.includes(field.itemId)) {
+            const payload = this.getRecordValue(field.textField || field.valueField);
+            const state = getModMetricState(field.itemId, payload);
+            this.modMetricStates[field.itemId] = state;
+            if (state === 'disabled') {
+                field.setVisible(false);
+                field.modMetricReady = false;
+                return;
+            }
+            if (state === 'pending') {
+                field.setVisible(field.modMetricReady === true);
+                return;
+            }
+            field.modMetricReady = true;
+            field.setVisible(true);
+        }
+        this.callParent([field]);
+    },
+
+    updateValues: function(store, records, success) {
+        Ext.suspendLayouts();
+        try {
+            this.callParent([store, records, success]);
+        } finally {
+            Ext.resumeLayouts(true);
+        }
+    },
+
     updateTitle: function () {
         var me = this;
         var uptime = Proxmox.Utils.render_uptime(me.getRecordValue('uptime'));
-        me.setTitle(me.pveSelNode.data.node + ' (' + gettext('Uptime') + ': ' + uptime + ')');
+        let title = Ext.htmlEncode(me.pveSelNode.data.node + ' (' + gettext('Uptime') + ': ' + uptime + ')');
+        if (me.modMetricIds.some(id => !me.modMetricStates[id] || me.modMetricStates[id] === 'pending')) {
+            title += ' <span style="font-size: 12px; font-weight: normal;">['
+                + Ext.htmlEncode(gettext('Loading sensor data...')) + ']</span>';
+        }
+        me.setTitle(title);
     },
 
     initComponent: function () {
         let me = this;
+        me.modMetricIds = ['thermalCpu', 'thermalRam', 'thermalHdd', 'thermalNvme',
+            'otherThermals', 'speedFan', 'gpu_details', 'gpuFans', 'upsc', 'storageHealth'];
+        me.modMetricStates = {};
 
         let stateProvider = Ext.state.Manager.getProvider();
         let repoLink = stateProvider.encodeHToken({
@@ -1527,6 +1587,7 @@ Ext.define('PVE.node.StatusView', {
         });
 
         me.callParent();
+        me.modMetricIds.forEach(id => me.down('#' + id).setVisible(false));
         ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals'].forEach(function(itemId) {
             me.down('#' + itemId).getComponent('label').tpl = new Ext.XTemplate(
                 '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',
