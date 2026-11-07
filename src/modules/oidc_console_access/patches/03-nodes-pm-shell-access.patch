@@ -14,11 +14,11 @@
      return $is_ssh_tunneling ? [$tunnel_cmd->@*, $cmd->@*] : $cmd;
  }
  
-+# pve-mods upgrade_access: lets members of shell_groups use the root shell without a login prompt
++# pve-mods oidc_console_access: lets members of shell_groups use the root shell without a login prompt
 +sub pvemods_shell_allowed {
 +    my ($userid) = @_;
 +
-+    my $conf = '/etc/pve-mods/conf.d/upgrade_access.conf';
++    my $conf = '/etc/pve-mods/conf.d/oidc_console_access.conf';
 +    return 0 if !-r $conf;
 +
 +    my ($groups) = file_get_contents($conf) =~ /^\s*shell_groups\s*=\s*(.*?)\s*$/m;

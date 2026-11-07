@@ -1,7 +1,7 @@
-# pve-mods :: upgrade_access patch manifest
+# pve-mods :: oidc_console_access patch manifest
 # Format: <patch-file> [section.key=value]
 # Each feature is independent and only applied when enabled in
-# /etc/pve-mods/conf.d/upgrade_access.conf.
+# /etc/pve-mods/conf.d/oidc_console_access.conf.
 
 # Upgrade console (Updates -> Upgrade) for members of access.upgrade_groups
 01-nodes-pm-upgrade-access.patch      access.upgrade=1

@@ -4,13 +4,13 @@
      },
  );
  
-+# pve-mods upgrade_access: lets members of upgrade_groups run the 'upgrade' shell command
++# pve-mods oidc_console_access: lets members of upgrade_groups run the 'upgrade' shell command
 +sub pvemods_upgrade_allowed {
 +    my ($userid, $shellcmd) = @_;
 +
 +    return 0 if !defined($shellcmd) || $shellcmd ne 'upgrade';
 +
-+    my $conf = '/etc/pve-mods/conf.d/upgrade_access.conf';
++    my $conf = '/etc/pve-mods/conf.d/oidc_console_access.conf';
 +    return 0 if !-r $conf;
 +
 +    my ($groups) = file_get_contents($conf) =~ /^\s*upgrade_groups\s*=\s*(.*?)\s*$/m;

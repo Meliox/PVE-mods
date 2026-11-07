@@ -1,4 +1,4 @@
-# pve-mods: upgrade_access
+# pve-mods: oidc_console_access
 
 Lets members of selected Proxmox groups (for example groups synced from an OIDC
 provider) use two web UI features that Proxmox normally reserves for `root@pam`:
@@ -47,7 +47,7 @@ No ACL or role can change this, even for an `Administrator`.
 | `02-pvemanager-js-upgrade-button.patch` | `pvemanagerlib.js` | Removes the `root@pam`-only `disabled` flag from the Upgrade button. Non-members see the button but get a permission error. |
 | `03-nodes-pm-shell-access.patch` | `Nodes.pm` | Adds `pvemods_shell_allowed()`. Members of `shell_groups` get `/bin/login -f root` instead of the login prompt. Over an SSH tunnel to another node it uses the same no-nested-login behaviour as `root@pam`. |
 
-Both helpers read `/etc/pve-mods/conf.d/upgrade_access.conf` on every request.
+Both helpers read `/etc/pve-mods/conf.d/oidc_console_access.conf` on every request.
 They return true only if:
 
 1. the request is for that feature's command (`upgrade`, or `login`/the default shell);
@@ -66,7 +66,7 @@ list in the config file is read per request and needs no restart.
 
 ## Configuration
 
-`/etc/pve-mods/conf.d/upgrade_access.conf`:
+`/etc/pve-mods/conf.d/oidc_console_access.conf`:
 
 ```ini
 [access]
@@ -87,13 +87,13 @@ shell_groups=pve-admins-authentik
 After changing a flag, apply or revert the patches:
 
 ```
-/usr/lib/pve-mods/revert-patches.sh upgrade_access
-/usr/lib/pve-mods/apply-patches.sh upgrade_access
+/usr/lib/pve-mods/revert-patches.sh oidc_console_access
+/usr/lib/pve-mods/apply-patches.sh oidc_console_access
 ```
 
 Changing only the group lists needs neither step.
 
-To enable the mod permanently, set `upgrade_access=1` under `[modules]` in
+To enable the mod permanently, set `oidc_console_access=1` under `[modules]` in
 `/etc/pve-mods/pve-mods.conf`. This also lets the dpkg trigger re-apply it
 after `pve-manager` updates.
 
@@ -145,7 +145,7 @@ for full rights.
 ### 4. Enable the mod
 
 ```
-# /etc/pve-mods/conf.d/upgrade_access.conf
+# /etc/pve-mods/conf.d/oidc_console_access.conf
 [access]
 upgrade=1
 upgrade_groups=pve-admins-authentik
@@ -154,7 +154,7 @@ shell_groups=
 ```
 
 ```
-/usr/lib/pve-mods/apply-patches.sh upgrade_access
+/usr/lib/pve-mods/apply-patches.sh oidc_console_access
 ```
 
 ### 5. Log in again and test
@@ -193,7 +193,7 @@ Then set `upgrade_groups=upgraders`. Do not combine this with
 - **Upgrade button greyed out:** the JS patch is not applied, or the browser
   cache is stale.
 - **After a `pve-manager` update it stopped working:** Proxmox replaced the
-  files. Re-run `apply-patches.sh upgrade_access`, or enable the pve-mods
+  files. Re-run `apply-patches.sh oidc_console_access`, or enable the pve-mods
   trigger.
 - Check the syslog for the OIDC group sync messages (for example
   `journalctl | grep -i "openid"`).
@@ -201,8 +201,8 @@ Then set `upgrade_groups=upgraders`. Do not combine this with
 ## Uninstall
 
 ```
-/usr/lib/pve-mods/revert-patches.sh upgrade_access
+/usr/lib/pve-mods/revert-patches.sh oidc_console_access
 ```
 
 This reverts the patches and restarts `pveproxy` and `pvedaemon`. Then set
-`upgrade_access=0` under `[modules]` in `/etc/pve-mods/pve-mods.conf`.
+`oidc_console_access=0` under `[modules]` in `/etc/pve-mods/pve-mods.conf`.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# post-apply hook for the upgrade_access mod.
-# Runs after upgrade_access patches are applied. Provided env: MOD_CONF,
+# post-apply hook for the oidc_console_access mod.
+# Runs after oidc_console_access patches are applied. Provided env: MOD_CONF,
 # STASH_DIR, CONFD_DIR. The shell API calls are 'protected' and served by
 # pvedaemon, so it must reload Nodes.pm in addition to the pveproxy restart.
 # The restart is deferred so the revert path (hook runs before `patch -R`) also
