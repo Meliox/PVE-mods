@@ -55,7 +55,7 @@ To uninstall delete the module load and udev rule.
 
 ### NVIDIA GPU
 
-Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics can be stored in RRD for historical graphing.
+Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics can be stored in RRD for historical graphing (see [GPU graphs and history](#gpu-graphs-and-history)).
 
 | Metric | Unit |
 |--------|------|
@@ -68,7 +68,7 @@ Polls `nvidia-smi` on a configurable interval. Supports multiple GPUs. Metrics c
 
 ### Intel GPU
 
-Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in RRD for historical graphing.
+Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in RRD for historical graphing (see [GPU graphs and history](#gpu-graphs-and-history)).
 
 | Metric | Unit |
 |--------|------|
@@ -100,6 +100,21 @@ setcap -r /usr/bin/intel_gpu_top
 ```
 
 **Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mods-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
+
+### GPU graphs and history
+
+The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Use a graph's menu to switch between usage, frequency, power and temperature, and its legend to show or hide series.
+
+`pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
+
+| Mode | `gpu_history` | Behavior |
+|------|---------------|----------|
+| Live only (default) | `0` | Graphs fill from live samples while the page is open. |
+| Record history | `1` | Samples are stored in RRD files, so past hours, days and years can be graphed. |
+
+With history enabled the GPU collectors run around the clock, even when the web UI is closed, which uses CPU continuously. A `pve-mods-gpu-history.service` systemd unit keeps them running and is removed again when history or the module is disabled. If a GPU collector is not running, for example because the driver was not ready at boot, it is retried every 30 seconds.
+
+RRD files are stored in `/var/lib/rrdcached/db/pve-mods-gpu/<node>/`, one per GPU and named after its PCI address (for example `pci000000020`), so a GPU keeps its history if `cardN` or the NVIDIA index changes.
 
 ### AMD GPU
 
@@ -145,7 +160,7 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 | Temperature sensors | `lm_sensors_mode` | `lm_sensors_output_file` | Raw `sensors -J` JSON output | `sensors -J > /tmp/sensors-output.json` |
 | Intel GPU | `intel_mode` | `intel_devices_file` | Device list, one line per GPU (`intel_gpu_top -L` format) | `intel_gpu_top -L > /tmp/intel-gpu-devices.json` |
 | | | `intel_output_file` | Continuous `intel_gpu_top` JSON stats output | `intel_gpu_top -d /dev/dri/card0 -J -s 1000 > /tmp/intel-gpu-output.txt` |
-| NVIDIA GPU | `nvidia_mode` | `nvidia_devices_file` | Device list CSV | `nvidia-smi --query-gpu=index,name --format=csv > /tmp/nvidia-smi-devices.csv` |
+| NVIDIA GPU | `nvidia_mode` | `nvidia_devices_file` | Device list CSV | `nvidia-smi --query-gpu=index,name,pci.bus_id --format=csv > /tmp/nvidia-smi-devices.csv` |
 | | | `nvidia_output_file` | Stats CSV | `nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw,power.limit,fan.speed --format=csv,nounits > /tmp/nvidia-smi-output.csv` |
 | AMD GPU | `amd_mode` | `amd_devices_file` | Placeholder — collector not yet implemented | — |
 | UPS | `ups_mode` | `ups_output_file` | Raw `upsc` key: value output (despite the `.json` name, it's plain text, not JSON) | `upsc ups@192.168.1.50 > /tmp/ups-output.json` |
