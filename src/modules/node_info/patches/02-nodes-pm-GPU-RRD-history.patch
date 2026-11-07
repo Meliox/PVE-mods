@@ -1,5 +1,5 @@
---- usr/share/perl5/PVE/API2/Nodes.pm	2026-05-24 02:05:58.000000000 +0200
-+++ /usr/share/perl5/PVE/API2/Nodes.pm	2026-06-13 16:29:47.810720485 +0200
+--- a/usr/share/perl5/PVE/API2/Nodes.pm
++++ b/usr/share/perl5/PVE/API2/Nodes.pm
 @@ -251,6 +251,7 @@
              { name => 'report' },
              { name => 'rrd' }, # fixme: remove?
@@ -8,7 +8,7 @@
              { name => 'scan' },
              { name => 'sdn' },
              { name => 'services' },
-@@ -879,6 +880,56 @@
+@@ -879,6 +880,58 @@
          );
      },
  });
@@ -17,7 +17,9 @@
 +    name => 'gpurrddata',
 +    path => 'gpurrddata',
 +    method => 'GET',
-+    protected => 1,
++    # Not protected: it is served by pveproxy (which pve-mods restarts) and only
++    # reads the www-data owned GPU RRD files. A protected call would be forwarded
++    # to pvedaemon, which keeps running the unpatched Nodes.pm.
 +    proxyto => 'node',
 +    permissions => {
 +        check => ['perm', '/nodes/{node}', ['Sys.Audit']],

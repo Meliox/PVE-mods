@@ -235,7 +235,8 @@ sub collector_for_intel_device {
             if defined $intel_gpu_top_pid && $intel_gpu_top_pid > 0;
     });
 
-    my $node_name = "node0";
+    # Keyed by card so several Intel GPUs don't overwrite each other when merged.
+    my $node_name = $device->{card};
 
     my $emit = sub {
         my ($stats) = @_;

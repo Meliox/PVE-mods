@@ -10,6 +10,7 @@ use File::Path qw(remove_tree);
 use PVE::PVEMods::Config qw(
     %config $process_type
     $pve_mods_working_dir $state_file
+    $sensors_state_file $ups_state_file
     $pve_mods_worker_lock $startup_lock
 );
 use PVE::PVEMods::Utils qw(
@@ -26,6 +27,7 @@ use PVE::PVEMods::Collector::Ups     qw(collector_for_ups);
 
 our @EXPORT_OK = qw(
     pve_mods_starter
+    pve_mods_run_service
     notify_pve_mods_worker
 );
 
@@ -105,6 +107,37 @@ sub notify_pve_mods_worker {
     } else {
         debug(__LINE__, "Failed to open pve_mods_worker lock file: $!");
     }
+}
+
+# Runs the worker in the foreground, for the pve-mods-gpu-history systemd
+# service. Unlike pve_mods_starter() it does not detach, so systemd supervises
+# it. An already running (UI-started) worker is replaced so only one exists.
+sub pve_mods_run_service {
+    ensure_pve_mods_directory_exists();
+
+    if (_worker_lock_file_exists()) {
+        my $old_pid = read_lock_pid($pve_mods_worker_lock);
+        if (defined $old_pid && $old_pid =~ /^(\d+)$/ && $1 != $$) {
+            my $pid = $1;
+            debug(__LINE__, "Replacing running worker PID $pid with the service worker");
+            kill('TERM', $pid);
+            for (1 .. 50) {
+                last unless is_process_alive($pid);
+                select(undef, undef, undef, 0.1);
+            }
+            # The old worker removes the working directory when it exits
+            ensure_pve_mods_directory_exists();
+        }
+    }
+
+    my $fh = acquire_exclusive_lock($pve_mods_worker_lock, 'pve_mods_worker lock');
+    die "Could not acquire the pve_mods_worker lock\n" unless $fh;
+    print $fh "$$\n";
+    close($fh);
+
+    $0 = "pve_mods_worker_controller";
+    _pve_mods_keep_alive();
+    exit(0);
 }
 
 # ============================================================================
@@ -260,6 +293,14 @@ sub _pve_mods_keep_alive {
     debug(__LINE__,
         "Entering pve_mods_worker loop, timeout=$config{intervals}{collector_timeout}s");
 
+    # With GPU history enabled the GPU collectors never idle out, so the RRD
+    # keeps recording without anyone viewing the UI. The sensors and UPS
+    # collectors are only needed for the UI and still stop while it is idle.
+    my $record_history      = $config{gpu}{gpu_history} ? 1 : 0;
+    my $expected_gpu        = scalar(_running_gpu_collectors());
+    my $ui_collectors_idle  = 0;
+    my $last_gpu_check      = time();
+
     while (1) {
         debug(__LINE__, "pve_mods_worker loop start: checking activity");
 
@@ -269,16 +310,68 @@ sub _pve_mods_keep_alive {
             . "timeout=$config{intervals}{collector_timeout}s");
 
         if ($idle_time > $config{intervals}{collector_timeout}) {
-            debug(__LINE__, "Timeout reached, stopping collectors");
-            _stop_child_collectors();
-            debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
-            unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
-            exit(0);
+            if ($record_history && $expected_gpu > 0) {
+                unless ($ui_collectors_idle) {
+                    debug(__LINE__, "Idle: stopping sensors/UPS collectors, GPU history keeps recording");
+                    _stop_named_collectors('sensors', 'ups');
+                    unlink($sensors_state_file, $ups_state_file);
+                    $ui_collectors_idle = 1;
+                }
+            } else {
+                debug(__LINE__, "Timeout reached, stopping collectors");
+                _stop_child_collectors();
+                debug(__LINE__, "Collectors stopped, exiting pve_mods_worker");
+                unlink($pve_mods_worker_lock) if -f $pve_mods_worker_lock;
+                exit(0);
+            }
+        } elsif ($ui_collectors_idle) {
+            debug(__LINE__, "Activity resumed: restarting sensors/UPS collectors");
+            _initialise_sensors_collector();
+            _initialise_ups_collector();
+            $ui_collectors_idle = 0;
+        }
+
+        # Restart GPU collectors that died, so history has no permanent gaps
+        if ($record_history && $expected_gpu > 0 && time() - $last_gpu_check >= 30) {
+            $last_gpu_check = time();
+            if (scalar(_running_gpu_collectors()) < $expected_gpu) {
+                debug(__LINE__, "A GPU collector is no longer running, restarting");
+                _initialise_graphics_collectors();
+            }
         }
         sleep(1);
     }
 
     debug(__LINE__, "pve_mods_worker loop exited unexpectedly!");
+}
+
+# Registered collectors that gather GPU data (everything except sensors/UPS).
+sub _running_gpu_collectors {
+    return grep { $_ ne 'sensors' && $_ ne 'ups' } keys %collectors;
+}
+
+# Stops only the named collectors, leaving the rest and the working directory.
+sub _stop_named_collectors {
+    my (@names) = @_;
+
+    my @pids;
+    foreach my $name (@names) {
+        next unless exists $collectors{$name};
+        push @pids, $collectors{$name};
+        delete $collectors{$name};
+    }
+    return unless @pids;
+
+    kill('TERM', $_) foreach grep { kill(0, $_) } @pids;
+
+    my $start = time();
+    while (time() - $start < 2) {
+        last unless grep { is_process_alive($_) } @pids;
+        select(undef, undef, undef, 0.1);
+    }
+    foreach my $pid (@pids) {
+        kill('KILL', $pid) if is_process_alive($pid);
+    }
 }
 
 # ============================================================================

@@ -614,17 +614,21 @@ node_info_configure() {
     # fi
     #endregion AMD GPU
 
-    # GPU historical data and graphs are disabled until the feature is complete.
-    #region GPU history (disabled)
-    # if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
-    #     section "GPU Historical Data"
-    #     local choice
-    #     choice=$(ask "Store historical GPU data for graphs? (y/N)")
-    #     case "$choice" in
-    #         [yY]) ENABLE_GPU_HISTORY=1; info "Historical GPU data will be stored." ;;
-    #         *)    info "Historical GPU data disabled." ;;
-    #     esac
-    # fi
+    #region GPU history
+    ENABLE_GPU_HISTORY=0
+    if [[ "$ENABLE_INTEL_GPU_INFO" -eq 1 || "$ENABLE_NVIDIA_GPU_INFO" -eq 1 ]]; then
+        section "GPU Graphs"
+        echo "The node summary page shows one graph per GPU. Choose where its data comes from:"
+        echo "  1) Live only        - graphs fill from live samples while the page is open (default)"
+        echo "  2) Record history   - samples are stored in RRD files, so past hours, days and years can be graphed"
+        warn "Recording history keeps the GPU collectors (intel_gpu_top / nvidia-smi) running around the clock, even when nobody has the web UI open. This consumes CPU continuously."
+        local choiceHistory
+        choiceHistory=$(ask "GPU graph data [1=live only, 2=record history] (1)")
+        case "$choiceHistory" in
+            2) ENABLE_GPU_HISTORY=1; info "GPU history will be recorded (CPU is used continuously)." ;;
+            *) info "GPU graphs will use live data only." ;;
+        esac
+    fi
     #endregion GPU history
 
     #region UPS

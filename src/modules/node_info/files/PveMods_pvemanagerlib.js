@@ -881,7 +881,6 @@ Ext.define('PVE.node.StatusView', {
                 let objValue;
                 try {
                     if (!isSensorEnabled(fansInfo, 'fans')) {
-                        this.hide();
 						return '';
 					}
                     objValue = getSensorPayload(fansInfo);
@@ -906,7 +905,6 @@ Ext.define('PVE.node.StatusView', {
                                 && (fansInfo.display_zero_speed_fans === true || numericSpeed !== 0)) {
                                 fanKeys.push({
                                     key: key.replace(/_input$/, ''),
-                                    label: typeof value.label === 'string' ? value.label.trim() : '',
                                     value: numericSpeed,
                                     unit: measurement.unit || 'RPM',
                                 });
@@ -942,12 +940,9 @@ Ext.define('PVE.node.StatusView', {
                         return 0;
                     });
                     // Process each fan key and value
-                    fanKeys.forEach(({ key: fanKey, label: fanLabel, value: fanSpeed, unit }) => {
+                    fanKeys.forEach(({ key: fanKey, value: fanSpeed, unit }) => {
                     try {
-                        // Use the custom sensors label when present, otherwise the capitalized key
-                        const fan = fanLabel
-                            ? Ext.htmlEncode(fanLabel)
-                            : fanKey.charAt(0).toUpperCase() + fanKey.slice(1);
+                        const fan = fanKey.charAt(0).toUpperCase() + fanKey.slice(1); // Capitalize the first letter of fanKey
                         speeds.push(`${fan}:&nbsp;${fanSpeed} ${unit}`);
                     } catch(e) {
                         console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
@@ -1422,19 +1417,29 @@ Ext.define('PVE.node.StatusView', {
     },
 });
 
-/* GPU historical graphs are disabled until the feature is complete.
+// One row per sample: either read from the GPU RRD files (history mode) or built
+// from the live status poll (live mode).
 Ext.define('pve-rrd-gpu', {
     extend: 'Ext.data.Model',
     fields: [
-	'freq_req', 'freq_act', 'rc6',
-	'power_gpu', 'power_pkg',
-	'render_busy', 'blitter_busy', 'video_busy', 'videnh_busy',
-	'gpu_util', 'mem_util', 'mem_used', 'mem_total',
-	'power_draw', 'power_limit', 'temp_gpu', 'fan_speed',
-	{ type: 'date', dateFormat: 'timestamp', name: 'time' },
+        'freq_req', 'freq_act', 'rc6',
+        'power_gpu', 'power_pkg',
+        'render_busy', 'blitter_busy', 'video_busy', 'videnh_busy',
+        'gpu_util', 'mem_util', 'mem_used', 'mem_total',
+        'power_draw', 'power_limit', 'temp_gpu', 'fan_speed',
+        {
+            name: 'mem_used_pct',
+            calculate: function (data) {
+                return data.mem_total > 0 && Ext.isNumber(data.mem_used)
+                    ? (data.mem_used * 100) / data.mem_total
+                    : null;
+            },
+        },
+        { type: 'date', dateFormat: 'timestamp', name: 'time' },
     ],
 });
 
+// GPU history read from the node's gpurrddata API.
 Ext.define('PVE.data.GpuRRDStore', {
     extend: 'Proxmox.data.RRDStore',
     alias: 'store.pveGpuRRDStore',
@@ -1442,125 +1447,275 @@ Ext.define('PVE.data.GpuRRDStore', {
     model: 'pve-rrd-gpu',
     card: undefined,
 
-    setRRDUrl: function(timeframe, cf) {
-	var me = this;
-	if (!me.rrdurl) { return; }
-	if (!timeframe) { timeframe = me.timeframe; }
-	if (!cf) { cf = me.cf; }
-	me.proxy.url = me.rrdurl +
-	    '?card=' + encodeURIComponent(me.card) +
-	    '&timeframe=' + timeframe +
-	    '&cf=' + cf;
+    setRRDUrl: function (timeframe, cf) {
+        let me = this;
+        if (!me.rrdurl) {
+            return;
+        }
+        timeframe = timeframe || me.timeframe;
+        cf = cf || me.cf;
+        me.proxy.url = `${me.rrdurl}?card=${encodeURIComponent(me.card)}&timeframe=${timeframe}&cf=${cf}`;
     },
 });
 
-Ext.define('PVE.node.GpuRRD', {
-    extend: 'Ext.panel.Panel',
-    alias: 'widget.pveNodeGpuRRD',
+// Rolling in-browser window of live samples, used when history is not recorded.
+Ext.define('PVE.mod.GpuLiveStore', {
+    extend: 'Ext.data.Store',
 
-    layout: 'fit',
-    title: 'GPU',
+    model: 'pve-rrd-gpu',
+    maxSamples: 600,
 
-    initComponent: function() {
-	var me = this;
+    startUpdate: Ext.emptyFn,
+    stopUpdate: Ext.emptyFn,
 
-	var nodename = me.nodename;
-	var card = me.card || 'card0';
-	var baseurl = '/api2/json/nodes/' + nodename + '/gpurrddata';
-	var isNvidia = card.indexOf('nvidia') === 0;
-
-	var store = Ext.create('PVE.data.GpuRRDStore', {
-	    rrdurl: baseurl,
-	    card: card,
-	});
-
-	var items;
-	if (isNvidia) {
-	    items = [
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'GPU & Memory Utilization',
-		    fields: ['gpu_util', 'mem_util'],
-		    fieldTitles: ['GPU %', 'Memory %'],
-		    unit: 'percent',
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'Memory Usage (MiB)',
-		    fields: ['mem_used', 'mem_total'],
-		    fieldTitles: ['Used', 'Total'],
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'Power Draw (W)',
-		    fields: ['power_draw', 'power_limit'],
-		    fieldTitles: ['Draw', 'Limit'],
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'Temperature & Fan',
-		    fields: ['temp_gpu', 'fan_speed'],
-		    fieldTitles: ['Temp (°C)', 'Fan %'],
-		    store: store,
-		},
-	    ];
-	} else {
-	    items = [
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'GPU Frequency (MHz)',
-		    fields: ['freq_req', 'freq_act'],
-		    fieldTitles: ['Requested', 'Actual'],
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'Engine Busy',
-		    fields: ['render_busy', 'blitter_busy', 'video_busy', 'videnh_busy'],
-		    fieldTitles: ['Render/3D %', 'Blitter %', 'Video %', 'VideoEnh %'],
-		    unit: 'percent',
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'Power (W)',
-		    fields: ['power_gpu', 'power_pkg'],
-		    fieldTitles: ['GPU', 'Package'],
-		    store: store,
-		},
-		{
-		    xtype: 'proxmoxRRDChart',
-		    title: 'RC6 Residency',
-		    fields: ['rc6'],
-		    fieldTitles: ['RC6 %'],
-		    unit: 'percent',
-		    store: store,
-		},
-	    ];
-	}
-
-	Ext.apply(me, {
-	    items: [{
-		xtype: 'container',
-		layout: {
-		    type: 'vbox',
-		    align: 'stretch',
-		},
-		items: items,
-	    }],
-	});
-
-	me.callParent();
-
-	me.on('activate', function() { store.startUpdate(); });
-	me.on('deactivate', function() { store.stopUpdate(); });
-	me.on('destroy', function() { store.stopUpdate(); });
+    addSample: function (sample) {
+        let me = this;
+        me.add(Ext.apply({ time: new Date() }, sample));
+        let excess = me.getCount() - me.maxSamples;
+        if (excess > 0) {
+            me.removeAt(0, excess);
+        }
     },
 });
-*/
+
+Ext.define('PVE.mod.GpuGraphs', {
+    singleton: true,
+
+    palette: [
+        '#115fa6', '#94ae0a', '#a61120', '#ff8809', '#ffd13e',
+        '#a61187', '#24ad9a', '#7c7474', '#a66111',
+    ],
+
+    // Selectable series per GPU type. 'get' reads the value from the collector's
+    // stats object (live mode), 'field' is the RRD data source (history mode).
+    // 'on' marks the series that are shown until the user toggles others.
+    metricDefs: {
+        Intel: [
+            { field: 'render_busy', title: gettext('Render/3D'), unit: '%', on: true, get: (s) => s.engines?.['Render/3D']?.busy },
+            { field: 'video_busy', title: gettext('Video'), unit: '%', on: true, get: (s) => s.engines?.Video?.busy },
+            { field: 'blitter_busy', title: gettext('Blitter'), unit: '%', on: true, get: (s) => s.engines?.Blitter?.busy },
+            { field: 'videnh_busy', title: gettext('VideoEnhance'), unit: '%', get: (s) => s.engines?.VideoEnhance?.busy },
+            { field: 'rc6', title: gettext('RC6 residency'), unit: '%', get: (s) => s.rc6?.value },
+            { field: 'freq_act', title: gettext('Frequency'), unit: 'MHz', get: (s) => s.frequency?.actual },
+            { field: 'freq_req', title: gettext('Frequency (requested)'), unit: 'MHz', get: (s) => s.frequency?.requested },
+            { field: 'power_gpu', title: gettext('GPU power'), unit: 'W', get: (s) => s.power?.GPU },
+            { field: 'power_pkg', title: gettext('Package power'), unit: 'W', get: (s) => s.power?.Package },
+        ],
+        NVIDIA: [
+            { field: 'gpu_util', title: gettext('GPU'), unit: '%', on: true, get: (s) => s.utilization?.gpu },
+            { field: 'mem_util', title: gettext('Memory controller'), unit: '%', on: true, get: (s) => s.utilization?.memory },
+            {
+                field: 'mem_used_pct',
+                title: gettext('Memory used'),
+                unit: '%',
+                on: true,
+                get: (s) => (s.memory?.total > 0 ? (s.memory.used * 100) / s.memory.total : undefined),
+            },
+            { field: 'fan_speed', title: gettext('Fan'), unit: '%', get: (s) => s.fan?.speed },
+            { field: 'power_draw', title: gettext('Power draw'), unit: 'W', get: (s) => s.power?.draw },
+            { field: 'power_limit', title: gettext('Power limit'), unit: 'W', get: (s) => s.power?.limit },
+            { field: 'temp_gpu', title: gettext('Temperature'), unit: '°C', get: (s) => s.temperature?.gpu },
+        ],
+    },
+
+    // Series offered for a GPU: skips those its collector doesn't report.
+    metricsFor: function (type, stats) {
+        let me = this;
+        let defs = (me.metricDefs[type] || []).filter((m) => Ext.isNumber(m.get(stats || {})));
+        return defs.map((m, i) => Ext.apply({ color: me.palette[i % me.palette.length] }, m));
+    },
+
+    // One entry per GPU found in the PveMods_graphicsInfo status value.
+    devices: function (info) {
+        let res = [];
+        ['Intel', 'NVIDIA'].forEach((type) => {
+            let group = info?.Graphics?.[type] || {};
+            Object.keys(group).sort().forEach((key) => {
+                let dev = group[key];
+                let card = dev.card;
+                if (!card && type === 'NVIDIA') {
+                    card = `nvidia${dev.index}`;
+                } else if (!card) {
+                    card = (dev.drm_path || '').split('/').pop();
+                }
+                if (!card || !/^[a-zA-Z0-9]+$/.test(card) || !dev.stats) {
+                    return;
+                }
+                res.push({ type, card, name: dev.name || dev.stats.name || card, stats: dev.stats });
+            });
+        });
+        return res;
+    },
+
+    // Converts collector stats into a row of the pve-rrd-gpu model.
+    sample: function (type, stats) {
+        let row = {};
+        (this.metricDefs[type] || []).forEach((m) => {
+            let v = m.get(stats);
+            if (Ext.isNumber(v)) {
+                row[m.field] = v;
+            }
+        });
+        if (type === 'NVIDIA') {
+            row.mem_used = stats.memory?.used;
+            row.mem_total = stats.memory?.total;
+        }
+        return row;
+    },
+});
+
+Ext.define('PVE.mod.SummaryChart', {
+    extend: 'Proxmox.widget.RRDChart',
+    alias: 'widget.pveModSummaryChart',
+
+    constructor: function (config) {
+        let me = this;
+        me.callParent([config]);
+
+        let prepareTitle = function () {
+            let title = me.header.getTitle();
+            title.noWrap = false;
+            title.textEl.setStyle({
+                'white-space': 'normal',
+                'overflow-wrap': 'anywhere',
+            });
+            title.textEl.dom.title = title.textEl.dom.textContent;
+            me.header.updateLayout();
+        };
+        if (me.rendered) {
+            prepareTitle();
+        } else {
+            me.on('afterrender', prepareTitle, null, { single: true });
+        }
+
+        let legend = me.header.items.findBy((item) => item.isDomLegend);
+        me.header.remove(legend, false);
+        me.controls = me.addDocked({
+            xtype: 'toolbar',
+            dock: 'top',
+            overflowHandler: 'scroller',
+            items: [legend],
+        })[0];
+    },
+});
+
+Ext.define('PVE.mod.GpuChart', {
+    extend: 'PVE.mod.SummaryChart',
+    alias: 'widget.pveModGpuChart',
+
+    card: undefined,
+    metrics: undefined,
+
+    constructor: function (config) {
+        let me = this;
+        let metrics = config.metrics;
+        let sp = Ext.state.Manager.getProvider();
+        me.stateKey = `pvemods-gpu-chart-${config.nodename}-${config.card}`;
+        let saved = sp?.get(me.stateKey);
+        me.shownByUnit = Ext.isObject(saved?.shown) ? saved.shown : {};
+        let units = [...new Set(metrics.map((m) => m.unit))];
+        me.selectedUnit = units.includes(saved?.unit) ? saved.unit : units[0];
+        let shown = me.getShownMetrics(me.selectedUnit, metrics);
+
+        me.callParent([
+            Ext.apply(
+                {
+                    fields: metrics.map((m) => ({
+                        yField: m.field,
+                        title: m.title,
+                        showInLegend: m.unit === me.selectedUnit,
+                        hidden: m.unit !== me.selectedUnit || !shown.includes(m.field),
+                        tooltip: {
+                            trackMouse: true,
+                            renderer: function (toolTip, record) {
+                                let value = record.get(m.field);
+                                if (value === null || value === undefined) {
+                                    toolTip.setHtml(gettext('No Data'));
+                                } else {
+                                    let text = Ext.util.Format.number(value, '0.##');
+                                    let time = new Date(record.get('time'));
+                                    toolTip.setHtml(`${m.title}: ${text} ${m.unit}<br>${time}`);
+                                }
+                            },
+                        },
+                    })),
+                    colors: metrics.map((m) => m.color),
+                },
+                config,
+            ),
+        ]);
+
+        me.axes[0].setTitle(me.selectedUnit);
+        me.unitButton = me.controls.insert(0, {
+            xtype: 'button',
+            text: me.unitLabel(me.selectedUnit),
+            menu: units.map((unit) => ({
+                text: me.unitLabel(unit),
+                handler: () => me.selectUnit(unit),
+            })),
+        });
+        me.mon(me.getLegendStore(), 'update', me.saveLegendState, me);
+    },
+
+    unitLabel: function (unit) {
+        let names = {
+            '%': gettext('Usage'),
+            'MHz': gettext('Frequency'),
+            'W': gettext('Power'),
+            '°C': gettext('Temperature'),
+        };
+        return `${names[unit] || unit} (${unit})`;
+    },
+
+    getShownMetrics: function (unit, metrics) {
+        let group = metrics.filter((m) => m.unit === unit);
+        let saved = this.shownByUnit[unit];
+        let shown = Array.isArray(saved) ? saved.filter((field) => group.some((m) => m.field === field)) : [];
+        if (!shown.length) {
+            shown = group.filter((m) => m.on).map((m) => m.field);
+        }
+        return shown.length ? shown : group.map((m) => m.field);
+    },
+
+    saveChartState: function () {
+        let sp = Ext.state.Manager.getProvider();
+        if (sp) {
+            sp.set(this.stateKey, { unit: this.selectedUnit, shown: this.shownByUnit });
+        }
+    },
+
+    saveLegendState: function (store) {
+        if (this.switchingUnit) {
+            return;
+        }
+        this.shownByUnit[this.selectedUnit] = store.getRange()
+            .filter((record) => !record.get('disabled'))
+            .map((record) => this.getSeries().map[record.get('series')].getYField());
+        this.saveChartState();
+    },
+
+    selectUnit: function (unit) {
+        let me = this;
+        if (unit === me.selectedUnit) {
+            return;
+        }
+        let shown = me.getShownMetrics(unit, me.metrics);
+        me.switchingUnit = true;
+        me.selectedUnit = unit;
+        me.getSeries().forEach((series) => {
+            let metric = me.metrics.find((m) => m.field === series.getYField());
+            series.setShowInLegend(metric.unit === unit);
+            series.setHidden(metric.unit !== unit || !shown.includes(metric.field));
+        });
+        me.refreshLegendStore();
+        me.axes[0].setTitle(unit);
+        me.unitButton.setText(me.unitLabel(unit));
+        me.redraw();
+        me.switchingUnit = false;
+        me.saveChartState();
+    },
+});
+
 
 Ext.define('PVE.node.Summary', {
     extend: 'Ext.panel.Panel',
@@ -1697,11 +1852,55 @@ Ext.define('PVE.node.Summary', {
             model: 'pve-rrd-node',
         });
 
-        // GPU historical graph store is disabled until the feature is complete.
-        // var gpurrdstore = Ext.create('PVE.data.GpuRRDStore', {
-        //     rrdurl: '/api2/json/nodes/' + nodename + '/gpurrddata',
-        //     card: 'card0',
-        // });
+        // One chart per GPU, created once the first status poll reports the GPUs.
+        let gpuCharts = {};
+        let addGpuCharts = function (store, records, success) {
+            let container = me.getComponent('itemcontainer');
+            let rec = rstore.getById('PveMods_graphicsInfo');
+            let info = rec ? rec.data.value : undefined;
+            if (!success || !container || !info || info.enable_gpu !== true) {
+                return;
+            }
+
+            let useHistory = info.gpu_history === true;
+            let added = false;
+            PVE.mod.GpuGraphs.devices(info).forEach((dev) => {
+                let entry = gpuCharts[dev.card];
+                if (!entry) {
+                    let metrics = PVE.mod.GpuGraphs.metricsFor(dev.type, dev.stats);
+                    if (metrics.length === 0) {
+                        return;
+                    }
+                    let store = useHistory
+                        ? Ext.create('PVE.data.GpuRRDStore', {
+                              rrdurl: '/api2/json/nodes/' + nodename + '/gpurrddata',
+                              card: dev.card,
+                          })
+                        : Ext.create('PVE.mod.GpuLiveStore');
+                    let title = `${gettext('GPU')}: ${Ext.htmlEncode(dev.name)} (${dev.card})`;
+                    let chart = container.add({
+                        xtype: 'pveModGpuChart',
+                        itemId: `gpu-${dev.card}`,
+                        title: useHistory ? title : `${title} (${gettext('live')})`,
+                        card: dev.card,
+                        nodename: nodename,
+                        columnWidth: 1 / (container.oldFactor || 1),
+                        metrics: metrics,
+                        store: store,
+                    });
+                    entry = gpuCharts[dev.card] = { chart: chart, store: store };
+                    store.startUpdate();
+                    added = true;
+                }
+                if (!useHistory) {
+                    entry.store.addSample(PVE.mod.GpuGraphs.sample(dev.type, dev.stats));
+                }
+            });
+
+            if (added) {
+                Proxmox.Utils.updateColumns(container);
+            }
+        };
 
         let nodeStatus = Ext.create('PVE.node.StatusView', {
             xtype: 'pveNodeStatus',
@@ -1727,7 +1926,7 @@ Ext.define('PVE.node.Summary', {
                     items: [
                         nodeStatus,
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('CPU Usage'),
                             fields: ['cpu', 'iowait'],
                             fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
@@ -1735,14 +1934,14 @@ Ext.define('PVE.node.Summary', {
                             store: rrdstore,
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('Server Load'),
                             fields: ['loadavg'],
                             fieldTitles: [gettext('Load average')],
                             store: rrdstore,
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('Memory usage'),
                             fields: [
                                 {
@@ -1825,14 +2024,14 @@ Ext.define('PVE.node.Summary', {
                             store: rrdstore,
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('Network Traffic'),
                             fields: ['netin', 'netout'],
                             fieldTitles: [gettext('Incoming'), gettext('Outgoing')],
                             store: rrdstore,
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('CPU Pressure Stall'),
                             fieldTitles: ['Some'],
                             fields: ['pressurecpusome'],
@@ -1841,7 +2040,7 @@ Ext.define('PVE.node.Summary', {
                             unit: 'percent',
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('IO Pressure Stall'),
                             fieldTitles: ['Some', 'Full'],
                             fields: ['pressureiosome', 'pressureiofull'],
@@ -1850,7 +2049,7 @@ Ext.define('PVE.node.Summary', {
                             unit: 'percent',
                         },
                         {
-                            xtype: 'proxmoxRRDChart',
+                            xtype: 'pveModSummaryChart',
                             title: gettext('Memory Pressure Stall'),
                             fieldTitles: ['Some', 'Full'],
                             fields: ['pressurememorysome', 'pressurememoryfull'],
@@ -1858,38 +2057,6 @@ Ext.define('PVE.node.Summary', {
                             store: rrdstore,
                             unit: 'percent',
                         },
-                        /* GPU historical graphs are disabled until the feature is complete.
-                        {
-                            xtype: 'proxmoxRRDChart',
-                            title: gettext('GPU Frequency (MHz)'),
-                            fields: ['freq_req', 'freq_act'],
-                            fieldTitles: [gettext('Requested'), gettext('Actual')],
-                            store: gpurrdstore,
-                        },
-                        {
-                            xtype: 'proxmoxRRDChart',
-                            title: gettext('GPU Engine Busy'),
-                            fields: ['render_busy', 'blitter_busy', 'video_busy', 'videnh_busy'],
-                            fieldTitles: [gettext('Render/3D'), gettext('Blitter'), gettext('Video'), gettext('VideoEnh')],
-                            unit: 'percent',
-                            store: gpurrdstore,
-                        },
-                        {
-                            xtype: 'proxmoxRRDChart',
-                            title: gettext('GPU Power (W)'),
-                            fields: ['power_gpu', 'power_pkg'],
-                            fieldTitles: [gettext('GPU'), gettext('Package')],
-                            store: gpurrdstore,
-                        },
-                        {
-                            xtype: 'proxmoxRRDChart',
-                            title: gettext('GPU RC6 Residency'),
-                            fields: ['rc6'],
-                            fieldTitles: [gettext('RC6 %')],
-                            unit: 'percent',
-                            store: gpurrdstore,
-                        },
-                        */
                     ],
                     listeners: {
                         resize: function (panel) {
@@ -1903,12 +2070,12 @@ Ext.define('PVE.node.Summary', {
                     rstore.setInterval(1000);
                     rstore.startUpdate();
                     rrdstore.startUpdate();
-                    // gpurrdstore.startUpdate();
+                    Ext.Object.each(gpuCharts, (card, entry) => entry.store.startUpdate());
                 },
                 destroy: function () {
                     rstore.setInterval(5000);
                     rrdstore.stopUpdate();
-                    // gpurrdstore.stopUpdate();
+                    Ext.Object.each(gpuCharts, (card, entry) => entry.store.stopUpdate());
                 },
             },
         });
@@ -1916,6 +2083,8 @@ Ext.define('PVE.node.Summary', {
         me.updateRepositoryStatus();
 
         me.callParent();
+
+        me.mon(rstore, 'load', addGpuCharts);
 
         let sp = Ext.state.Manager.getProvider();
         me.mon(sp, 'statechange', function (provider, key, value) {
