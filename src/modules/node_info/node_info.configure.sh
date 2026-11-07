@@ -327,28 +327,6 @@ node_info_defaults() {
     DEBUG_MOD=0
 }
 
-# Same rule as the [intervals] parser in Config.pm: whole seconds, 1..2147483647.
-# Prints the normalized value and succeeds, or fails for anything else.
-_valid_interval() {
-    local val="$1"
-    [[ "$val" =~ ^[0-9]+$ ]] && (( ${#val} <= 10 )) || return 1
-    (( 10#$val >= 1 && 10#$val <= 2147483647 )) || return 1
-    echo "$((10#$val))"
-}
-
-# Loads one [intervals] value into the named variable; an invalid value keeps
-# the current one, as Config.pm does at runtime.
-_load_interval() {
-    local var="$1" key="$2" val="$3" parsed
-    val="${val%%#*}"                      # Config.pm also accepts inline comments
-    val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
-    if parsed=$(_valid_interval "$val"); then
-        printf -v "$var" '%s' "$parsed"
-    else
-        warn "Ignoring invalid [intervals] $key='$val' in $NODE_INFO_CONF (expected 1-2147483647); keeping ${!var}."
-    fi
-}
-
 node_info_load_conf() {
     [[ -f "$NODE_INFO_CONF" ]] || return 0
     local line key val section=""
@@ -385,8 +363,8 @@ node_info_load_conf() {
             storage_health.zfs_interval)    STORAGE_ZFS_INTERVAL="$val" ;;
             storage_health.smart_interval)  STORAGE_SMART_INTERVAL="$val" ;;
             storage_health.smart_wake_disks) STORAGE_SMART_WAKE="$val" ;;
-            intervals.data_pull)            _load_interval DATA_PULL_INTERVAL data_pull "$val" ;;
-            intervals.collector_timeout)    _load_interval COLLECTOR_TIMEOUT collector_timeout "$val" ;;
+            intervals.data_pull)            DATA_PULL_INTERVAL="$val" ;;
+            intervals.collector_timeout)    COLLECTOR_TIMEOUT="$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;

@@ -53,21 +53,7 @@ is($PVE::PVEMods::Config::config{lm_sensors}{enabled}, 1, 'sensor config preserv
 is($PVE::PVEMods::Config::config{system_info}{temp_unit}, 'F', 'system config preserved');
 is(scalar @warnings, 0, 'valid values and unknown keys do not warn');
 
-sub read_vectors {
-    open my $fh, '<', "$FindBin::Bin/fixtures/interval-values.txt" or die $!;
-    my (@accept, @reject);
-    while (my $l = <$fh>) {
-        chomp $l;
-        next if $l =~ /^#/ || $l eq '';
-        my ($kind, $raw, $norm) = split /\|/, $l, 3;
-        $raw = '' unless defined $raw;
-        push @{ $kind eq 'accept' ? \@accept : \@reject }, [$raw, $norm];
-    }
-    return (\@accept, \@reject);
-}
-my ($accept, $reject) = read_vectors();
-
-for my $v (@$accept) {
+for my $v (['1', 1], ['120', 120], ['007', 7], ['2147483647', 2147483647], ['5 # seconds', 5], [' 5 ', 5]) {
     my ($raw, $norm) = @$v;
     @warnings = ();
     load_ini("[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
@@ -77,7 +63,8 @@ for my $v (@$accept) {
 }
 load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
 
-for my $bad (map { $_->[0] } @$reject) {
+for my $bad ('', '0', '-1', '1.5', 'abc', '1e2', '+5', '5 seconds',
+             '2147483648', '999999999999999999999999999999') {
     @warnings = ();
     load_ini("[intervals]\ndata_pull=$bad\ncollector_timeout=$bad\n");
     is_deeply($PVE::PVEMods::Config::config{intervals},
@@ -144,24 +131,6 @@ is((wizard($reload . 'ENABLE_UPS=1; node_info_write_conf; ' . $reload
 my $saved = read_source($wconf);
 wizard($reload . 'node_info_write_conf');
 is(read_source($wconf), $saved, 'repeated save is stable');
-
-# Same accept/reject rules as Config.pm
-for my $v (@$accept) {
-    my ($raw, $norm) = @$v;
-    write_file($wconf, "[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
-    my ($got, $err) = wizard($reload . 'show');
-    is($got, "$norm $norm", "wizard accepts '$raw'");
-    is($err, '', 'no warning for valid value');
-}
-for my $v (@$reject) {
-    my $raw = $v->[0];
-    write_file($wconf, "[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
-    my ($got, $err) = wizard($reload . 'show');
-    is($got, '1 10', "wizard rejects '$raw' and keeps the defaults");
-    is(scalar(() = $err =~ /\n/g), 2, 'one warning per invalid option');
-}
-write_file($wconf, "[intervals]\ndata_pull=7\ncollector_timeout=0\n");
-is((wizard($reload . 'show'))[0], '7 10', 'invalid saved value falls back, valid one kept');
 
 load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
 
