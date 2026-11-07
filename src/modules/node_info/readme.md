@@ -21,6 +21,8 @@ The node summary shows one row per CPU package with the minimum, average and max
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
 SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually.
 
+![RAM temperatures](images/ram-temperatures.png)
+
 Note: This is an example and you must replace registers with your findings.
 
 1) Install the required package for investigation: ```apt-get install i2c-tools```
@@ -60,6 +62,18 @@ EOF
 10) Remove apt-get remove i2c-dev
 
 To uninstall delete the module load and udev rule.
+
+#### HDD/SSD and NVMe
+Drives are listed with model and serial number.
+
+![HDD/SSD temperatures](images/hdd-ssd-temperatures.png)
+
+![NVMe temperatures](images/nvme-temperatures.png)
+
+#### Other
+Remaining temperature sensors are grouped together.
+
+![Other temperatures](images/other-temperatures.png)
 
 ### NVIDIA GPU
 
@@ -123,9 +137,9 @@ The node summary has a *GPU Details* row with one line per detected Intel/NVIDIA
 
 The node summary page shows one graph per Intel/NVIDIA GPU that is reporting data. Utilisation metrics (%) are plotted on the left axis and can be shown or hidden through the left legend. The right axis shows one other unit at a time, such as frequency, power or temperature; click an entry in the right legend to switch between them.
 
-![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel-simulated.png)
+![Intel GPU graph with utilisation on the left axis and frequency on the right](images/gpu-intel.png)
 
-![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia-simulated.png)
+![NVIDIA GPU graph with utilisation on the left axis and temperature on the right](images/gpu-nvidia.png)
 
 `pve-mods-configure` asks how the graphs get their data (only when an Intel or NVIDIA GPU was detected):
 
@@ -175,6 +189,8 @@ Reads hardware identity from `dmidecode` (cached at configure time, no runtime r
 |--------|-------------|----------------|
 | `1` | DMI System | Manufacturer, Product Name, Serial Number |
 | `2` | DMI Baseboard | Manufacturer, Product Name, Serial Number |
+
+![System information row](images/system-information.png)
 
 ### Storage health (ZFS and SMART)
 
