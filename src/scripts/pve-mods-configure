@@ -143,6 +143,7 @@ main() {
                 MOD_NODE_INFO=0; info "Node Info will be removed."
             else
                 MOD_NODE_INFO=1; patching_needed=1
+                refresh_patches=1
                 section "Node Info Configuration"
                 node_info_configure
             fi
