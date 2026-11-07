@@ -1,0 +1,11 @@
+# pve-mods :: oidc_console_access patch manifest
+# Format: <patch-file> [section.key=value]
+# Each feature is independent and only applied when enabled in
+# /etc/pve-mods/conf.d/oidc_console_access.conf.
+
+# Upgrade console (Updates -> Upgrade) for members of access.upgrade_groups
+01-nodes-pm-upgrade-access.patch      access.upgrade=1
+02-pvemanager-js-upgrade-button.patch access.upgrade=1
+
+# Passwordless root shell (Shell tab) for members of access.shell_groups
+03-nodes-pm-shell-access.patch        access.shell=1

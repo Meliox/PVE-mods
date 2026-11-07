@@ -58,6 +58,7 @@ _load_main_conf() {
         case "${section}.${key}" in
             modules.node_info)    MOD_NODE_INFO="$val" ;;
             modules.nag_screen)   MOD_NAG_SCREEN="$val" ;;
+            modules.oidc_console_access) MOD_OIDC_CONSOLE_ACCESS="$val" ;;
             pve_trigger.enabled)  PVE_TRIGGER_ENABLED="$val" ;;
         esac
     done < "$CONF_FILE"
@@ -75,6 +76,7 @@ write_main_conf() {
 [modules]
 node_info=${MOD_NODE_INFO}
 nag_screen=${MOD_NAG_SCREEN}
+oidc_console_access=${MOD_OIDC_CONSOLE_ACCESS}
 
 [pve_trigger]
 enabled=${PVE_TRIGGER_ENABLED}
@@ -112,12 +114,14 @@ main() {
     fi
 
     # ── Initialize all config variables with safe defaults ────────────────────
-    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; PVE_TRIGGER_ENABLED=0
+    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=0; PVE_TRIGGER_ENABLED=0
     node_info_defaults
     nag_screen_defaults
+    oidc_console_access_defaults
     _load_main_conf
     node_info_load_conf
     nag_screen_load_conf
+    oidc_console_access_load_conf
 
     # ── Module / feature selection ────────────────────────────────────────────
     # Existing settings are loaded above; the user picks ONE option to (re)configure
@@ -126,11 +130,12 @@ main() {
     echo "Available options (select one):"
     echo -e "  [1] Node Info   $(mod_status "$MOD_NODE_INFO") — sensor readings, GPU stats, UPS, system information"
     echo -e "  [2] Nag Screen  $(mod_status "$MOD_NAG_SCREEN") — remove Proxmox subscription nag screen"
-    echo -e "  [3] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
+    echo -e "  [3] OIDC Console Access $(mod_status "$MOD_OIDC_CONSOLE_ACCESS") — grant selected groups Upgrade and/or root Shell access"
+    echo -e "  [4] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
     echo    "                    pve-manager is upgraded"
     echo    "  [n] None / cancel"
-    local modChoice selected_mod="" patching_needed=0
-    modChoice=$(ask "Select an option (1/2/3/n)")
+    local modChoice selected_mod="" patching_needed=0 refresh_patches=0
+    modChoice=$(ask "Select an option (1/2/3/4/n)")
     case "$modChoice" in
         1)
             selected_mod="node_info"
@@ -157,6 +162,20 @@ main() {
             write_main_conf; nag_screen_write_conf
             ;;
         3)
+            selected_mod="oidc_console_access"
+            section "OIDC Console Access Configuration"
+            oidc_console_access_configure
+            if [[ -n "$OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS" || -n "$OIDC_CONSOLE_ACCESS_SHELL_GROUPS" ]]; then
+                MOD_OIDC_CONSOLE_ACCESS=1
+                patching_needed=1
+                refresh_patches=1
+            else
+                MOD_OIDC_CONSOLE_ACCESS=0
+                info "No OIDC Console Access features enabled; the module will be removed."
+            fi
+            write_main_conf; oidc_console_access_write_conf
+            ;;
+        4)
             if [[ "$PVE_TRIGGER_ENABLED" == "1" ]]; then
                 PVE_TRIGGER_ENABLED=0; info "Auto re-patch disabled."
             else
@@ -170,6 +189,12 @@ main() {
 
     # ── Apply / revert patches ────────────────────────────────────────────────
     # Config is already written above; pveproxy will restart with new settings.
+    if [[ "$refresh_patches" == "1" ]]; then
+        section "Refreshing patches"
+        if ! "$REVERT_PATCHES" "$selected_mod"; then
+            err "Could not revert existing patches for $selected_mod."
+        fi
+    fi
     if [[ "$patching_needed" == "1" ]]; then
         section "Applying patches"
         if ! "$APPLY_PATCHES" "$selected_mod"; then
