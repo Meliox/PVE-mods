@@ -839,8 +839,19 @@ node_info_configure() {
         info "DMI data cached to $cache_file"
     fi
     #endregion System info
+
+    _configure_intervals
 }
 #endregion node-info wizard
+
+# Pre-filled with the saved values (1 and 10 seconds on a first run); press Enter to keep them.
+_configure_intervals() {
+    section "Collector Intervals"
+    echo "  Press Enter to accept each value, or edit it first. Values apply after pveproxy restarts."
+    DATA_PULL_INTERVAL=$(_ask_int "Seconds between collector data polls" "$DATA_PULL_INTERVAL" 1 2147483647 1)
+    echo "  Use a timeout above the polling interval of any external API client, e.g. Home Assistant."
+    COLLECTOR_TIMEOUT=$(_ask_int "Seconds without a request before collectors stop" "$COLLECTOR_TIMEOUT" 1 2147483647 10)
+}
 
 node_info_write_conf() {
     cat > "$NODE_INFO_CONF" <<EOF
@@ -876,8 +887,8 @@ zfs_interval=${STORAGE_ZFS_INTERVAL}
 smart_interval=${STORAGE_SMART_INTERVAL}
 smart_wake_disks=${STORAGE_SMART_WAKE}
 
-# Advanced, not prompted by the wizard: edit here, then restart pveproxy.
-# Whole seconds, 1-2147483647. See the node_info readme before changing them.
+# Seconds, 1-2147483647. Set by pve-mods-configure (Enter keeps the value shown);
+# can also be edited here. Restart pveproxy afterwards.
 [intervals]
 # Seconds between collector data polls
 data_pull=${DATA_PULL_INTERVAL}

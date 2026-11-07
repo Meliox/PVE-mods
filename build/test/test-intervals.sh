@@ -2,7 +2,7 @@
 # build/test/test-intervals.sh
 #
 # Tests the node_info [intervals] settings (data_pull, collector_timeout):
-#   - the configure wizard loads, writes and preserves them (configure -> save -> reload)
+#   - the configure wizard prompts for, loads, writes and preserves them (configure -> save -> reload)
 #   - the wizard and Config.pm accept and reject the same values
 #   - Config.pm loads the wizard-written file; the worker keep-alive loop honours the timeout
 # Needs only bash and core Perl; no Proxmox system or sensor hardware.
@@ -30,16 +30,15 @@ LOAD_WARNINGS="$TMP/warnings"
 : > "$LOAD_WARNINGS"
 warn() { echo "$*" >> "$LOAD_WARNINGS"; }
 info() { :; }
+section() { :; }
 # shellcheck source=/dev/null
 source "$WIZARD"
 
 fail=0 count=0
 check() { # description expected actual
     count=$((count + 1))
-    if [[ "$2" == "$3" ]]; then
-        echo "ok $count - $1"
-    else
-        echo "not ok $count - $1 (expected '$2', got '$3')"
+    if [[ "$2" != "$3" ]]; then
+        echo "FAIL: $1 (expected '$2', got '$3')" >&2
         fail=1
     fi
 }
@@ -77,7 +76,30 @@ while IFS='|' read -r kind raw norm; do
     fi
 done < "$VALUES"
 
-# Configure -> save -> reload keeps manually edited values
+# Configure prompts: defaults on a first run, answers saved, saved values pre-filled
+answer() { # data_pull-answer-lines...; feeds the prompts, discarding their output
+    _configure_intervals < <(printf '%s\n' "$@") > /dev/null 2>&1
+}
+node_info_defaults
+answer "" ""
+check "Enter accepts default data_pull" 1 "$DATA_PULL_INTERVAL"
+check "Enter accepts default collector_timeout" 10 "$COLLECTOR_TIMEOUT"
+answer 0 abc 2147483648 7 -1 300
+check "prompt rejects invalid answers, then takes data_pull" 7 "$DATA_PULL_INTERVAL"
+check "prompt takes collector_timeout" 300 "$COLLECTOR_TIMEOUT"
+answer "" ""
+check "Enter keeps custom data_pull" 7 "$DATA_PULL_INTERVAL"
+check "Enter keeps custom collector_timeout" 300 "$COLLECTOR_TIMEOUT"
+
+# Configure -> save -> reload keeps the answers
+node_info_defaults
+answer 9 450
+node_info_write_conf
+load_fresh
+check "configured data_pull survives save and reload" 9 "$DATA_PULL_INTERVAL"
+check "configured collector_timeout survives save and reload" 450 "$COLLECTOR_TIMEOUT"
+
+# Manually edited values are loaded too
 node_info_defaults
 node_info_write_conf
 sed -i -e 's/^data_pull=.*/data_pull=7/' -e 's/^collector_timeout=.*/collector_timeout=300/' "$NODE_INFO_CONF"
@@ -106,11 +128,17 @@ load_fresh
 check "invalid saved value falls back to default" 10 "$COLLECTOR_TIMEOUT"
 check "valid sibling value kept" 7 "$DATA_PULL_INTERVAL"
 
-echo "1..$count"
 if (( fail )); then
-    echo "[intervals] WARNING: wizard interval tests failed" >&2
+    echo "[intervals] FAIL: wizard interval tests failed" >&2
     exit 1
 fi
 
-echo "[intervals] Running Config.pm and worker lifecycle tests"
-INTERVALS_WIZARD_CONF="$TMP/wizard.conf" perl "$SCRIPT_DIR/test-intervals.t"
+if ! perl_out=$(INTERVALS_WIZARD_CONF="$TMP/wizard.conf" perl "$SCRIPT_DIR/test-intervals.t" 2>&1) \
+        || grep -q '^not ok' <<< "$perl_out"; then
+    echo "$perl_out" >&2
+    echo "[intervals] FAIL: Config.pm or worker lifecycle tests failed" >&2
+    exit 1
+fi
+perl_count=$(grep -c '^ok' <<< "$perl_out")
+
+echo "[intervals] PASS: $((count + perl_count)) tests passed"

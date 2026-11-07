@@ -259,10 +259,11 @@ Only known keys and positive integers from `1` to `2147483647` are accepted.
 Invalid values produce a warning and retain the previous valid value (or the
 default); unknown keys are ignored.
 
-These are advanced settings in `/etc/pve-mods/conf.d/node_info.conf`. The
-configuration wizard does not prompt for them, but it keeps your values when
-you re-run it to configure anything else. Edit the file, then restart
-`pveproxy` (`systemctl restart pveproxy`).
+These settings are in `/etc/pve-mods/conf.d/node_info.conf`. The configuration
+wizard (`pve-mods-configure`) asks for both when you configure Node Info, with
+the current values pre-filled (`1` and `10` on a first run); press Enter to keep
+them. You can also edit the file directly. Restart `pveproxy`
+(`systemctl restart pveproxy`) after changing them.
 
 ### Recommended for Home Assistant and other API clients
 

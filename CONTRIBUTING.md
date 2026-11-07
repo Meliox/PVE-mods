@@ -34,14 +34,6 @@ bash build/test/test-syntax.sh all
 
 This checks Perl, JavaScript, and shell syntax and requires Perl and Node.js.
 
-The isolated collector interval tests cover the configuration wizard's
-load/save/preserve cycle, `Config.pm` parsing and the worker lifecycle. They
-need only bash and core Perl, no Proxmox or sensor hardware:
-
-```bash
-bash build/test/test-intervals.sh
-```
-
 The patch tests apply and revert patches on a Proxmox system and must be run as
 root. They modify system files, so use a disposable Proxmox test environment,
 not a production host:
