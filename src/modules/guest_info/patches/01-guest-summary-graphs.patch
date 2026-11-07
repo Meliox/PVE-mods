@@ -1,0 +1,190 @@
+--- a/usr/share/pve-manager/js/pvemanagerlib.js
++++ b/usr/share/pve-manager/js/pvemanagerlib.js
+@@ -17563,6 +17563,77 @@
+         me.setTitle(title);
+     },
+ });
++Ext.define('PVE.mod.GuestSummaryChart', {
++    extend: 'Proxmox.widget.RRDChart',
++    alias: 'widget.pveModGuestSummaryChart',
++
++    statics: {
++        pressureField: function (field, title) {
++            return {
++                yField: field, title, fill: false,
++                tooltip: {
++                    trackMouse: true,
++                    renderer: function (tooltip, record) {
++                        const value = record.get(field);
++                        tooltip.setHtml(Ext.isNumber(value)
++                            ? `${title}: ${Ext.util.Format.number(value, '0.##')}%<br>${new Date(record.get('time'))}`
++                            : gettext('No Data'));
++                    },
++                },
++            };
++        },
++    },
++
++    constructor: function (config) {
++        this.callParent([config]);
++        const me = this;
++        const legend = me.header.items.findBy(item => item.isDomLegend);
++        me.header.remove(legend, false);
++        me.addDocked({
++            xtype: 'toolbar',
++            dock: 'top',
++            overflowHandler: 'scroller',
++            items: [legend],
++        });
++        legend.flex = 1;
++        const alignLegend = function () {
++            const container = legend.el.down('.x-legend-container');
++            if (!container) {
++                return;
++            }
++            legend.el.down('.x-legend-inner').setStyle('width', '100%');
++            container.setStyle({ display: 'flex', width: '100%', 'text-align': 'left' });
++            let firstPressure = true;
++            const items = legend.el.query('.x-legend-item');
++            const style = items.length ? getComputedStyle(items[0]) : null;
++            items.forEach((item, index) => {
++                const record = legend.getStore().getAt(Number(item.getAttribute('data-recordindex')));
++                const series = me.getSeries().map[record.get('series')];
++                const pressure = String(series.getYField()).startsWith('pressure');
++                const startsPressure = pressure && firstPressure;
++                item.style.marginLeft = startsPressure ? 'auto' : '';
++                item.style.borderLeft = startsPressure ? style.borderLeft : '';
++                item.style.borderTopLeftRadius = startsPressure ? style.borderTopLeftRadius : '';
++                item.style.borderBottomLeftRadius = startsPressure ? style.borderBottomLeftRadius : '';
++                if (startsPressure && index > 0) {
++                    items[index - 1].style.borderTopRightRadius = style.borderTopLeftRadius;
++                    items[index - 1].style.borderBottomRightRadius = style.borderBottomLeftRadius;
++                }
++                if (pressure) {
++                    firstPressure = false;
++                }
++            });
++        };
++        me.mon(legend, 'refresh', alignLegend);
++        me.mon(legend, 'itemupdate', alignLegend);
++        me.mon(legend, 'afterrender', alignLegend);
++        if (config.unit === 'bytes') {
++            const right = Array.from(me.getAxes()).find(axis => axis.getPosition() === 'right');
++            right.setSegmenter({ type: 'numeric' });
++        }
++    },
++});
++
+ Ext.define('PVE.guest.Summary', {
+     extend: 'Ext.panel.Panel',
+     xtype: 'pveGuestSummary',
+@@ -17615,6 +17686,10 @@
+                 },
+             });
+         }
++        memoryStats.fields.push(
++            PVE.mod.GuestSummaryChart.pressureField('pressurememorysome', gettext('Memory pressure (Some)')),
++            PVE.mod.GuestSummaryChart.pressureField('pressurememoryfull', gettext('Memory pressure (Full)')),
++        );
+ 
+         var items = [
+             {
+@@ -17656,26 +17731,57 @@
+ 
+             items.push(
+                 {
+-                    xtype: 'proxmoxRRDChart',
+-                    title: gettext('CPU Usage'),
++                    xtype: 'pveModGuestSummaryChart',
++                    title: gettext('CPU'),
+                     pveSelNode: me.pveSelNode,
+-                    fields: ['cpu'],
++                    fields: ['cpu',
++                        PVE.mod.GuestSummaryChart.pressureField('pressurecpusome', gettext('CPU pressure (Some)')),
++                        PVE.mod.GuestSummaryChart.pressureField('pressurecpufull', gettext('CPU pressure (Full)')),
++                    ],
+                     fieldTitles: [gettext('CPU usage')],
++                    colors: ['#115fa6', '#FFD13E', '#A61120'],
++                    axes: [
++                        {
++                            type: 'numeric', position: 'left', minimum: 0, maximum: 100, grid: true,
++                            fields: ['cpu', 'pressurecpusome', 'pressurecpufull'],
++                            renderer: 'leftAxisRenderer',
++                        },
++                        { type: 'time', position: 'bottom', fields: ['time'], grid: true },
++                    ],
+                     unit: 'percent',
+                     store: rrdstore,
+                 },
+                 {
+-                    xtype: 'proxmoxRRDChart',
+-                    title: gettext('Memory Usage'),
++                    xtype: 'pveModGuestSummaryChart',
++                    title: gettext('Memory'),
+                     pveSelNode: me.pveSelNode,
+                     fields: memoryStats.fields,
+                     fieldTitles: memoryStats.fieldTitles,
+-                    colors: ['#94ae0a', '#115fa6', '#c4c0c0'],
++                    colors: type === 'qemu'
++                        ? ['#94ae0a', '#115fa6', '#c4c0c0', '#FFD13E', '#A61120']
++                        : ['#94ae0a', '#115fa6', '#FFD13E', '#A61120'],
+                     unit: 'bytes',
+                     powerOfTwo: true,
++                    axes: [
++                        {
++                            type: 'numeric', position: 'left', minimum: 0, grid: true,
++                            fields: ['maxmem', 'mem', ...(type === 'qemu' ? ['memhost'] : [])],
++                            renderer: 'leftAxisRenderer',
++                        },
++                        {
++                            type: 'numeric', position: 'right', minimum: 0, maximum: 100,
++                            majorTickSteps: 5,
++                            fields: ['pressurememorysome', 'pressurememoryfull'],
++                            title: gettext('Pressure stall (%)'),
++                            renderer: function (_axis, value) {
++                                return Ext.util.Format.number(value, '0.##');
++                            },
++                        },
++                        { type: 'time', position: 'bottom', fields: ['time'], grid: true },
++                    ],
+                     store: rrdstore,
+                     onLegendChange: function (_legend, record, _, seriesIndex) {
+-                        if (seriesIndex === 2) {
++                        if (type === 'qemu' && seriesIndex === 2) {
+                             // third data series is clicked -> hostmem
+                             sp.set(hideMemhostStateKey, record.data.disabled);
+                         }
+@@ -17699,16 +17805,6 @@
+                 },
+                 {
+                     xtype: 'proxmoxRRDChart',
+-                    title: gettext('CPU Pressure Stall'),
+-                    pveSelNode: me.pveSelNode,
+-                    fieldTitles: ['Some', 'Full'],
+-                    fields: ['pressurecpusome', 'pressurecpufull'],
+-                    colors: ['#FFD13E', '#A61120'],
+-                    store: rrdstore,
+-                    unit: 'percent',
+-                },
+-                {
+-                    xtype: 'proxmoxRRDChart',
+                     title: gettext('IO Pressure Stall'),
+                     pveSelNode: me.pveSelNode,
+                     fieldTitles: ['Some', 'Full'],
+@@ -17716,16 +17812,6 @@
+                     colors: ['#FFD13E', '#A61120'],
+                     store: rrdstore,
+                     unit: 'percent',
+-                },
+-                {
+-                    xtype: 'proxmoxRRDChart',
+-                    title: gettext('Memory Pressure Stall'),
+-                    pveSelNode: me.pveSelNode,
+-                    fieldTitles: ['Some', 'Full'],
+-                    fields: ['pressurememorysome', 'pressurememoryfull'],
+-                    colors: ['#FFD13E', '#A61120'],
+-                    store: rrdstore,
+-                    unit: 'percent',
+                 },
+             );
+         }
