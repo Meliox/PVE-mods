@@ -240,6 +240,7 @@ Each feature requires the corresponding tool to be installed on the Proxmox host
 | Feature | Required tool |
 |---------|---------------|
 | Temperature sensors | `lm-sensors` (`sensors` binary) |
+| HDD/SSD temperatures | Kernel module `drivetemp` |
 | NVIDIA GPU | `nvidia-smi` |
 | Intel GPU | `intel-gpu-tools` (`intel_gpu_top` binary) |
 | UPS | `nut-client` (`upsc` binary) |
