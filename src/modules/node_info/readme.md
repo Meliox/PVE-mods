@@ -259,6 +259,12 @@ Configuration: `device_name=ups@localhost`
 
 ### CPU and memory graphs
 
+Node summary cards use independent vertical stacks on wide screens, so a tall
+sensor summary does not leave a blank gap before the next chart. The existing
+Auto/1/2/3-column preference is preserved. The summary stays first, followed by
+graphs in alphabetical title order, distributed left to right across the stacks.
+GPU charts are inserted into that order as they are discovered.
+
 The node summary CPU and Memory graphs include the matching pressure stall (PSI) series instead of separate pressure graphs.
 
 The CPU graph plots CPU usage, IO delay and CPU pressure (Some) on the left (%) axis. The right axis shows load average together with the number of logical CPUs (dashed line), so you can see at a glance when the load exceeds the available CPUs.
