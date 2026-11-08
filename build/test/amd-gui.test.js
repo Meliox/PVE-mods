@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const source = fs.readFileSync(`${__dirname}/../usr/share/pve-manager/js/PveMods_PveNodeStatusView.js`, 'utf8');
+const source = fs.readFileSync(`${process.env.AMD_TEST_ROOT}/usr/share/pve-manager/js/PveMods_PveNodeStatusView.js`, 'utf8');
 const definitions = {};
 const encode = value => String(value).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
