@@ -685,10 +685,10 @@ node_info_configure() {
     ENABLE_AMD_GPU_INFO=0
     section "AMD GPU"
     local amdCards
-    if amdCards=$(perl -MPVE::PVEMods::Collector::Amd -MPVE::PVEMods::Config -e '
+    if amdCards=$(perl -MPVE::PVEMods::Collector::GpuAmd -MPVE::PVEMods::Config -e '
         $PVE::PVEMods::Config::config{debug}{amd_mode} = $ARGV[0];
         $PVE::PVEMods::Config::config{debug}{amd_devices_file} = $ARGV[1];
-        for my $device (PVE::PVEMods::Collector::Amd::get_amd_gpu_devices()) {
+        for my $device (PVE::PVEMods::Collector::GpuAmd::get_amd_gpu_devices()) {
             print "$device->{card}: $device->{name}\n";
         }
     ' "$DEBUG_AMD" "$DEBUG_AMD_FILE"); then

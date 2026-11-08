@@ -1,4 +1,4 @@
-﻿package PVE::PVEMods::Collector::Nvidia;
+﻿package PVE::PVEMods::Collector::GpuNvidia;
 
 use strict;
 use warnings;

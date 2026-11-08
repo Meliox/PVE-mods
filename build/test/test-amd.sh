@@ -41,7 +41,7 @@ cp "$MOD_DIR/node_info.configure.sh" "$AMD_TEST_ROOT/usr/lib/pve-mods/configure.
 rc=0
 
 info "Running collector and history tests"
-prove "$SCRIPT_DIR/amd.t" "$SCRIPT_DIR/amd-history.t" || rc=1
+prove "$SCRIPT_DIR/gpu-amd.t" "$SCRIPT_DIR/amd-history.t" || rc=1
 
 info "Running GUI tests"
 node --test "$SCRIPT_DIR/amd-gui.test.js" || rc=1

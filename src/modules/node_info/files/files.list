@@ -16,9 +16,9 @@ Store.pm                                usr/share/perl5/PVE/PVEMods/Store.pm
 ProcessManager.pm                       usr/share/perl5/PVE/PVEMods/ProcessManager.pm
 
 # Collector plugins
-Collector/Intel.pm                      usr/share/perl5/PVE/PVEMods/Collector/Intel.pm
-Collector/Nvidia.pm                     usr/share/perl5/PVE/PVEMods/Collector/Nvidia.pm
-Collector/Amd.pm                        usr/share/perl5/PVE/PVEMods/Collector/Amd.pm
+Collector/GpuIntel.pm                   usr/share/perl5/PVE/PVEMods/Collector/GpuIntel.pm
+Collector/GpuNvidia.pm                  usr/share/perl5/PVE/PVEMods/Collector/GpuNvidia.pm
+Collector/GpuAmd.pm                     usr/share/perl5/PVE/PVEMods/Collector/GpuAmd.pm
 Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMods/Collector/LmSensors.pm
 Collector/Ups.pm                        usr/share/perl5/PVE/PVEMods/Collector/Ups.pm
 Collector/StorageHealth.pm              usr/share/perl5/PVE/PVEMods/Collector/StorageHealth.pm

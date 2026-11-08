@@ -38,7 +38,7 @@ done < "$FILES_DIR/files.list"
 rc=0
 
 info "Running Intel and NVIDIA collector, history and API tests"
-prove "$SCRIPT_DIR/intel.t" "$SCRIPT_DIR/nvidia.t" || rc=1
+prove "$SCRIPT_DIR/gpu-intel.t" "$SCRIPT_DIR/gpu-nvidia.t" || rc=1
 
 info "Running GUI tests"
 node --test "$SCRIPT_DIR/gpu-gui.test.js" || rc=1

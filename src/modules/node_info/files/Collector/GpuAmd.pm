@@ -1,4 +1,4 @@
-package PVE::PVEMods::Collector::Amd;
+package PVE::PVEMods::Collector::GpuAmd;
 
 use strict;
 use warnings;

@@ -7,7 +7,7 @@ use JSON::PP qw(encode_json decode_json);
 use Time::HiRes qw(sleep);
 
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
-use PVE::PVEMods::Collector::Amd qw(get_amd_gpu_devices collector_for_amd_device);
+use PVE::PVEMods::Collector::GpuAmd qw(get_amd_gpu_devices collector_for_amd_device);
 use PVE::PVEMods::Config qw(%config);
 
 my $dir = tempdir(CLEANUP => 1);
@@ -58,7 +58,7 @@ for my $entry (
     ['power1_average',10041000], ['power1_input',123000000],
     ['power1_label','PPT'], ['freq1_input',800000000], ['fan1_input',0],
 ) { write_file("$hw/$entry->[0]", $entry->[1]); }
-my $stats = PVE::PVEMods::Collector::Amd::collect_amd_stats($a);
+my $stats = PVE::PVEMods::Collector::GpuAmd::collect_amd_stats($a);
 is($stats->{utilization}{gpu}, 0, 'idle utilization is valid zero');
 ok(!exists $stats->{utilization}{memory}, 'missing controller metric is not zero');
 is($stats->{memory}{used}, 64, 'VRAM bytes converted to MiB');
@@ -77,16 +77,16 @@ my @warnings;
     local $SIG{__WARN__} = sub { push @warnings, @_ };
     write_file("$apu/gpu_busy_percent", '101');
     for (1..2) {
-        my $bad = PVE::PVEMods::Collector::Amd::collect_amd_stats($a);
+        my $bad = PVE::PVEMods::Collector::GpuAmd::collect_amd_stats($a);
         ok(!exists $bad->{utilization}{gpu}, 'invalid percent omitted');
     }
 }
 is(scalar @warnings, 1, 'repeated invalid readings warn once');
 write_file("$apu/gpu_busy_percent", '50');
-is(PVE::PVEMods::Collector::Amd::collect_amd_stats($a)->{utilization}{gpu}, 50, 'reading recovers');
+is(PVE::PVEMods::Collector::GpuAmd::collect_amd_stats($a)->{utilization}{gpu}, 50, 'reading recovers');
 write_file("$hw/temp1_input", '-5000');
-is(PVE::PVEMods::Collector::Amd::collect_amd_stats($a)->{temperature}{gpu}, -5, 'signed temperatures supported');
-is_deeply(PVE::PVEMods::Collector::Amd::collect_amd_stats($d), {}, 'device with no supported sensors has no fabricated values');
+is(PVE::PVEMods::Collector::GpuAmd::collect_amd_stats($a)->{temperature}{gpu}, -5, 'signed temperatures supported');
+is_deeply(PVE::PVEMods::Collector::GpuAmd::collect_amd_stats($d), {}, 'device with no supported sensors has no fabricated values');
 
 write_file("$dir/devices.json", encode_json(\@devices));
 {
@@ -100,8 +100,8 @@ write_file("$dir/devices.json", encode_json(\@devices));
 
 {
     no warnings 'redefine';
-    local *PVE::PVEMods::Collector::Amd::setup_collector_signals = sub {};
-    local *PVE::PVEMods::Collector::Amd::safe_write_json = sub {
+    local *PVE::PVEMods::Collector::GpuAmd::setup_collector_signals = sub {};
+    local *PVE::PVEMods::Collector::GpuAmd::safe_write_json = sub {
         my ($file, $data) = @_;
         like($file, qr/stats-amd\d+\.json\.tmp$/, 'AMD atomic state publication filename');
         is($data->{$a->{card}}{status}, 'unavailable', 'removed device publishes unavailable');
@@ -114,7 +114,7 @@ write_file("$dir/devices.json", encode_json(\@devices));
 }
 
 {
-    local $PVE::PVEMods::Collector::Amd::pve_mods_working_dir = $dir;
+    local $PVE::PVEMods::Collector::GpuAmd::pve_mods_working_dir = $dir;
     local $config{gpu}{gpu_history} = 0;
     local $config{intervals}{data_pull} = 1;
     my $file = "$dir/stats-$a->{card}.json";
