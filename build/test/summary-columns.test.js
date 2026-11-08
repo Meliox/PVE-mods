@@ -70,7 +70,7 @@ function fixture(count = 6, width = 1800) {
 test('wide columns use independent anchor stacks and retain chart sizing', () => {
     const f = fixture();
     f.update();
-    assert.deepEqual(f.order(), [[0, 2, 4], [1, 3, 5]]);
+    assert.deepEqual(f.order(), [[0, 1, 2], [3, 4, 5]]);
     f.container.summaryColumns.forEach(column => {
         assert.equal(column.layout, 'anchor');
         assert.equal(column.columnWidth, 0.5);
@@ -92,7 +92,7 @@ test('resizing preserves instances and original order across Auto/1/2/3', () => 
     assert.deepEqual(f.order(), [[0, 1, 2, 3, 4, 5]]);
     f.setWidth(3000);
     f.update();
-    assert.deepEqual(f.order(), [[0, 3], [1, 4], [2, 5]]);
+    assert.deepEqual(f.order(), [[0, 1], [2, 3], [4, 5]]);
     for (const mode of ['1', '2', '3']) {
         f.setMode(mode);
         f.update();
@@ -108,11 +108,11 @@ test('new GPU charts join an existing column even without a factor change', () =
     const gpu = f.container.add({ id: 5, title: 'Chart 5', columnWidth: 0.5 });
     f.update();
     assert.equal(f.container.summaryColumns, columns);
-    assert.deepEqual(f.order(), [[0, 2, 4], [1, 3, 5]]);
+    assert.deepEqual(f.order(), [[0, 1, 2], [3, 4, 5]]);
     assert.equal(gpu.ownerCt, columns[1]);
     f.update();
     assert.equal(f.container.summaryItems.length, 6);
-    assert.deepEqual(f.order(), [[0, 2, 4], [1, 3, 5]]);
+    assert.deepEqual(f.order(), [[0, 1, 2], [3, 4, 5]]);
 });
 
 test('unchanged layout does not recreate columns or reparent charts', () => {
@@ -130,10 +130,10 @@ test('graphs sort alphabetically while the summary stays first', () => {
     const titles = ['Summary', 'Network Traffic', 'Memory', 'IO Pressure Stall', 'GPU: Intel', 'CPU'];
     f.items.forEach((item, index) => { item.title = titles[index]; });
     f.update();
-    assert.deepEqual(f.order(), [[0, 4, 2], [5, 3, 1]]);
+    assert.deepEqual(f.order(), [[0, 5, 4], [3, 2, 1]]);
     f.container.add({ id: 6, title: 'GPU: AMD' });
     f.update();
-    assert.deepEqual(f.order(), [[0, 6, 3, 1], [5, 4, 2]]);
+    assert.deepEqual(f.order(), [[0, 5, 6, 4], [3, 2, 1]]);
     f.setMode('1');
     f.update();
     assert.deepEqual(f.order(), [[0, 5, 6, 4, 3, 2, 1]]);
@@ -156,6 +156,17 @@ test('column count is bounded by item count and invalid preferences use one', ()
         f.update();
         assert.equal(f.container.summaryColumns.length, mode === '3' || mode === '99' ? 2 : 1);
     }
+});
+
+test('uneven item counts fill columns top to bottom without empty columns', () => {
+    const f = fixture(4);
+    f.setMode('3');
+    f.update();
+    assert.deepEqual(f.order(), [[0, 1], [2], [3]]);
+    const other = fixture(7);
+    other.setMode('3');
+    other.update();
+    assert.deepEqual(other.order(), [[0, 1, 2], [3, 4], [5, 6]]);
 });
 
 test('empty containers are ignored safely', () => {
