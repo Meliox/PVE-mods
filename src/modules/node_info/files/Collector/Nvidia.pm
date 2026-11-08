@@ -82,33 +82,35 @@ sub _parse_nvidia_gpu_line {
     my @values = parse_csv_line($line, 10);
     return unless @values;
 
-    return {
-        index => $values[0] + 0,
+    # nvidia-smi prints "[N/A]" or "[Not Supported]" for sensors a GPU lacks;
+    # those are left out rather than reported as 0.
+    my @num = map { _numeric($_) } @values;
+    return unless defined $num[0];
+
+    my %stats = (
+        index => $num[0],
         name  => $values[1],
-        temperature => {
-            gpu  => $values[2] + 0.0,
-            unit => "°C",
-        },
-        utilization => {
-            gpu    => $values[3] + 0.0,
-            memory => $values[4] + 0.0,
-            unit   => "%",
-        },
-        memory => {
-            used  => $values[5] + 0.0,
-            total => $values[6] + 0.0,
-            unit  => "MiB",
-        },
-        power => {
-            draw  => $values[7] + 0.0,
-            limit => $values[8] + 0.0,
-            unit  => "W",
-        },
-        fan => {
-            speed => $values[9] + 0.0,
-            unit  => "%",
-        },
-    };
+    );
+    my @groups = (
+        [temperature => '°C',  gpu => $num[2]],
+        [utilization => '%',   gpu => $num[3], memory => $num[4]],
+        [memory      => 'MiB', used => $num[5], total => $num[6]],
+        [power       => 'W',   draw => $num[7], limit => $num[8]],
+        [fan         => '%',   speed => $num[9]],
+    );
+    for my $entry (@groups) {
+        my ($name, $unit, %fields) = @$entry;
+        my %present = map { $_ => $fields{$_} } grep { defined $fields{$_} } keys %fields;
+        $stats{$name} = { %present, unit => $unit } if %present;
+    }
+
+    return \%stats;
+}
+
+sub _numeric {
+    my ($value) = @_;
+    return undef unless defined $value && $value =~ /^\s*(-?\d+(?:\.\d+)?)\s*$/;
+    return $1 + 0.0;
 }
 
 # ============================================================================

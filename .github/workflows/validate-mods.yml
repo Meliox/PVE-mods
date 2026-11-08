@@ -54,3 +54,6 @@ jobs:
 
       - name: Test AMD GPU support
         run: bash build/test/test-amd.sh
+
+      - name: Test Intel and NVIDIA GPU support
+        run: bash build/test/test-gpu.sh
