@@ -2071,10 +2071,16 @@ Ext.define('PVE.mod.SummaryColumns', {
                 }));
                 container.summaryColumns = columns;
             }
-            items.forEach((item, index) => {
-                delete item.columnWidth;
-                item.anchor = '100%';
-                columns[index % factor].add(item);
+            let offset = 0;
+            columns.forEach((column, index) => {
+                let count = Math.floor(items.length / factor)
+                    + (index < items.length % factor ? 1 : 0);
+                items.slice(offset, offset + count).forEach(item => {
+                    delete item.columnWidth;
+                    item.anchor = '100%';
+                    column.add(item);
+                });
+                offset += count;
             });
         } finally {
             Ext.resumeLayouts(true);

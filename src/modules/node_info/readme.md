@@ -264,7 +264,8 @@ Configuration: `device_name=ups@localhost`
 Node summary cards use independent vertical stacks on wide screens, so a tall
 sensor summary does not leave a blank gap before the next chart. The existing
 Auto/1/2/3-column preference is preserved. The summary stays first, followed by
-graphs in alphabetical title order, distributed left to right across the stacks.
+graphs in alphabetical title order, reading down the first column before
+continuing at the top of the next. Cards are split evenly by count between columns.
 GPU charts are inserted into that order as they are discovered.
 
 The node summary CPU and Memory graphs include the matching pressure stall (PSI) series instead of separate pressure graphs.
