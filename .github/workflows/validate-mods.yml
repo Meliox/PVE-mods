@@ -49,6 +49,9 @@ jobs:
       - name: Validate source syntax
         run: bash build/test/test-syntax.sh all 
 
+      - name: Test independent node summary columns
+        run: node --test build/test/summary-columns.test.js
+
       - name: Test storage health parsers
         run: bash build/test/test-storage-health.sh
 

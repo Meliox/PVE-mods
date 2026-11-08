@@ -2016,6 +2016,64 @@ Ext.define('PVE.mod.GpuChart', {
 });
 
 
+Ext.define('PVE.mod.SummaryColumns', {
+    singleton: true,
+
+    update: function(container) {
+        if (container.updatingSummaryColumns) {
+            return;
+        }
+
+        let columns = container.summaryColumns || [];
+        let added = container.items.items.filter(item => !columns.includes(item));
+        let items = (container.summaryItems || []).concat(added);
+        if (items.length) {
+            items = [items[0], ...items.slice(1).sort((a, b) =>
+                Ext.String.htmlDecode(a.title || '').localeCompare(
+                    Ext.String.htmlDecode(b.title || ''),
+                    undefined,
+                    { sensitivity: 'base', numeric: true },
+                ),
+            )];
+        }
+        let mode = Ext.state.Manager.get('summarycolumns') || 'auto';
+        let factor = mode === 'auto'
+            ? Math.ceil(container.getWidth() / 1401)
+            : parseInt(mode, 10);
+        factor = Math.min(items.length, Math.max(1, factor || 1));
+        if (!items.length || (factor === columns.length && !added.length)) {
+            return;
+        }
+
+        container.updatingSummaryColumns = true;
+        Ext.suspendLayouts();
+        try {
+            container.summaryItems = items;
+            items.forEach(item => item.ownerCt.remove(item, false));
+            if (factor !== columns.length) {
+                columns.forEach(column => container.remove(column, true));
+                columns = Array.from({ length: factor }, () => container.add({
+                    xtype: 'container',
+                    layout: 'anchor',
+                    columnWidth: 1 / factor,
+                    minHeight: 0,
+                    padding: 0,
+                }));
+                container.summaryColumns = columns;
+            }
+            items.forEach((item, index) => {
+                delete item.columnWidth;
+                item.anchor = '100%';
+                columns[index % factor].add(item);
+            });
+        } finally {
+            Ext.resumeLayouts(true);
+            container.updatingSummaryColumns = false;
+        }
+        container.updateLayout();
+    },
+});
+
 Ext.define('PVE.node.Summary', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pveNodeSummary',
@@ -2197,7 +2255,7 @@ Ext.define('PVE.node.Summary', {
             });
 
             if (added) {
-                Proxmox.Utils.updateColumns(container);
+                PVE.mod.SummaryColumns.update(container);
             }
         };
 
@@ -2419,7 +2477,7 @@ Ext.define('PVE.node.Summary', {
                     ],
                     listeners: {
                         resize: function (panel) {
-                            Proxmox.Utils.updateColumns(panel);
+                            PVE.mod.SummaryColumns.update(panel);
                         },
                     },
                 },
@@ -2450,7 +2508,7 @@ Ext.define('PVE.node.Summary', {
             if (key !== 'summarycolumns') {
                 return;
             }
-            Proxmox.Utils.updateColumns(me.getComponent('itemcontainer'));
+            PVE.mod.SummaryColumns.update(me.getComponent('itemcontainer'));
         });
     },
 });
