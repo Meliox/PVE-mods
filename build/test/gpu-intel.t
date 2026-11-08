@@ -7,7 +7,7 @@ use POSIX ();
 use Time::HiRes qw(sleep);
 
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
-use PVE::PVEMods::Collector::Intel qw(get_intel_gpu_devices collector_for_intel_device);
+use PVE::PVEMods::Collector::GpuIntel qw(get_intel_gpu_devices collector_for_intel_device);
 use PVE::PVEMods::Config qw(%config);
 use PVE::PVEMods::Store qw(update_intel_gpu_rrd gpu_rrd_path);
 use PVE::API2::PVEMods_SensorInfo;
@@ -21,8 +21,8 @@ sub write_file {
     close $fh or die "$path: $!";
 }
 
-my $parse = \&PVE::PVEMods::Collector::Intel::_parse_intel_gpu_json;
-my $extract = \&PVE::PVEMods::Collector::Intel::_extract_intel_json_objects;
+my $parse = \&PVE::PVEMods::Collector::GpuIntel::_parse_intel_gpu_json;
+my $extract = \&PVE::PVEMods::Collector::GpuIntel::_extract_intel_json_objects;
 
 # ---- Device discovery (intel_gpu_top -L fixture) ---------------------------
 write_file("$dir/devices.txt", join("\n",
@@ -143,7 +143,7 @@ my $obj2 = encode_json({ n => 2 });
     is_deeply([map { $_->{n} } @objs], [1], 'stray text between objects is skipped');
 }
 {
-    my ($buf, $started) = ('[' . ('x' x (PVE::PVEMods::Collector::Intel::MAX_INTEL_JSON_BUFFER + 10)), 0);
+    my ($buf, $started) = ('[' . ('x' x (PVE::PVEMods::Collector::GpuIntel::MAX_INTEL_JSON_BUFFER + 10)), 0);
     my @objs = $extract->(\$buf, \$started);
     is(scalar @objs, 0, 'oversized garbage yields no objects');
     is($buf, '', 'oversized garbage is discarded');
@@ -199,7 +199,7 @@ my $rrd_dir = tempdir(CLEANUP => 1);
     my $work = tempdir(CLEANUP => 1);
     write_file("$work/output.txt", "[\n$obj1,\n" . encode_json($sample) . ",\n");
 
-    local $PVE::PVEMods::Collector::Intel::pve_mods_working_dir = $work;
+    local $PVE::PVEMods::Collector::GpuIntel::pve_mods_working_dir = $work;
     local $config{debug}{intel_mode} = 1;
     local $config{debug}{intel_output_file} = "$work/output.txt";
     local $config{gpu}{gpu_history} = 0;

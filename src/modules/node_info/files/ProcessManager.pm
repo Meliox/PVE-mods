@@ -20,9 +20,9 @@ use PVE::PVEMods::Utils qw(
     check_executable startup_message
 );
 
-use PVE::PVEMods::Collector::Intel   qw(get_intel_gpu_devices  collector_for_intel_device);
-use PVE::PVEMods::Collector::Nvidia  qw(get_nvidia_gpu_devices  collector_for_nvidia_devices);
-use PVE::PVEMods::Collector::Amd     qw(get_amd_gpu_devices    collector_for_amd_device);
+use PVE::PVEMods::Collector::GpuIntel  qw(get_intel_gpu_devices  collector_for_intel_device);
+use PVE::PVEMods::Collector::GpuNvidia qw(get_nvidia_gpu_devices  collector_for_nvidia_devices);
+use PVE::PVEMods::Collector::GpuAmd    qw(get_amd_gpu_devices    collector_for_amd_device);
 use PVE::PVEMods::Collector::LmSensors qw(collector_for_temperature_sensors);
 use PVE::PVEMods::Collector::Ups     qw(collector_for_ups);
 use PVE::PVEMods::Collector::StorageHealth qw(collector_for_storage_health);

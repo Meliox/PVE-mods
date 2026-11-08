@@ -1,4 +1,4 @@
-﻿package PVE::PVEMods::Collector::Intel;
+﻿package PVE::PVEMods::Collector::GpuIntel;
 
 use strict;
 use warnings;

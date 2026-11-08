@@ -7,7 +7,7 @@ use POSIX ();
 use Time::HiRes qw(sleep);
 
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
-use PVE::PVEMods::Collector::Nvidia qw(get_nvidia_gpu_devices collector_for_nvidia_devices);
+use PVE::PVEMods::Collector::GpuNvidia qw(get_nvidia_gpu_devices collector_for_nvidia_devices);
 use PVE::PVEMods::Config qw(%config);
 use PVE::PVEMods::Store qw(update_nvidia_gpu_rrd gpu_rrd_path);
 use PVE::API2::PVEMods_SensorInfo;
@@ -21,7 +21,7 @@ sub write_file {
     close $fh or die "$path: $!";
 }
 
-my $parse = \&PVE::PVEMods::Collector::Nvidia::_parse_nvidia_gpu_line;
+my $parse = \&PVE::PVEMods::Collector::GpuNvidia::_parse_nvidia_gpu_line;
 
 # ---- Device discovery (nvidia-smi --query-gpu=index,name,pci.bus_id) -------
 write_file("$dir/devices.csv", join("\n",
@@ -113,12 +113,12 @@ my $devices = [
 {
     my $work = tempdir(CLEANUP => 1);
     write_file("$work/output.csv", $output);
-    local $PVE::PVEMods::Collector::Nvidia::pve_mods_working_dir = $work;
+    local $PVE::PVEMods::Collector::GpuNvidia::pve_mods_working_dir = $work;
     local $config{debug}{nvidia_mode} = 1;
     local $config{debug}{nvidia_output_file} = "$work/output.csv";
     local $config{gpu}{gpu_history} = 0;
 
-    is(PVE::PVEMods::Collector::Nvidia::_get_and_write_nvidia_stats($devices), 2, 'both GPUs are collected');
+    is(PVE::PVEMods::Collector::GpuNvidia::_get_and_write_nvidia_stats($devices), 2, 'both GPUs are collected');
     for my $i (0, 1) {
         ok(-s "$work/stats-nvidia$i.json", "state file written for GPU $i");
     }
@@ -132,7 +132,7 @@ my $devices = [
     is($data->{gpu0}{stats}{fan}{speed}, 35, 'fan stats stored');
 
     # A GPU the discovery did not report falls back to its stats name and index id.
-    is(PVE::PVEMods::Collector::Nvidia::_get_and_write_nvidia_stats([]), 2, 'collection works without discovery data');
+    is(PVE::PVEMods::Collector::GpuNvidia::_get_and_write_nvidia_stats([]), 2, 'collection works without discovery data');
     open $fh, '<', "$work/stats-nvidia1.json" or die $!;
     $data = decode_json(do { local $/; <$fh> });
     close $fh;
@@ -140,7 +140,7 @@ my $devices = [
     is($data->{gpu1}{history_id}, 'nvidia1', 'history id falls back to the index');
 
     write_file("$work/output.csv", "header only\n");
-    is(PVE::PVEMods::Collector::Nvidia::_get_and_write_nvidia_stats($devices), 0, 'header-only output collects nothing');
+    is(PVE::PVEMods::Collector::GpuNvidia::_get_and_write_nvidia_stats($devices), 0, 'header-only output collects nothing');
 }
 
 # ---- History (RRD) ---------------------------------------------------------
@@ -190,7 +190,7 @@ my $rrd_dir = tempdir(CLEANUP => 1);
 {
     my $work = tempdir(CLEANUP => 1);
     write_file("$work/output.csv", $output);
-    local $PVE::PVEMods::Collector::Nvidia::pve_mods_working_dir = $work;
+    local $PVE::PVEMods::Collector::GpuNvidia::pve_mods_working_dir = $work;
     local $config{debug}{nvidia_mode} = 1;
     local $config{debug}{nvidia_output_file} = "$work/output.csv";
     local $config{gpu}{gpu_history} = 0;
