@@ -1334,13 +1334,20 @@ Ext.define('PVE.node.StatusView', {
                         const fan = fanLabel
                             ? Ext.htmlEncode(fanLabel)
                             : fanKey.charAt(0).toUpperCase() + fanKey.slice(1);
-                        speeds.push(`${fan}:&nbsp;${fanSpeed} ${unit}`);
+                        speeds.push(
+                            '<tr>' +
+                            `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere;">${fan}</td>` +
+                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top;">${fanSpeed} ${Ext.htmlEncode(unit)}</td>` +
+                            '</tr>',
+                        );
                     } catch(e) {
                         console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
                     }
                     });
                 });
-                return '<div style="text-align: left; margin-left: 20px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+                return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">'
+                    + (speeds.length > 0 ? speeds.join('') : '<tr><td>N/A</td></tr>')
+                    + '</table></div>';
             }
         },
         {
@@ -1376,7 +1383,7 @@ Ext.define('PVE.node.StatusView', {
                         rows.push(
                             '<tr>' +
                             `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word;">${gpuName}</td>` +
-                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">Fan: ${fan.speed}${unit}</td>` +
+                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal;">${fan.speed}${unit}</td>` +
                             '</tr>',
                         );
                     });
@@ -1579,7 +1586,7 @@ Ext.define('PVE.node.StatusView', {
 
         me.callParent();
         me.modMetricIds.forEach(id => me.down('#' + id).setVisible(false));
-        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals', 'upsc'].forEach(function(itemId) {
+        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals', 'speedFan', 'gpuFans', 'upsc'].forEach(function(itemId) {
             me.down('#' + itemId).getComponent('label').tpl = new Ext.XTemplate(
                 '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',
                 '<div style="width: 100%; white-space: normal;">{usage}</div>'

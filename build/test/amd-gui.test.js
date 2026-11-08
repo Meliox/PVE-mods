@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
-const source = fs.readFileSync(`${process.env.AMD_TEST_ROOT}/usr/share/pve-manager/js/PveMods_PveNodeStatusView.js`, 'utf8');
+const source = fs.readFileSync(`${__dirname}/../usr/share/pve-manager/js/PveMods_PveNodeStatusView.js`, 'utf8');
 const definitions = {};
 const encode = value => String(value).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -39,6 +39,52 @@ const stats = {
 };
 const device = { name: 'AMD <demo>', card: 'amd3', history_id: 'pci0000c6000', stats };
 const info = { Graphics: { AMD: { amd3: device }, temp_unit: 'C' } };
+
+test('system fans use name/value table rows, encode labels and retain optional zero RPM', () => {
+    vm.runInContext(source.slice(source.indexOf('function getSensorPayload'), source.indexOf('function getSensorIgnoreThreshold')), context);
+    const start = source.indexOf("itemId: 'speedFan'");
+    const end = source.indexOf("itemId: 'gpuFans'", start);
+    const block = source.slice(start, end);
+    const renderer = vm.runInContext(
+        '(' + block.slice(block.indexOf('function(fansInfo)'), block.lastIndexOf('\n        },')) + ')',
+        context,
+    );
+    const payload = {
+        fans: true, display_zero_speed_fans: true,
+        enhanced_sensors: { demo: {
+            fan1: { label: 'CPU <fan>', input: { value: 1450, unit: 'RPM' } },
+            fan2: { label: 'Stopped', input: { value: 0, unit: 'RPM' } },
+        } },
+    };
+    const html = renderer(payload);
+    assert.equal((html.match(/<tr>/g) || []).length, 2);
+    assert.ok(html.includes('CPU &lt;fan&gt;'));
+    assert.ok(html.includes('1450 RPM'));
+    assert.ok(html.includes('0 RPM'));
+    assert.ok(!html.includes(' | '));
+    payload.display_zero_speed_fans = false;
+    assert.equal((renderer(payload).match(/<tr>/g) || []).length, 1);
+});
+
+test('GPU fan values omit redundant Fan prefix and preserve units and zero', () => {
+    const start = source.indexOf("itemId: 'gpuFans'");
+    const end = source.indexOf("itemId: 'upsc'", start);
+    const block = source.slice(start, end);
+    const renderer = vm.runInContext(
+        '(' + block.slice(block.indexOf('function(gpuStats)'), block.lastIndexOf('\n        },')).trim().replace(/,$/, '') + ')',
+        context,
+    );
+    const html = renderer({
+        enable_gpu: true, enable_fans: true,
+        Graphics: {
+            AMD: { demo: { name: 'AMD', stats: { fan: { speed: 0, unit: ' RPM' } } } },
+            NVIDIA: { demo: { name: 'NVIDIA', stats: { fan: { speed: 42, unit: '%' } } } },
+        },
+    });
+    assert.ok(html.includes('0 RPM</td>'));
+    assert.ok(html.includes('42%</td>'));
+    assert.ok(!html.includes('Fan:'));
+});
 
 test('AMD discovery and metric selection retain zeroes and omit missing metrics', () => {
     const devices = graphs.devices(info);
