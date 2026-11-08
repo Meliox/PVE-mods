@@ -98,6 +98,20 @@ case "$1" in
         ;;
 
     triggered)
+        # Binary replacement clears file capabilities. This maintenance follows
+        # the saved Intel opt-in, independently of automatic UI re-patching.
+        ui_trigger=0
+        for trigger in $2; do
+            if [ "$trigger" = "/usr/bin/intel_gpu_top" ]; then
+                if ! bash /usr/lib/pve-mods/intel-gpu-permissions.sh; then
+                    echo "pve-mods: WARNING: Could not restore Intel GPU monitoring permission. Run 'pve-mods-configure' to retry." >&2
+                fi
+            else
+                ui_trigger=1
+            fi
+        done
+        [ "$ui_trigger" = "1" ] || exit 0
+
         # Fired by dpkg when pve-manager is upgraded. Only re-apply patches
         # if the user has opted in via 'pve-mods-configure'.
         TRIGGER_ENABLED=$(awk -F= '/^\[pve_trigger\]/{s=1} s && /^enabled=/{print $2; exit}' \

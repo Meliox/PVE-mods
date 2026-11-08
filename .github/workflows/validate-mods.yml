@@ -40,6 +40,9 @@ jobs:
       - name: Test package upgrade patch reversion
         run: bash build/test/test-upgrade-revert.sh
 
+      - name: Test Intel GPU permission lifecycle
+        run: bash build/test/test-intel-permissions.sh
+
       - name: Test all mods
         run: bash build/test/test-patches.sh all
 

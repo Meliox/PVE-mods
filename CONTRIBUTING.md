@@ -48,6 +48,13 @@ Package-upgrade patch reversion can also be tested with:
 bash build/test/test-upgrade-revert.sh
 ```
 
+Intel GPU permission handling can be tested without changing host capabilities
+or services (the test uses isolated command stubs):
+
+```bash
+bash build/test/test-intel-permissions.sh
+```
+
 The pull request workflows also build and validate the package. Their
 Proxmox-dependent patch tests run in the configured CI environment. The
 `validate-mods` workflow must pass before a pull request is merged.
