@@ -221,7 +221,7 @@ function getCpuThermalGroups(info) {
                 || packages.find(row => row.label === 'CPU Core Temp')
                 || packages.find(row => row.label === 'Tctl');
             const packageRows = preferred ? [preferred] : packages;
-            const selected = cores.length >= 2 ? cores
+            const selected = info.cpu_temp_target === 'Core' && cores.length ? cores
                 : packageRows.length ? packageRows : cores.length ? cores : rows;
             const packageId = packages.find(row => /^Package id/.test(row.label))?.label.match(/\d+/)?.[0];
             return [{
@@ -253,13 +253,10 @@ function renderCpuThermal(info) {
         const average = values.reduce((sum, value) => sum + value, 0) / values.length;
         const averageState = group.selected.some(row => Number.isFinite(row.critical) && average >= row.critical)
             ? 'critical' : group.selected.some(row => Number.isFinite(row.max) && average >= row.max) ? 'warning' : 'ok';
-        const count = values.length;
-        const countLabel = `<span style="white-space: nowrap; opacity: 0.7;">(${count} ${Ext.htmlEncode(count === 1 ? gettext('sensor') : gettext('sensors'))})</span>`;
-        const summary = count === 1
-            ? `${colored(minimum.value, minimum.state)} ${countLabel}`
-            : `${gettext('Min')}: ${colored(minimum.value, minimum.state)}`
-                + ` &middot; ${gettext('Avg')}: ${colored(average, averageState)}`
-                + ` &middot; ${gettext('Max')}: ${colored(maximum.value, maximum.state)} ${countLabel}`;
+        const summary = `${gettext('Min')}: ${colored(minimum.value, minimum.state)}`
+            + ` &middot; ${gettext('Avg')}: ${colored(average, averageState)}`
+            + ` &middot; ${gettext('Max')}: ${colored(maximum.value, maximum.state)}`
+            + ` <span style="white-space: nowrap; opacity: 0.7;">(${values.length} ${Ext.htmlEncode(gettext('sensors'))})</span>`;
         const label = Ext.htmlEncode(group.model || gettext('Unknown CPU'));
         return `<tr><td style="width: 50%; padding: 2px 10px 2px 20px; vertical-align: top; overflow-wrap: anywhere;">${label}</td>`
             + `<td style="width: 50%; padding: 2px 0 2px 10px; text-align: right; vertical-align: top; white-space: normal; overflow-wrap: anywhere;">${summary}</td></tr>`;
@@ -1334,13 +1331,20 @@ Ext.define('PVE.node.StatusView', {
                         const fan = fanLabel
                             ? Ext.htmlEncode(fanLabel)
                             : fanKey.charAt(0).toUpperCase() + fanKey.slice(1);
-                        speeds.push(`${fan}:&nbsp;${fanSpeed} ${unit}`);
+                        speeds.push(
+                            '<tr>' +
+                            `<td style="padding: 2px 10px 2px 0; text-align: left; width: 30%; vertical-align: top; overflow-wrap: anywhere;">${fan}</td>` +
+                            `<td style="padding: 2px 0 2px 10px; text-align: right; width: 70%; vertical-align: top;">${fanSpeed} ${Ext.htmlEncode(unit)}</td>` +
+                            '</tr>',
+                        );
                     } catch(e) {
                         console.error(`Error retrieving fan speed for ${fanKey} in ${parentKey}:`, e); // Debug: Log specific error
                     }
                     });
                 });
-                return '<div style="text-align: left; margin-left: 20px;">' + (speeds.length > 0 ? speeds.join(' | ') : 'N/A') + '</div>';
+                return '<div style="padding-left: 20px; box-sizing: border-box;"><table style="width: 100%; border-collapse: collapse; table-layout: fixed;">'
+                    + (speeds.length > 0 ? speeds.join('') : '<tr><td>N/A</td></tr>')
+                    + '</table></div>';
             }
         },
         {
@@ -1579,7 +1583,7 @@ Ext.define('PVE.node.StatusView', {
 
         me.callParent();
         me.modMetricIds.forEach(id => me.down('#' + id).setVisible(false));
-        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals', 'upsc'].forEach(function(itemId) {
+        ['thermalCpu', 'gpu_details', 'thermalHdd', 'thermalNvme', 'otherThermals', 'speedFan', 'gpuFans', 'upsc'].forEach(function(itemId) {
             me.down('#' + itemId).getComponent('label').tpl = new Ext.XTemplate(
                 '<div><tpl if="iconCls"><i class="{iconCls}"></i> </tpl>{title}</div>',
                 '<div style="width: 100%; white-space: normal;">{usage}</div>'
