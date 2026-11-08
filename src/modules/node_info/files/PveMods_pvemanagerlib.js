@@ -361,7 +361,7 @@ function getGpuDevices(info) {
             || a.type.localeCompare(b.type) || a.key.localeCompare(b.key));
 }
 
-function formatGpuTemperature(info, value) {
+function formatGpuTemperature(info, value, ignoreThreshold = false) {
     const number = getSensorValue({ input: value }, 'input');
     if (!Number.isFinite(number)) {
         return null;
@@ -371,7 +371,8 @@ function formatGpuTemperature(info, value) {
         dstUnit: (info.temp_unit || info.Graphics?.temp_unit) === 'F'
             ? PVE.mod.TempHelper.FAHRENHEIT : PVE.mod.TempHelper.CELSIUS,
     });
-    const threshold = getSensorValue({ input: info.ignore_temp_below }, 'input');
+    const threshold = ignoreThreshold ? NaN
+        : getSensorValue({ input: info.ignore_temp_below ?? info.Graphics?.ignore_temp_below }, 'input');
     if (Number.isFinite(threshold) && number < threshold) {
         return null;
     }
@@ -423,7 +424,7 @@ function getGpuDetailRows(info, device) {
                     || (path[0] === 'stats' && path[1] === 'sensors'
                         && /^temp\d+$/.test(path[2]) && ['value', 'max', 'crit'].includes(field));
                 const temperature = isTemperature
-                    ? formatGpuTemperature({ ...info, ignore_temp_below: undefined }, value) : null;
+                    ? formatGpuTemperature(info, value, true) : null;
                 const formatted = value === null || value === undefined ? gettext('N/A')
                     : typeof value === 'number' ? Ext.util.Format.number(value, '0.##') : String(value);
                 const group = path[1];
