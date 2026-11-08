@@ -103,9 +103,12 @@ Drives are listed with model and serial number.
 <p align="center"><img src="images/nvme-temperatures.png" alt="NVMe temperatures"></p>
 
 #### Other
-Remaining temperature sensors are grouped together.
+Remaining temperature sensors are grouped together. Generic channel labels such as
+`temp1` and `temp2` are omitted; readings, units and meaningful sensor labels are retained.
 
 <p align="center"><img src="images/other-temperatures.png" alt="Other temperatures"></p>
+
+The screenshot uses fictional browser-only readings in the actual Proxmox widgets.
 
 ### Fan speeds
 
