@@ -1,0 +1,113 @@
+{
+    "soc_dts1-virtual-0": {
+        "Adapter": "Virtual device",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            }
+        }
+    },
+    "coretemp-isa-0000": {
+        "Adapter": "ISA adapter",
+        "temp2": {
+            "label": "Core 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "Core 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp4": {
+            "label": "Core 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp5": {
+            "label": "Core 3",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 105
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "soc_dts0-virtual-0": {
+        "Adapter": "Virtual device",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            }
+        }
+    }
+}

@@ -1,0 +1,1330 @@
+{
+    "drivetemp-scsi-44-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 22
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            }
+        }
+    },
+    "drivetemp-scsi-9-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 23
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            }
+        }
+    },
+    "drivetemp-scsi-42-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 22
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            }
+        }
+    },
+    "drivetemp-scsi-7-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 31
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            }
+        }
+    },
+    "drivetemp-scsi-11-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 5
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 23
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            }
+        }
+    },
+    "drivetemp-scsi-3-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            }
+        }
+    },
+    "drivetemp-scsi-1-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 29
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            }
+        }
+    },
+    "nct6779-isa-0290": {
+        "Adapter": "ISA adapter",
+        "in0": {
+            "label": "Vcore",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0.704
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.744
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in1": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.248
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in2": {
+            "label": "AVCC",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.28
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 2.976
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.632
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in3": {
+            "label": "+3.3V",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.28
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 2.976
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.632
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in4": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.856
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in5": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.024
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in6": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.192
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in7": {
+            "label": "3VSB",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.392
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 2.976
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.632
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in8": {
+            "label": "Vbat",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.2
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 2.704
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.632
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in9": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in10": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0.832
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in11": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.048
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in12": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.68
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in13": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0.952
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "in14": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.848
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "fan1": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "pulses": {
+                "value": 2
+            }
+        },
+        "fan2": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "pulses": {
+                "value": 2
+            }
+        },
+        "fan4": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "pulses": {
+                "value": 2
+            }
+        },
+        "fan5": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "pulses": {
+                "value": 2
+            }
+        },
+        "temp1": {
+            "label": "SYSTIN",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 26
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "max_hyst": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "CPUTIN",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 80
+            },
+            "max_hyst": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "AUXTIN0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 15.5
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            }
+        },
+        "temp4": {
+            "label": "AUXTIN1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            }
+        },
+        "temp5": {
+            "label": "AUXTIN2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 23
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            }
+        },
+        "temp6": {
+            "label": "AUXTIN3",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -28
+            },
+            "type": {
+                "value": 4
+            },
+            "offset": {
+                "value": 0
+            }
+        },
+        "temp7": {
+            "label": "PCH_CHIP_CPU_MAX_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp8": {
+            "label": "PCH_CHIP_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp9": {
+            "label": "PCH_CPU_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp10": {
+            "label": "PCH_MCH_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp11": {
+            "label": "PCH_DIM0_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp12": {
+            "label": "PCH_DIM1_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            }
+        },
+        "temp13": {
+            "label": "TSI0_TEMP",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 59.25
+            }
+        },
+        "pwm1": {
+            "pwm1": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 63.5
+            },
+            "enable": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "mode": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 0
+            }
+        },
+        "pwm2": {
+            "pwm2": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 63.5
+            },
+            "enable": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "mode": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 1
+            }
+        },
+        "pwm3": {
+            "pwm3": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 127.5
+            },
+            "enable": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "mode": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 1
+            }
+        },
+        "pwm4": {
+            "pwm4": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 127.5
+            },
+            "enable": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "mode": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 1
+            }
+        },
+        "pwm5": {
+            "pwm5": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 127.5
+            },
+            "enable": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "mode": {
+                "quantity": "pwm",
+                "unit": "%",
+                "value": 1
+            }
+        },
+        "intrusion0": {
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "intrusion1": {
+            "alarm": {
+                "quantity": "boolean",
+                "value": 1
+            },
+            "beep": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "beep_enable": {
+            "beep_enable": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "k10temp-pci-00c3": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Tctl",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 59.125
+            }
+        }
+    },
+    "drivetemp-scsi-10-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 25
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 23
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            }
+        }
+    },
+    "drivetemp-scsi-43-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 23
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            }
+        }
+    },
+    "drivetemp-scsi-8-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 22
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            }
+        }
+    },
+    "drivetemp-scsi-40-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38
+            }
+        }
+    },
+    "drivetemp-scsi-6-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 29
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            }
+        }
+    },
+    "drivetemp-scsi-2-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38
+            }
+        }
+    },
+    "drivetemp-scsi-0-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 73
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 30
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            }
+        }
+    }
+}

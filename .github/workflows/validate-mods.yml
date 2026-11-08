@@ -57,3 +57,6 @@ jobs:
 
       - name: Test Intel and NVIDIA GPU support
         run: bash build/test/test-gpu.sh
+
+      - name: Test lm-sensors support
+        run: bash build/test/test-lm-sensors.sh

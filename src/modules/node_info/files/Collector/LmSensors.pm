@@ -124,16 +124,15 @@ sub _sanitize_sensors {
     $sensors_output =~ s/,\s*(})/$1/g;
     $sensors_output =~ s/\bNaN\b/null/g;
 
-    # Fix duplicate SODIMM keys: "SODIMM":{"temp3_input":34.0} → "SODIMM3":{...}
-    $sensors_output =~
-        s/\"SODIMM\":\{\"temp(\d+)_input\"/\"SODIMM$1\":\{\"temp$1_input\"/g;
-
     return $sensors_output;
 }
 
 # ============================================================================
-# Normalize RAM/DIMM temperature entries (DDR5 spd5118 + DDR3/4 SODIMM)
-# into a single "DIMM<slot>" key scheme with a common layout
+# Normalize RAM/DIMM temperature entries into a single "DIMM<slot>" key scheme
+# with a common layout. Sources, in priority order when they claim a slot:
+#   DDR5:   spd5118-i2c-<bus>-<addr> chips
+#   DDR3/4: jc42-i2c-<bus>-<addr> chips
+#   any other chip's temperature feature labelled SODIMM/DIMM (e.g. dell_smm)
 # ============================================================================
 
 sub _get_ram_info {
@@ -148,47 +147,60 @@ sub _get_ram_info {
 
     my %dimms;
 
-    # ----- DDR5: spd5118-i2c-<bus>-<addr>, temperature nested under "temp1" -----
-    foreach my $entry (grep { /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i } keys %{$sensors_data}) {
-        my ($bus, $addr) = ($entry =~ /^spd5118-i2c-(\d+)-([0-9a-f]+)$/i);
-        # SPD EEPROM addresses 0x50-0x57 map to slots 1-8 (JEDEC convention).
-        my $slot = (hex($addr) & 0x07) + 1;
+    # ----- DDR5 (spd5118) and DDR3/4 (jc42): <driver>-i2c-<bus>-<addr>, temperature under "temp1" -----
+    foreach my $driver (['spd5118', 'spd5118'], ['jc42', 'jc42']) {
+        my ($prefix, $source) = @$driver;
+        foreach my $entry (sort grep { /^\Q$prefix\E-i2c-\d+-[0-9a-f]+$/i } keys %{$sensors_data}) {
+            my ($bus, $addr) = ($entry =~ /-i2c-(\d+)-([0-9a-f]+)$/i);
+            # SPD EEPROM (0x50-0x57) and jc42 sensor (0x18-0x1f) addresses map to slots 1-8.
+            my $slot = (hex($addr) & 0x07) + 1;
+            my $chip = $sensors_data->{$entry};
+            next unless ref $chip eq 'HASH' && ref $chip->{temp1} eq 'HASH';
 
-        if (exists $dimms{$slot}) {
-            debug(__LINE__, "DIMM slot $slot already assigned; keeping spd5118 over SODIMM");
+            if (exists $dimms{$slot}) {
+                debug(__LINE__, "DIMM slot $slot already assigned to $dimms{$slot}{source}; skipping $entry");
+                delete $sensors_data->{$entry};
+                next;
+            }
+
+            $dimms{$slot} = {
+                temp1     => $chip->{temp1},
+                dimm_slot => $slot,
+                bus       => $bus + 0,
+                address   => $addr,
+                source    => $source,
+            };
+            delete $sensors_data->{$entry};
         }
-
-        $dimms{$slot} = {
-            temp1     => $sensors_data->{$entry}->{temp1},
-            dimm_slot => $slot,
-            bus       => $bus + 0,
-            address   => $addr,
-            source    => 'spd5118',
-        };
-        delete $sensors_data->{$entry};
     }
 
-    # ----- DDR3/4: SODIMM<N>, retain its structured temperature feature -----
-    foreach my $entry (grep { /^SODIMM(\d+)$/ } keys %{$sensors_data}) {
-        my ($slot) = ($entry =~ /^SODIMM(\d+)$/);
-        my $entry_data = $sensors_data->{$entry};
-        my ($temp_feature_key) = grep { /^temp\d+$/ } keys %{$entry_data};
-        my $temp_feature = defined($temp_feature_key)
-            ? $entry_data->{$temp_feature_key}
-            : $entry_data;
+    # ----- Temperatures labelled SODIMM/DIMM on any other chip -----
+    # The slot is the number right after DIMM in the label ("SODIMM 2"), otherwise the sensor number
+    # (temp3 -> 3); labels like "DIMM A1" name a channel and slot, so they do not give a slot number.
+    foreach my $entry (sort keys %{$sensors_data}) {
+        my $chip = $sensors_data->{$entry};
+        next unless ref $chip eq 'HASH';
 
-        if (exists $dimms{$slot}) {
-            debug(__LINE__, "DIMM slot $slot already assigned; skipping SODIMM entry $entry");
-            delete $sensors_data->{$entry};
-            next;
+        foreach my $feature (sort grep { /^temp\d+$/ } keys %{$chip}) {
+            my $temperature = $chip->{$feature};
+            next unless ref $temperature eq 'HASH' && defined $temperature->{label}
+                && !ref $temperature->{label} && $temperature->{label} =~ /DIMM/i;
+
+            my ($number) = ($temperature->{label} =~ /DIMM[\s_#-]*(\d+)\s*$/i);
+            ($number) = ($feature =~ /^temp(\d+)$/) unless defined $number;
+            my $slot = $number + 0;
+
+            if (exists $dimms{$slot}) {
+                debug(__LINE__, "DIMM slot $slot already assigned to $dimms{$slot}{source}; skipping $entry/$feature");
+            } else {
+                $dimms{$slot} = {
+                    temp1     => $temperature,
+                    dimm_slot => $slot,
+                    source    => 'label',
+                };
+            }
+            delete $chip->{$feature};
         }
-
-        $dimms{$slot} = {
-            temp1     => $temp_feature,
-            dimm_slot => $slot + 0,
-            source    => 'jc42',
-        };
-        delete $sensors_data->{$entry};
     }
 
     foreach my $slot (keys %dimms) {

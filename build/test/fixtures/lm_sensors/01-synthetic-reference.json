@@ -1,0 +1,202 @@
+{
+    "coretemp-isa-0000": {
+        "Adapter": "ISA adapter",
+        "temp1": {
+            "label": "Package id 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 52
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Core 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 48
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "Core 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 56
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "spd5118-i2c-1-51": {
+        "Adapter": "SMBus I801 adapter at f000",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 43.25
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 55
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            }
+        }
+    },
+    "spd5118-i2c-1-50": {
+        "Adapter": "SMBus I801 adapter at f000",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 41.5
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 55
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            }
+        }
+    },
+    "drivetemp-scsi-0-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "label": "Drive Temperature",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            }
+        }
+    },
+    "nvme-pci-0600": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Composite",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 84.85
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94.85
+            }
+        },
+        "temp2": {
+            "label": "Sensor 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 39.85
+            }
+        }
+    },
+    "nct6775-isa-0290": {
+        "Adapter": "ISA adapter",
+        "fan1": {
+            "label": "CPU Fan",
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 1450
+            }
+        },
+        "fan2": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            }
+        },
+        "temp1": {
+            "label": "SYSTIN",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 80
+            }
+        }
+    },
+    "acpitz-acpi-0": {
+        "Adapter": "ACPI interface",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 27.8
+            }
+        }
+    }
+}

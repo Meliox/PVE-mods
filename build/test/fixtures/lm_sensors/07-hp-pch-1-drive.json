@@ -1,0 +1,245 @@
+{
+    "hp-isa-0000": {
+        "Adapter": "ISA adapter",
+        "pwm1": {}
+    },
+    "coretemp-isa-0000": {
+        "Adapter": "ISA adapter",
+        "temp1": {
+            "label": "Package id 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Core 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "Core 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 43
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp4": {
+            "label": "Core 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 43
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp5": {
+            "label": "Core 3",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 42
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp6": {
+            "label": "Core 4",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 45
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp7": {
+            "label": "Core 5",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 43
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 100
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "ucsi_source_psy_USBC000:001-isa-0000": {
+        "Adapter": "ISA adapter",
+        "in0": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "min": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            },
+            "max": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 0
+            }
+        },
+        "curr1": {
+            "input": {
+                "quantity": "current",
+                "unit": "A",
+                "value": 0
+            },
+            "max": {
+                "quantity": "current",
+                "unit": "A",
+                "value": 0
+            }
+        }
+    },
+    "pch_cannonlake-virtual-0": {
+        "Adapter": "Virtual device",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 42
+            }
+        }
+    },
+    "drivetemp-scsi-1-0": {
+        "Adapter": "SCSI adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 70
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "lowest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            },
+            "highest": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 39
+            }
+        }
+    }
+}
