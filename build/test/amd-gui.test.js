@@ -66,6 +66,26 @@ test('system fans use name/value table rows, encode labels and retain optional z
     assert.equal((renderer(payload).match(/<tr>/g) || []).length, 1);
 });
 
+test('GPU fan values omit redundant Fan prefix and preserve units and zero', () => {
+    const start = source.indexOf("itemId: 'gpuFans'");
+    const end = source.indexOf("itemId: 'upsc'", start);
+    const block = source.slice(start, end);
+    const renderer = vm.runInContext(
+        '(' + block.slice(block.indexOf('function(gpuStats)'), block.lastIndexOf('\n        },')).trim().replace(/,$/, '') + ')',
+        context,
+    );
+    const html = renderer({
+        enable_gpu: true, enable_fans: true,
+        Graphics: {
+            AMD: { demo: { name: 'AMD', stats: { fan: { speed: 0, unit: ' RPM' } } } },
+            NVIDIA: { demo: { name: 'NVIDIA', stats: { fan: { speed: 42, unit: '%' } } } },
+        },
+    });
+    assert.ok(html.includes('0 RPM</td>'));
+    assert.ok(html.includes('42%</td>'));
+    assert.ok(!html.includes('Fan:'));
+});
+
 test('AMD discovery and metric selection retain zeroes and omit missing metrics', () => {
     const devices = graphs.devices(info);
     assert.equal(devices.length, 1);
