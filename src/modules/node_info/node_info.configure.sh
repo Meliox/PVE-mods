@@ -150,7 +150,7 @@ _ask_int() {
 # 1/0 in brackets. An empty current value means nothing is pre-filled and a blank
 # reply counts as "no". Prints 1 or 0.
 _ask_yes_no() {
-    local label="$1" current="$2" default="$3" shown="n" hint="" reply blank_ok=0
+    local label="$1" current="$2" default="${3:-}" shown="n" hint="" reply blank_ok=0
     if [[ -z "$current" ]]; then shown=""; blank_ok=1; fi
     [[ "$current" == "1" ]] && shown="y"
     if [[ -n "$default" ]]; then
