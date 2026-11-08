@@ -1,0 +1,229 @@
+{
+    "hidpp_battery_6-hid-3-3b": {
+        "Adapter": "HID adapter",
+        "in0": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 3.803
+            }
+        }
+    },
+    "rpi_volt-isa-0000": {
+        "Adapter": "ISA adapter",
+        "in0": {
+            "lcrit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "nvme-pci-10600": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Composite",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 76.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 78.85
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Sensor 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 32.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        },
+        "temp3": {
+            "label": "Sensor 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 34.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        }
+    },
+    "cpu_thermal-virtual-0": {
+        "Adapter": "Virtual device",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 45.2
+            }
+        }
+    },
+    "rp1_adc-isa-0000": {
+        "Adapter": "ISA adapter",
+        "in1": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.463
+            }
+        },
+        "in2": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 2.465
+            }
+        },
+        "in3": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.216
+            }
+        },
+        "in4": {
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.159
+            }
+        },
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 51.985
+            }
+        }
+    },
+    "pwmfan-isa-0000": {
+        "Adapter": "ISA adapter",
+        "fan1": {
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            }
+        }
+    },
+    "nvme-pci-10400": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Composite",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 29.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 84.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -0.15
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 94.85
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Sensor 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 29.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        },
+        "temp3": {
+            "label": "Sensor 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 31.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        },
+        "temp9": {
+            "label": "Sensor 8",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 29.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        }
+    }
+}

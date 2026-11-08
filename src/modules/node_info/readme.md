@@ -51,7 +51,7 @@ The node summary shows one row per CPU package with the minimum, average and max
 
 #### Memory
 RAM temperatures support both DDR5 (`spd5118`) and DDR3/4 (`jc42`/SODIMM) sensors, displayed per-DIMM with its slot number.
-SODIMMs (DDR3/4) are normally detected automatically. DDR5 may need the sensor to be exposed manually.
+SODIMMs (DDR3/4) are normally detected automatically, including temperatures that a chip reports with a `SODIMM`/`DIMM` label (for example Dell's `dell_smm`). Such a temperature is shown with its sensor number as the slot, or the number after `DIMM` in its label. DDR5 may need the sensor to be exposed manually.
 
 <p align="center"><img src="images/ram-temperatures.png" alt="RAM temperatures"></p>
 
@@ -318,7 +318,7 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 | Storage health | `storage_health_mode` | `zpool_output_file` | Raw `zpool status -LP` output | `zpool status -LP > /tmp/zpool-status.txt` |
 | | | `smartctl_output_file` | `smartctl -a -j` JSON of one drive, or a JSON array of several (read directly by the collector; the SMART service is not used) | `smartctl -a -j /dev/sda > /tmp/smartctl-output.json` |
 
-Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`. The AMD GPU collector, history, API, GUI and wizard tests also need no hardware: `bash build/test/test-amd.sh`. The Intel and NVIDIA GPU collector, history, API and GUI tests run the same way: `bash build/test/test-gpu.sh`.
+Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`. The AMD GPU collector, history, API, GUI and wizard tests also need no hardware: `bash build/test/test-amd.sh`. The Intel and NVIDIA GPU collector, history, API and GUI tests run the same way: `bash build/test/test-gpu.sh`. The lm-sensors collector (output sanitizing, DIMM/drive/CPU enrichment, payload) and the GUI renderers that consume it are tested against a synthetic fixture and a real `sensors -j` capture: `bash build/test/test-lm-sensors.sh`.
 
 ### Verbose module logging (mod_debug)
 

@@ -1,0 +1,213 @@
+{
+    "amdgpu-pci-6500": {
+        "Adapter": "PCI adapter",
+        "in0": {
+            "label": "vddgfx",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.295
+            }
+        },
+        "in1": {
+            "label": "vddnb",
+            "input": {
+                "quantity": "voltage",
+                "unit": "V",
+                "value": 1.084
+            }
+        },
+        "temp1": {
+            "label": "edge",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 45
+            }
+        },
+        "power1": {
+            "label": "PPT",
+            "average": {
+                "quantity": "power",
+                "unit": "W",
+                "value": 13.058
+            },
+            "input": {
+                "quantity": "power",
+                "unit": "W",
+                "value": 16.116
+            }
+        },
+        "freq1": {
+            "label": "sclk",
+            "input": {
+                "quantity": "frequency",
+                "unit": "Hz",
+                "value": 800000000
+            }
+        }
+    },
+    "k10temp-pci-00c3": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Tctl",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 51.125
+            }
+        }
+    },
+    "r8169_0_400:00-mdio-0": {
+        "Adapter": "MDIO adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 54.5
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 120
+            }
+        }
+    },
+    "acpitz-acpi-0": {
+        "Adapter": "ACPI interface",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47
+            }
+        }
+    },
+    "spd5118-i2c-1-50": {
+        "Adapter": "SMBus PIIX4 adapter port 0 at 0b00",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 48.5
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 55
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "lcrit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 0
+            },
+            "max_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "min_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            },
+            "lcrit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "nvme-pci-0100": {
+        "Adapter": "PCI adapter",
+        "temp1": {
+            "label": "Composite",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 83.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -40.15
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 87.85
+            },
+            "alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Sensor 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 60.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        },
+        "temp3": {
+            "label": "Sensor 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47.85
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 65261.85
+            },
+            "min": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": -273.15
+            }
+        }
+    },
+    "r8169_0_200:00-mdio-0": {
+        "Adapter": "MDIO adapter",
+        "temp1": {
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 47
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 120
+            }
+        }
+    }
+}

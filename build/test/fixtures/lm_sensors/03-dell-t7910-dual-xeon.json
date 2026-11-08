@@ -1,0 +1,421 @@
+{
+    "coretemp-isa-0001": {
+        "Adapter": "ISA adapter",
+        "temp1": {
+            "label": "Package id 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 45
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Core 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 37
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "Core 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp4": {
+            "label": "Core 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 40
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp5": {
+            "label": "Core 3",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 39
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp6": {
+            "label": "Core 4",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 39
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp7": {
+            "label": "Core 5",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 38
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    },
+    "dell_smm-isa-0000": {
+        "Adapter": "ISA adapter",
+        "fan1": {
+            "label": "Processor Fan",
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 995
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "max": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 5755
+            }
+        },
+        "fan2": {
+            "label": "Processor Fan",
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 994
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "max": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 5755
+            }
+        },
+        "fan3": {
+            "label": "Other Fan",
+            "input": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 600
+            },
+            "min": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 0
+            },
+            "max": {
+                "quantity": "speed",
+                "unit": "RPM",
+                "value": 5000
+            }
+        },
+        "temp1": {
+            "label": "CPU",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 40
+            }
+        },
+        "temp2": {
+            "label": "CPU",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 45
+            }
+        },
+        "temp3": {
+            "label": "SODIMM",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 25
+            }
+        },
+        "temp4": {
+            "label": "SODIMM",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            }
+        },
+        "temp5": {
+            "label": "SODIMM",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 33
+            }
+        },
+        "temp6": {
+            "label": "SODIMM",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 24
+            }
+        }
+    },
+    "coretemp-isa-0000": {
+        "Adapter": "ISA adapter",
+        "temp1": {
+            "label": "Package id 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 40
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp2": {
+            "label": "Core 0",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp3": {
+            "label": "Core 1",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp4": {
+            "label": "Core 2",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp5": {
+            "label": "Core 3",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp6": {
+            "label": "Core 4",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 36
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        },
+        "temp7": {
+            "label": "Core 5",
+            "input": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 35
+            },
+            "max": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 75
+            },
+            "crit": {
+                "quantity": "temperature",
+                "unit": "\u00b0C",
+                "value": 85
+            },
+            "crit_alarm": {
+                "quantity": "boolean",
+                "value": 0
+            }
+        }
+    }
+}
