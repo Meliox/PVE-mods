@@ -73,7 +73,7 @@ for mod in "${_target_modules[@]}"; do
         case "$rc" in
             0)   ;;
             100) CHANGED=true ;;
-            *)   warn "post-revert hook for $mod reported an error (exit $rc)" ;;
+            *)   warn "post-revert hook for $mod reported an error (exit $rc)"; FAILED=true ;;
         esac
     fi
 

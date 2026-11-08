@@ -36,15 +36,14 @@ fi
 
 finish() { [[ "$changed" == "1" ]] && exit 100; exit 0; }
 
-bin="$(command -v intel_gpu_top 2>/dev/null || true)"
-[[ -n "$bin" ]] || finish
-
-command -v setcap &>/dev/null || finish
-command -v getcap &>/dev/null || finish
-
-if getcap "$bin" 2>/dev/null | grep -q 'cap_perfmon'; then
-    setcap -r "$bin" 2>/dev/null || true
-    echo "[pve-mods] Removed CAP_PERFMON from $bin"
-fi
+[[ "${PVE_MODs_ROOT:-/}" == "/" ]] || finish
+source "${PVE_MODs_INTEL_GPU_HELPER:-/usr/lib/pve-mods/intel-gpu-permissions.sh}" || exit 1
+rc=0
+intel_gpu_revoke_permission || rc=$?
+case "$rc" in
+    0) ;;
+    100) changed=1 ;;
+    *) exit "$rc" ;;
+esac
 
 finish

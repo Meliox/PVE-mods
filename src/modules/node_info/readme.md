@@ -142,7 +142,11 @@ Polls `intel_gpu_top` for each detected Intel GPU card. Metrics can be stored in
 
 `intel_gpu_top` needs the `CAP_PERFMON` capability to read the GPU's performance-monitoring counters. `pveproxy` — and therefore this mod's collector processes, which it forks — runs as the unprivileged `www-data` user, not root. Without `CAP_PERFMON`, `intel_gpu_top` fails with `Permission denied` and the Intel GPU collector produces no data.
 
-To make Intel GPU monitoring work, `pve-mods-configure` checks whether `www-data` can already run `intel_gpu_top` and, **only with your explicit confirmation**, grants the capability directly to the binary:
+Enabling Intel GPU monitoring authorizes pve-mods to grant and maintain this
+capability while monitoring remains enabled. `pve-mods-configure` asks for this
+confirmation even if access already works. Setting `intel_enabled=1` manually
+also opts in. Previously enabled installations retain their opt-in on upgrade.
+The capability is granted directly to the binary:
 
 ```sh
 setcap cap_perfmon+ep /usr/bin/intel_gpu_top
@@ -152,6 +156,13 @@ This is narrower than running as root or via `sudo`/setuid: it applies to this o
 
 - Decline the prompt (or leave Intel GPU monitoring disabled) to keep `www-data` at its default privilege level; the collector simply reports no Intel GPU data.
 - The capability is removed automatically when the module is disabled or the package is uninstalled.
+- Applying the module with Intel monitoring disabled or Intel debug mode enabled
+  also removes CAP_PERFMON. As with the existing uninstall behavior, removal
+  applies even to a pre-existing administrator grant; pve-mods does not track
+  grant ownership.
+- While `node_info` and `intel_enabled=1` remain enabled, applying or refreshing
+  the module restores this permission if needed, without asking again. Existing
+  unrelated capabilities are preserved. Intel debug fixtures do not grant it.
 
 To remove it manually at any other time (e.g. without disabling the module):
 
@@ -159,7 +170,18 @@ To remove it manually at any other time (e.g. without disabling the module):
 setcap -r /usr/bin/intel_gpu_top
 ```
 
-**Known limitation:** upgrading the `intel-gpu-tools` package replaces the `intel_gpu_top` binary, which resets the capability. This is not reapplied automatically. If GPU stats stop appearing after a package update, re-run `pve-mods-configure` (the collector also logs a warning to the journal when it can't collect data for this reason).
+Upgrading `intel-gpu-tools` replaces the binary and clears file capabilities.
+A dpkg file trigger restores permission for enabled Intel monitoring and restarts
+the collectors. This maintenance is independent of the auto UI re-patching
+setting. Disabled modules, disabled Intel monitoring and Intel debug mode never
+grant permission. Permission failures produce explicit diagnostics but do not
+roll back Node Info patches or disable sensors, UPS or storage monitoring.
+GPU availability is checked separately by the collector and does not prevent
+maintaining permission.
+
+Removing the capability manually is temporary while monitoring remains enabled:
+the next module apply or binary upgrade can restore it. Disable Intel monitoring
+or the module to keep it revoked.
 
 ### GPU summary and details
 

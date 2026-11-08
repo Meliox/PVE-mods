@@ -5,6 +5,7 @@
 # and installs/starts the service that records history around the clock; when
 # disabled, removes that service again. Likewise installs/removes the root
 # service that collects SMART data when storage health is enabled.
+# Restores Intel GPU performance-counter permission when monitoring is enabled.
 # Exit codes: 0 = no change, 100 = changed (restart pveproxy), other = error.
 
 set -u
@@ -30,6 +31,22 @@ gpu_history="$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" gpu 
 SERVICE_NAME="pve-mods-gpu-history.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
 changed=0
+
+if [[ "${PVE_MODs_ROOT:-/}" == "/" ]]; then
+    source "${PVE_MODs_INTEL_GPU_HELPER:-/usr/lib/pve-mods/intel-gpu-permissions.sh}" || exit 1
+    action=intel_gpu_revoke_permission
+    if [[ "$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" gpu intel_enabled)" == "1" \
+            && "$(read_conf "${MOD_CONF:-/etc/pve-mods/conf.d/node_info.conf}" debug intel_mode)" != "1" ]]; then
+        action=intel_gpu_restore_permission
+    fi
+    rc=0
+    "$action" || rc=$?
+    case "$rc" in
+        0) ;;
+        100) changed=1 ;;
+        *) echo "[pve-mods] WARNING: Intel GPU permission could not be updated; keeping Node Info installed." >&2 ;;
+    esac
+fi
 
 # Only touch systemd when operating on the real root (not a test root).
 manage_service=0

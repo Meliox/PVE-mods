@@ -216,42 +216,39 @@ _check_setcap_available() {
 
 # Quick real-world check: can www-data actually read GPU perf counters via this binary?
 _www_data_can_run_intel_gpu_top() {
-    local bin="$1" out
-    out=$(runuser -u www-data -- timeout 3 "$bin" -J -s 500 -o - 2>&1) || true
-    [[ "$out" != *"Failed to initialize PMU"* && "$out" != *"Permission denied"* ]]
+    source "${PVE_MODs_INTEL_GPU_HELPER:-/usr/lib/pve-mods/intel-gpu-permissions.sh}" || return 1
+    intel_gpu_can_collect "$1"
 }
 
-# Verifies (and if needed, requests to grant) the CAP_PERFMON capability that
-# intel_gpu_top needs to run as www-data. Returns 1 if Intel GPU monitoring
-# should stay disabled.
+# Enabling Intel monitoring authorizes maintaining CAP_PERFMON while enabled.
+# Returns 1 if Intel GPU monitoring should stay disabled.
 _verify_intel_gpu_permission() {
     local bin
     bin=$(command -v intel_gpu_top) || { warn "intel_gpu_top not found on PATH."; return 1; }
 
-    if _www_data_can_run_intel_gpu_top "$bin"; then
-        info "www-data can already collect Intel GPU performance data."
-        return 0
-    fi
-
-    warn "www-data cannot read Intel GPU performance counters (intel_gpu_top requires CAP_PERFMON)."
     warn "See the Intel GPU 'Security' notes in the node_info readme before proceeding."
-
-    _check_setcap_available || { warn "Skipping Intel GPU monitoring (cannot grant CAP_PERFMON)."; return 1; }
+    warn "Enabling Intel monitoring grants CAP_PERFMON and maintains it across module refreshes and binary upgrades."
 
     local choice
-    choice=$(ask "Grant CAP_PERFMON to $bin via setcap, so www-data can collect Intel GPU stats? (Y/n)")
+    choice=$(ask "Enable Intel GPU monitoring and maintain CAP_PERFMON on $bin? (Y/n)")
     case "$choice" in
         [nN])
             info "Skipping Intel GPU monitoring (permission not granted)."
             return 1
             ;;
         *)
-            setcap cap_perfmon+ep "$bin"
-            if _www_data_can_run_intel_gpu_top "$bin"; then
-                info "CAP_PERFMON granted; www-data can now collect Intel GPU stats."
+            _check_setcap_available || { warn "Skipping Intel GPU monitoring (cannot grant CAP_PERFMON)."; return 1; }
+            source "${PVE_MODs_INTEL_GPU_HELPER:-/usr/lib/pve-mods/intel-gpu-permissions.sh}" || return 1
+            local rc=0
+            intel_gpu_restore_permission || rc=$?
+            if [[ "$rc" == "0" || "$rc" == "100" ]]; then
+                if ! _www_data_can_run_intel_gpu_top "$bin"; then
+                    warn "Intel GPU data is not currently available; check the driver and collector journal. Permission will be maintained while monitoring is enabled."
+                fi
+                info "Intel GPU monitoring enabled; CAP_PERFMON will be maintained."
                 return 0
             fi
-            warn "setcap did not resolve the permission problem; disabling Intel GPU monitoring."
+            warn "Could not grant CAP_PERFMON; disabling Intel GPU monitoring."
             return 1
             ;;
     esac
