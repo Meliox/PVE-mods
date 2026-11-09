@@ -59,7 +59,7 @@ _load_main_conf() {
             modules.node_info)    MOD_NODE_INFO="$val" ;;
             modules.nag_screen)   MOD_NAG_SCREEN="$val" ;;
             modules.oidc_console_access) MOD_OIDC_CONSOLE_ACCESS="$val" ;;
-            modules.guest_info) MOD_GUEST_INFO="$val" ;;
+            modules.guest_summary) MOD_GUEST_SUMMARY="$val" ;;
             pve_trigger.enabled)  PVE_TRIGGER_ENABLED="$val" ;;
         esac
     done < "$CONF_FILE"
@@ -78,7 +78,7 @@ write_main_conf() {
 node_info=${MOD_NODE_INFO}
 nag_screen=${MOD_NAG_SCREEN}
 oidc_console_access=${MOD_OIDC_CONSOLE_ACCESS}
-guest_info=${MOD_GUEST_INFO}
+guest_summary=${MOD_GUEST_SUMMARY}
 
 [pve_trigger]
 enabled=${PVE_TRIGGER_ENABLED}
@@ -116,16 +116,16 @@ main() {
     fi
 
     # ── Initialize all config variables with safe defaults ────────────────────
-    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=0; MOD_GUEST_INFO=0; PVE_TRIGGER_ENABLED=0
+    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=0; MOD_GUEST_SUMMARY=0; PVE_TRIGGER_ENABLED=0
     node_info_defaults
     nag_screen_defaults
     oidc_console_access_defaults
-    guest_info_defaults
+    guest_summary_defaults
     _load_main_conf
     node_info_load_conf
     nag_screen_load_conf
     oidc_console_access_load_conf
-    guest_info_load_conf
+    guest_summary_load_conf
 
     # ── Module / feature selection ────────────────────────────────────────────
     # Existing settings are loaded above; the user picks ONE option to (re)configure
@@ -137,7 +137,7 @@ main() {
     echo -e "  [3] OIDC Console Access $(mod_status "$MOD_OIDC_CONSOLE_ACCESS") — grant selected groups Upgrade and/or root Shell access"
     echo -e "  [4] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
     echo    "                    pve-manager is upgraded"
-    echo -e "  [5] Guest Info $(mod_status "$MOD_GUEST_INFO") — merge VM/LXC CPU and memory pressure graphs"
+    echo -e "  [5] Guest Summary $(mod_status "$MOD_GUEST_SUMMARY") — merge VM/LXC CPU and memory pressure graphs"
     echo    "  [n] None / cancel"
     local modChoice selected_mod="" patching_needed=0 refresh_patches=0
     modChoice=$(ask "Select an option (1/2/3/4/5/n)")
@@ -190,15 +190,15 @@ main() {
             write_main_conf  # no patches for this option
             ;;
         5)
-            selected_mod="guest_info"
-            if [[ "$MOD_GUEST_INFO" == "1" ]]; then
-                MOD_GUEST_INFO=0; info "Guest Info will be removed."
+            selected_mod="guest_summary"
+            if [[ "$MOD_GUEST_SUMMARY" == "1" ]]; then
+                MOD_GUEST_SUMMARY=0; info "Guest Summary will be removed."
             else
-                MOD_GUEST_INFO=1; patching_needed=1
-                guest_info_configure
+                MOD_GUEST_SUMMARY=1; patching_needed=1
+                guest_summary_configure
                 info "Combined VM and LXC graphs will be applied."
             fi
-            write_main_conf; guest_info_write_conf
+            write_main_conf; guest_summary_write_conf
             ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;
