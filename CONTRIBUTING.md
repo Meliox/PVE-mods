@@ -59,6 +59,20 @@ The pull request workflows also build and validate the package. Their
 Proxmox-dependent patch tests run in the configured CI environment. The
 `validate-mods` workflow must pass before a pull request is merged.
 
+## Releasing
+
+Maintainers only. Releases are created as drafts so custom text can be added before anyone is notified.
+
+1. Merge the pull requests for the release. The workflow keeps the `chore/version-bump` pull request up to date.
+2. Set the `bump:patch`, `bump:minor` or `bump:major` label on that pull request and merge it.
+3. The merge tags `vX.Y.Z` and builds the package. A **draft** release named `pve-mods vX.Y.Z` is created. No notification is sent yet.
+4. Open the draft on the Releases page and choose **Edit**. Add upgrade notes, warnings or highlights above the generated list.
+5. Check that the `.deb`, `.asc` and `SHA256SUMS` assets are attached, then choose **Publish release**.
+
+The notification email is sent when the release is published and contains the text as it was at that moment. Editing a published release does not send it again, so write the text before publishing.
+
+Before re-running the `Build and Release` workflow for a tag, copy any text you added and delete the existing draft; the workflow does not update an existing release and would not keep manual edits.
+
 ## Pull requests
 
 - Describe the problem and the change, and link any related issue.
