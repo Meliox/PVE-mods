@@ -111,6 +111,7 @@ jobs:
           ASSETS="$DEB $DEB_ASC /tmp/SHA256SUMS /tmp/SHA256SUMS.asc"
 
           gh release create "$TAG" \
+            --draft \
             --title "pve-mods $TAG" \
             --notes-file /tmp/notes.md \
             $ASSETS
