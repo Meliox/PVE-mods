@@ -52,6 +52,9 @@ jobs:
       - name: Test independent node summary columns
         run: node --test build/test/summary-columns.test.js
 
+      - name: Test node search guest network information
+        run: bash build/test/node-search.sh
+
       - name: Test storage health parsers
         run: bash build/test/test-storage-health.sh
 

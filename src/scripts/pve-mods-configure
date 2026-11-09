@@ -60,6 +60,7 @@ _load_main_conf() {
             modules.nag_screen)   MOD_NAG_SCREEN="$val" ;;
             modules.oidc_console_access) MOD_OIDC_CONSOLE_ACCESS="$val" ;;
             modules.guest_summary) MOD_GUEST_SUMMARY="$val" ;;
+            modules.node_search) MOD_NODE_SEARCH="$val" ;;
             pve_trigger.enabled)  PVE_TRIGGER_ENABLED="$val" ;;
         esac
     done < "$CONF_FILE"
@@ -79,6 +80,7 @@ node_info=${MOD_NODE_INFO}
 nag_screen=${MOD_NAG_SCREEN}
 oidc_console_access=${MOD_OIDC_CONSOLE_ACCESS}
 guest_summary=${MOD_GUEST_SUMMARY}
+node_search=${MOD_NODE_SEARCH}
 
 [pve_trigger]
 enabled=${PVE_TRIGGER_ENABLED}
@@ -116,16 +118,18 @@ main() {
     fi
 
     # ── Initialize all config variables with safe defaults ────────────────────
-    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=0; MOD_GUEST_SUMMARY=0; PVE_TRIGGER_ENABLED=0
+    MOD_NODE_INFO=0; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=0; MOD_GUEST_SUMMARY=0; MOD_NODE_SEARCH=0; PVE_TRIGGER_ENABLED=0
     node_info_defaults
     nag_screen_defaults
     oidc_console_access_defaults
     guest_summary_defaults
+    node_search_defaults
     _load_main_conf
     node_info_load_conf
     nag_screen_load_conf
     oidc_console_access_load_conf
     guest_summary_load_conf
+    node_search_load_conf
 
     # ── Module / feature selection ────────────────────────────────────────────
     # Existing settings are loaded above; the user picks ONE option to (re)configure
@@ -138,9 +142,10 @@ main() {
     echo -e "  [4] Auto re-patch on PVE upgrade $(mod_status "$PVE_TRIGGER_ENABLED") — automatically re-apply patches when"
     echo    "                    pve-manager is upgraded"
     echo -e "  [5] Guest Summary $(mod_status "$MOD_GUEST_SUMMARY") — merge VM/LXC CPU and memory pressure graphs"
+    echo -e "  [6] Node Search $(mod_status "$MOD_NODE_SEARCH") — guest IP/MAC, hostname and OS in resource lists and Search"
     echo    "  [n] None / cancel"
     local modChoice selected_mod="" patching_needed=0 refresh_patches=0
-    modChoice=$(ask "Select an option (1/2/3/4/5/n)")
+    modChoice=$(ask "Select an option (1/2/3/4/5/6/n)")
     case "$modChoice" in
         1)
             selected_mod="node_info"
@@ -199,6 +204,17 @@ main() {
                 info "Combined VM and LXC graphs will be applied."
             fi
             write_main_conf; guest_summary_write_conf
+            ;;
+        6)
+            selected_mod="node_search"
+            if [[ "$MOD_NODE_SEARCH" == "1" ]]; then
+                MOD_NODE_SEARCH=0; info "Node Search will be removed."
+            else
+                MOD_NODE_SEARCH=1; patching_needed=1
+                node_search_configure
+                info "Guest network information will be added to resource lists and Search."
+            fi
+            write_main_conf; node_search_write_conf
             ;;
         [nN]) info "No option selected. Exiting."; exit 0 ;;
         *)    warn "Invalid selection. Exiting."; exit 0 ;;

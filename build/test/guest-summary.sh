@@ -25,7 +25,7 @@ cmp "$WORK/before.js" "$TARGET/pvemanagerlib.js"
 
 mkdir -p "$WORK/configure.d" "$WORK/conf.d"
 cp "$ROOT/src/modules/guest_summary/guest_summary.configure.sh" "$WORK/configure.d/guest_summary.sh"
-for mod in node_info nag_screen oidc_console_access; do
+for mod in node_info nag_screen oidc_console_access node_search; do
     printf '%s_defaults() { :; }\n%s_load_conf() { :; }\n' "$mod" "$mod" > "$WORK/configure.d/$mod.sh"
 done
 PVE_MODs_CONFIGURE_D="$WORK/configure.d"
@@ -35,7 +35,7 @@ source "$WORK/configure-functions.sh"
 CONF_FILE="$WORK/pve-mods.conf"
 CONFD_DIR="$WORK/conf.d"
 GUEST_SUMMARY_CONF="$CONFD_DIR/guest_summary.conf"
-MOD_NODE_INFO=1; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=1; MOD_GUEST_SUMMARY=1; PVE_TRIGGER_ENABLED=1
+MOD_NODE_INFO=1; MOD_NAG_SCREEN=0; MOD_OIDC_CONSOLE_ACCESS=1; MOD_GUEST_SUMMARY=1; MOD_NODE_SEARCH=0; PVE_TRIGGER_ENABLED=1
 write_main_conf
 MOD_NODE_INFO=0; MOD_OIDC_CONSOLE_ACCESS=0; MOD_GUEST_SUMMARY=0; PVE_TRIGGER_ENABLED=0
 _load_main_conf

@@ -41,6 +41,7 @@ Each mod is optional and enabled individually in `pve-mods-configure`. See the m
 | [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. |
 | [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. |
 | [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. |
+| [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. |
 
 Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
