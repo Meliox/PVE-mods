@@ -1,0 +1,511 @@
+--- a/usr/share/pve-manager/js/pvemanagerlib.js
++++ b/usr/share/pve-manager/js/pvemanagerlib.js
+@@ -4591,6 +4591,330 @@
+         });
+     },
+ });
++Ext.define('PVE.mod.GuestNetworkInfo', {
++    singleton: true,
++
++    fields: ['guest_ips', 'guest_macs', 'guest_hostname', 'guest_os', 'guest_info_status'],
++    cache: new Map(),
++    queue: [],
++    active: 0,
++    interval: 60000,
++    maxConcurrent: 4,
++
++    columns: function () {
++        return [
++            { dataIndex: 'guest_ips', text: gettext('IP addresses'), width: 200, renderer: this.renderList },
++            { dataIndex: 'guest_macs', text: gettext('MAC addresses'), width: 170,
++                renderer: value => this.renderList(value) },
++            { dataIndex: 'guest_hostname', text: gettext('Guest hostname'), width: 160, renderer: this.renderText },
++            { dataIndex: 'guest_os', text: gettext('Guest OS'), width: 180, renderer: this.renderText },
++            { dataIndex: 'guest_info_status', text: gettext('Guest information status'), width: 220,
++                renderer: Ext.htmlEncode, hidden: true },
++        ].map(column => ({ sortable: true, ...column }));
++    },
++
++    autoSizeColumns: function (grid) {
++        const me = this;
++        const limits = { guest_ips: 360, guest_macs: 180, guest_hostname: 240, guest_os: 260 };
++        const resized = new Set();
++        let sizing = false;
++        let finished = false;
++        const fit = function () {
++            if (finished || !grid.isVisible(true) || !grid.getStore().getCount()
++                || me.active || me.queue.length) {
++                return;
++            }
++            sizing = true;
++            try {
++                grid.getColumnManager().getColumns().forEach(column => {
++                    if (column.hidden || resized.has(column)) {
++                        return;
++                    }
++                    column.autoSize();
++                    column.setWidth(Math.max(column.minWidth || 60,
++                        Math.min(column.maxWidth || limits[column.dataIndex] || 300, column.getWidth())));
++                });
++                finished = true;
++            } finally {
++                sizing = false;
++            }
++        };
++        grid.mon(grid.headerCt, 'columnresize', (header, column) => {
++            if (!sizing && grid.headerCt.resizer?.dragHd === column) {
++                resized.add(column);
++            }
++        });
++        grid.mon(grid.getView(), 'refresh', fit, null, { buffer: 50 });
++        grid.on({ afterrender: fit, show: fit, scope: me, buffer: 50 });
++    },
++
++    renderText: function (value, metadata) {
++        if (metadata) {
++            metadata.tdAttr = `data-qtip="${Ext.htmlEncode(value || '')}"`;
++        }
++        return Ext.htmlEncode(value || '');
++    },
++
++    copyCached: function (record) {
++        const values = this.cached(record.data);
++        record.set(Object.fromEntries(this.fields.map(field => [field, values[field] || ''])));
++    },
++
++    signature: function (data) {
++        return JSON.stringify([data.node, data.type, data.status, !!data.template]);
++    },
++
++    cached: function (data) {
++        const entry = this.cache.get(data.id);
++        return entry?.signature === this.signature(data) ? entry.values : {};
++    },
++
++    ipKey: function (address) {
++        let ip = address.split('/')[0].split('%')[0].toLowerCase();
++        if (ip.includes('.')) {
++            const tail = ip.slice(ip.lastIndexOf(':') + 1);
++            const octets = tail.split('.').map(Number);
++            if (!ip.includes(':')) {
++                return '4' + octets.map(n => String(n).padStart(3, '0')).join('');
++            }
++            ip = ip.slice(0, ip.lastIndexOf(':') + 1)
++                + ((octets[0] << 8) | octets[1]).toString(16) + ':'
++                + ((octets[2] << 8) | octets[3]).toString(16);
++        }
++        const halves = ip.split('::');
++        const left = halves[0] ? halves[0].split(':') : [];
++        const right = halves[1] ? halves[1].split(':') : [];
++        const groups = halves.length === 2
++            ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
++            : left;
++        return '6' + groups.map(group => group.padStart(4, '0')).join('');
++    },
++
++    sortIPs: function (value) {
++        return value ? value.split(', ').map(ip => PVE.mod.GuestNetworkInfo.ipKey(ip)).sort().join(',') : 'z';
++    },
++
++    renderList: function (value, metadata, record) {
++        if (metadata && record) {
++            metadata.tdAttr = `data-qtip="${Ext.htmlEncode(
++                [value, record.get('guest_info_status')].filter(Boolean).join(' - '),
++            )}"`;
++        }
++        return (value || '').split(', ').map(item => Ext.htmlEncode(item)).join('<br>');
++    },
++
++    addIP: function (values, address) {
++        if (typeof address !== 'string') {
++            return;
++        }
++        const ip = address.split('/')[0];
++        const base = ip.split('%')[0];
++        if (!Proxmox.Utils.IP64_match.test(base)) {
++            return;
++        }
++        const key = this.ipKey(base);
++        if (base.startsWith('127.') || key === this.ipKey('::1')
++            || key === this.ipKey('::') || base === '0.0.0.0') {
++            return;
++        }
++        values.add(ip);
++    },
++
++    addMAC: function (values, address) {
++        if (typeof address === 'string' && /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(address)
++            && address !== '00:00:00:00:00:00') {
++            values.add(address.toUpperCase());
++        }
++    },
++
++    configuredNetwork: function (data, config, ips, macs) {
++        Object.entries(config).forEach(([key, value]) => {
++            if (/^net\d+$/.test(key)) {
++                const nic = data.type === 'qemu'
++                    ? PVE.Parser.parseQemuNetwork(key, value)
++                    : PVE.Parser.parseLxcNetwork(value);
++                if (nic) {
++                    this.addMAC(macs, nic.macaddr || nic.hwaddr);
++                    if (data.type === 'lxc') {
++                        this.addIP(ips, nic.ip);
++                        this.addIP(ips, nic.ip6);
++                    }
++                }
++            }
++        });
++    },
++
++    liveNetwork: function (interfaces, ips, macs) {
++        interfaces.forEach(nic => {
++            const address = nic['hardware-address'] || nic.hwaddr;
++            if (nic.name === 'lo' || typeof address !== 'string'
++                || !macs.has(address.toUpperCase())) {
++                return;
++            }
++            (nic['ip-addresses'] || []).forEach(ip => this.addIP(ips, ip['ip-address']));
++            this.addIP(ips, nic.inet);
++            this.addIP(ips, nic.inet6);
++        });
++    },
++
++    request: function (url) {
++        return new Promise(resolve => {
++            Proxmox.Utils.API2Request({
++                url, method: 'GET', timeout: 10000,
++                success: response => resolve({ data: response.result.data }),
++                failure: response => resolve({
++                    error: response.htmlStatus || response.statusText || gettext('Request failed'),
++                }),
++            });
++        });
++    },
++
++    collect: async function (entry) {
++        const me = this;
++        const data = entry.guest;
++        const base = `/nodes/${encodeURIComponent(data.node)}/${data.type}/${data.vmid}`;
++        const values = Object.fromEntries(me.fields.map(field => [field, '']));
++        const ips = new Set();
++        const macs = new Set();
++        const errors = [];
++        const configResult = await me.request(`${base}/config`);
++        const config = configResult.data && typeof configResult.data === 'object'
++            && !Array.isArray(configResult.data) ? configResult.data : null;
++        if (configResult.error) {
++            errors.push(`${gettext('Configuration')}: ${configResult.error}`);
++        } else if (!config) {
++            errors.push(gettext('Invalid guest configuration response'));
++        } else {
++            me.configuredNetwork(data, config, ips, macs);
++        }
++        if (data.template || data.status !== 'running') {
++            values.guest_info_status = data.template ? gettext('Template') : gettext('Guest not running');
++        } else if (data.type === 'lxc') {
++            const result = await me.request(`${base}/interfaces`);
++            if (result.error) {
++                errors.push(`${gettext('Network')}: ${result.error}`);
++            } else if (!Array.isArray(result.data)) {
++                errors.push(gettext('Invalid container network response'));
++            } else {
++                ips.clear();
++                me.liveNetwork(result.data, ips, macs);
++            }
++            values.guest_info_status = gettext('Container interfaces');
++        } else if (config) {
++            const agent = PVE.Parser.parsePropertyString(String(config.agent || '0'), 'enabled');
++            if (!agent) {
++                errors.push(gettext('Invalid Guest Agent configuration'));
++            } else if (!PVE.Parser.parseBoolean(agent.enabled)) {
++                values.guest_info_status = gettext('Guest Agent disabled');
++            } else {
++                for (const command of ['network-get-interfaces', 'get-host-name', 'get-osinfo']) {
++                    const result = await me.request(`${base}/agent/${command}`);
++                    if (result.error) {
++                        errors.push(`${command}: ${result.error}`);
++                        continue;
++                    }
++                    const payload = result.data?.result;
++                    if (command === 'network-get-interfaces' && Array.isArray(payload)) {
++                        me.liveNetwork(payload, ips, macs);
++                    } else if (command === 'get-host-name' && typeof payload?.['host-name'] === 'string') {
++                        values.guest_hostname = payload['host-name'];
++                    } else if (command === 'get-osinfo' && payload && typeof payload === 'object') {
++                        values.guest_os = payload['pretty-name']
++                            || [payload.name, payload.version].filter(Boolean).join(' ');
++                    } else {
++                        errors.push(`${command}: ${gettext('Invalid Guest Agent response')}`);
++                    }
++                }
++                values.guest_info_status = gettext('QEMU Guest Agent');
++            }
++        }
++        values.guest_ips = [...ips].sort((a, b) => me.ipKey(a).localeCompare(me.ipKey(b))).join(', ');
++        values.guest_macs = [...macs].sort().join(', ');
++        if (errors.length) {
++            values.guest_info_status = errors.join('; ');
++        }
++        return values;
++    },
++
++    publish: function (entry, values) {
++        const record = this.store.getById(entry.guest.id);
++        if (this.cache.get(entry.guest.id) !== entry || !record
++            || entry.signature !== this.signature(record.data)) {
++            return;
++        }
++        entry.values = values;
++        entry.updated = Date.now();
++        entry.loading = false;
++        record.set(values);
++        if (!this.notificationPending) {
++            this.notificationPending = true;
++            setTimeout(() => {
++                this.notificationPending = false;
++                this.store.fireEvent('guestinfochange', this.store);
++            }, 100);
++        }
++    },
++
++    pump: function () {
++        const me = this;
++        while (me.active < me.maxConcurrent && me.queue.length) {
++            const entry = me.queue.shift();
++            if (me.cache.get(entry.guest.id) !== entry) {
++                continue;
++            }
++            me.active++;
++            me.collect(entry).then(values => me.publish(entry, values), error => {
++                console.error('pve-mods: guest overview collection failed', entry.guest.id, error);
++                me.publish(entry, {
++                    ...Object.fromEntries(me.fields.map(field => [field, ''])),
++                    guest_info_status: String(error),
++                });
++            }).finally(() => {
++                me.active--;
++                me.pump();
++            });
++        }
++    },
++
++    refresh: function (store, records, success) {
++        if (success === false) {
++            return;
++        }
++        const me = this;
++        me.store = store;
++        const ids = new Set();
++        store.each(record => {
++            const data = record.data;
++            if (!['qemu', 'lxc'].includes(data.type)) {
++                return;
++            }
++            ids.add(data.id);
++            let entry = me.cache.get(data.id);
++            const signature = me.signature(data);
++            if (!entry || entry.signature !== signature) {
++                entry = {
++                    guest: { id: data.id, node: data.node, vmid: data.vmid, type: data.type,
++                        status: data.status, template: data.template },
++                    signature, values: { guest_info_status: gettext('Loading...') },
++                    updated: 0, loading: false,
++                };
++                me.cache.set(data.id, entry);
++            }
++            me.copyCached(record);
++            if (!entry.loading && Date.now() - entry.updated >= me.interval) {
++                entry.loading = true;
++                me.queue.push(entry);
++            }
++        });
++        for (const id of me.cache.keys()) {
++            if (!ids.has(id)) {
++                me.cache.delete(id);
++            }
++        }
++        me.pump();
++    },
++});
++
+ Ext.define('PVE.data.ResourceStore', {
+     extend: 'Proxmox.data.UpdateStore',
+     singleton: true,
+@@ -4929,6 +5253,13 @@
+                 sortable: true,
+                 width: 100,
+             },
++            ...Object.fromEntries(PVE.mod.GuestNetworkInfo.columns().map(({ dataIndex, text, ...column }) => [
++                dataIndex, {
++                    ...column, header: text, type: 'string',
++                    ...(dataIndex === 'guest_ips' ? { sortType: PVE.mod.GuestNetworkInfo.sortIPs } : {}),
++                    convert: (value, record) => PVE.mod.GuestNetworkInfo.cached(record.data)[dataIndex] || '',
++                },
++            ])),
+             tags: {
+                 header: gettext('Tags'),
+                 renderer: (value) => PVE.Utils.renderTags(value, PVE.UIOptions.tagOverrides),
+@@ -4943,6 +5274,9 @@
+         let fieldNames = [];
+         Ext.Object.each(field_defaults, function (key, value) {
+             var field = { name: key, type: value.type };
++            if (PVE.mod.GuestNetworkInfo.fields.includes(key)) {
++                field.persist = false;
++            }
+             if (Ext.isDefined(value.convert)) {
+                 field.convert = value.convert;
+             }
+@@ -4954,6 +5288,9 @@
+             if (Ext.isDefined(value.defaultValue)) {
+                 field.defaultValue = value.defaultValue;
+             }
++            if (Ext.isDefined(value.sortType)) {
++                field.sortType = value.sortType;
++            }
+ 
+             fields.push(field);
+             fieldNames.push(key);
+@@ -4991,6 +5328,7 @@
+         me.callParent([config]);
+ 
+         me.on('beforeload', me.clearCache, me);
++        me.on('load', PVE.mod.GuestNetworkInfo.refresh, PVE.mod.GuestNetworkInfo);
+     },
+ });
+ Ext.define('pve-rrd-node', {
+@@ -6928,6 +7266,7 @@
+                 text: gettext('Pool'),
+                 dataIndex: 'pool',
+             },
++            ...PVE.mod.GuestNetworkInfo.columns().filter(column => !column.hidden),
+         ],
+     },
+ 
+@@ -6943,7 +7282,8 @@
+             pool: ['type', 'pool', 'text'],
+             node: ['type', 'node', 'text'],
+             storage: ['type', 'pool', 'node', 'storage'],
+-            default: ['name', 'type', 'node', 'pool', 'vmid'],
++            default: ['name', 'type', 'node', 'pool', 'vmid',
++                'guest_ips', 'guest_macs', 'guest_hostname', 'guest_os'],
+         };
+         let fields = fieldMap[item.data.type] || fieldMap.default;
+         let fieldArr = fields.map((field) => item.data[field]?.toString().toLowerCase());
+@@ -7019,7 +7359,11 @@
+         let me = this;
+         me.hasFocus = true;
+         me.grid.textfield = me;
+-        me.grid.store.load();
++        me.grid.store.load({
++            callback: function () {
++                me.refreshGuestInfo();
++            },
++        });
+         me.grid.showBy(me, 'tl-bl');
+     },
+ 
+@@ -7031,6 +7375,14 @@
+         }
+     },
+ 
++    refreshGuestInfo: function () {
++        const me = this;
++        const store = me.grid.getStore();
++        store.clearFilter(true);
++        store.each(record => PVE.mod.GuestNetworkInfo.copyCached(record));
++        me.updateFilter(me, me.getValue());
++    },
++
+     listeners: {
+         change: {
+             fn: 'updateFilter',
+@@ -7063,6 +7415,8 @@
+         me.grid = Ext.create(me.grid);
+ 
+         me.callParent();
++        me.mon(PVE.data.ResourceStore, 'guestinfochange', me.refreshGuestInfo, me);
++        PVE.mod.GuestNetworkInfo.autoSizeColumns(me.grid);
+ 
+         // bind CTRL + SHIFT + F and CTRL + SPACE to open/close the search
+         me.keymap = new Ext.KeyMap({
+@@ -15284,7 +15638,8 @@
+ 
+         let textfilter = '';
+         let textfilterMatch = function (item) {
+-            for (const field of ['name', 'storage', 'node', 'type', 'text']) {
++            for (const field of ['name', 'storage', 'node', 'type', 'text',
++                'guest_ips', 'guest_macs', 'guest_hostname', 'guest_os']) {
+                 let v = item.data[field];
+                 if (v && v.toLowerCase().indexOf(textfilter) >= 0) {
+                     return true;
+@@ -15299,6 +15654,8 @@
+             store.suspendEvents();
+ 
+             let nodeidx = {};
++            const allResources = new Set();
++            const typeCounts = new Map();
+             let gather_child_nodes;
+             gather_child_nodes = function (node) {
+                 if (!node || !node.childNodes) {
+@@ -15307,11 +15664,15 @@
+                 for (let child of node.childNodes) {
+                     let orgNode = rstore.data.get(child.data.realId ?? child.data.id);
+                     if (orgNode) {
+-                        if (
+-                            (!filterfn || filterfn(child)) &&
+-                            (!textfilter || textfilterMatch(child))
+-                        ) {
+-                            nodeidx[child.data.id] = orgNode;
++                        if (!filterfn || filterfn(child)) {
++                            if (!allResources.has(child.data.id)) {
++                                allResources.add(child.data.id);
++                                const type = orgNode.get('type');
++                                typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
++                            }
++                            if (!textfilter || textfilterMatch(orgNode)) {
++                                nodeidx[child.data.id] = orgNode;
++                            }
+                         }
+                     }
+                     gather_child_nodes(child);
+@@ -15358,6 +15719,19 @@
+             store.sort();
+             store.resumeEvents();
+             store.fireEvent('refresh', store);
++            const typeNames = {
++                qemu: gettext('VMs'),
++                lxc: gettext('CTs'),
++                node: gettext('Nodes'),
++                storage: gettext('Storage'),
++                pool: gettext('Pools'),
++                sdn: gettext('SDN'),
++                network: gettext('Networks'),
++            };
++            const counts = [...typeCounts].sort(([a], [b]) => a.localeCompare(b))
++                .map(([type, count]) => `${typeNames[type] || type}: ${count}`);
++            counts.push(`${gettext('Search matches')}: ${Object.keys(nodeidx).length} / ${allResources.size}`);
++            me.down('#resourceCounts').setText(Ext.htmlEncode(counts.join(' | ')));
+         };
+ 
+         Ext.apply(me, {
+@@ -15365,6 +15739,11 @@
+             stateful: true,
+             stateId: 'grid-resource',
+             tbar: [
++                {
++                    xtype: 'tbtext',
++                    itemId: 'resourceCounts',
++                    text: '',
++                },
+                 '->',
+                 gettext('Search') + ':',
+                 ' ',
+@@ -15399,6 +15778,8 @@
+         });
+         me.callParent();
+         me.mon(rstore, 'load', () => updateGrid());
++        me.mon(rstore, 'guestinfochange', () => updateGrid());
++        PVE.mod.GuestNetworkInfo.autoSizeColumns(me);
+     },
+ });
+ /*

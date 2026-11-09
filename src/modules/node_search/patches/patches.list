@@ -1,0 +1,4 @@
+# pve-mods :: node_search patch manifest
+# Format: <patch-file> [section.key=value]
+
+01-guest-network-overview.patch
