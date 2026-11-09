@@ -2,6 +2,8 @@
 
 Adds guest network information to resource lists and global Search. This module is independent of `guest_summary`, which changes VM/CT summary graphs only.
 
+<p align="center"><img src="images/node-search.png" alt="Resource list with IP addresses, MAC addresses, guest hostname, guest OS and search counts (simulated data)"></p>
+
 ## Features
 
 - Resource lists and global Search show IPv4/IPv6 addresses, MAC addresses, guest hostname and guest OS.
