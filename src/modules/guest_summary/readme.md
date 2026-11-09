@@ -1,4 +1,4 @@
-# guest_info
+# guest_summary
 
 Combines the VM and LXC summary graphs into five charts. Pressure data is shown next to the CPU and memory graphs it belongs to, instead of in separate graphs. Data comes from the existing guest `rrddata` endpoint, so no new collector, guest agent or RRD schema is needed.
 
@@ -34,4 +34,4 @@ The screenshots use simulated data.
 
 ## Configuration
 
-The module has no settings. Enable or disable it with option **[5] Guest Info** in `pve-mods-configure`, or set `guest_info=1` under `[modules]` in `/etc/pve-mods/pve-mods.conf`. It is disabled by default and independent of `node_info`. Reload the browser without cache afterwards.
+The module has no settings. Enable or disable it with option **[5] Guest Summary** in `pve-mods-configure`, or set `guest_summary=1` under `[modules]` in `/etc/pve-mods/pve-mods.conf`. It is disabled by default and independent of `node_info`. Reload the browser without cache afterwards.
