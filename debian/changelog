@@ -1,3 +1,44 @@
+pve-mods (2.2.0) stable; urgency=low
+
+  * cd7d072 feat(node_search): add guest network information to resource lists and search (#441) by @Meliox
+  * a45f514 refactor(guest_summary): rename guest_info module to guest_summary (#440) by @Meliox
+  * 0c18cc6 fix(node_info): fill percent series in history chart (#439) by @Meliox
+  * b89abb2 docs: update simulated screenshots (#437) by @Meliox
+  * eec42f1 fix(node_info): use independent column stacks on the node summary page (#434) by @Meliox
+  * 9fa987d fix(node_info): maintain Intel GPU CAP_PERFMON across apply, revert and intel_gpu_top upgrades (#433) by @Meliox
+  * 7ac7e14 test(node_info): add lm-sensors tests and promote SODIMM temperatures to DIMM entries (#432) by @Meliox
+  * 02da2cf refactor(node_info): rename GPU collector modules to GpuIntel, GpuNvidia and GpuAmd (#431) by @Meliox
+  * 03d3faf test(node_info): add Intel and NVIDIA GPU tests, fix NVIDIA N/A readings and GPU temperature threshold (#430) by @Meliox
+  * 407aabf fix(node_info): make _ask_yes_no default argument optional (#429) by @Meliox
+  * 2aba874 fix(debian): reset conffiles to defaults instead of deleting on remove (#428) by @Meliox
+  * 8b95e70 feat(node_info): show system fans as a table and document fan speeds (#425) by @Meliox
+  * 4ac6046 feat(guest_info): merge VM/LXC pressure into CPU and memory graphs (#424) by @Meliox
+  * 1acaf1a fix(node_info): show per-core/CCD CPU temperatures in the summary again (#423) by @Meliox
+  * 280bc49 feat(node_info): add native AMD GPU monitoring (#422) by @Meliox
+  * 2b88818 docs(readme): restructure for pve-mods deb, add screenshot, TOC (#421) by @Meliox
+  * 8f99b47 feat(node_info): make collector intervals configurable (#404) by @bachmma1
+  * 9617f42 docs(node_info): Add screenshots (#420) by @Meliox
+  * 75ce16f refactor(node_info): move details info icons to row headings and add per-device tabs to CPU/UPS details windows (#419) by @Meliox
+  * 73d9de3 feat(node_info): simplify the GPU summary row and add a live GPU details window (#418) by @Meliox
+  * 384c140 feat(node_info): merge pressure-stall graphs into CPU/Memory charts and redesign GPU chart axes (#416) by @Meliox
+  * 1a37b76 fix(node_info): show the UPS serial number in the summary row (#417) by @Meliox
+  * 8b6854f feat(node_info): redesign the UPS summary row and add a live details window (#415) by @Meliox
+  * 7bedcd5 feat(node_info): pre-fill saved answers in the configure wizard (#414) by @Meliox
+  * 65d62b1 feat(node_info): show per-package CPU temperatures with a live details window (#413) by @Meliox
+  * be19010 fix(node_info): stop pve-mods worker from leaking inherited file descriptors (#412) by @Meliox
+  * 63888dd fix(node_info): show a loading state for sensor data on the node summary (#411) by @Meliox
+  * a9e2691 fix(node_info): fix alignment of node summary sensor tables (#410) by @Meliox
+  * 9caec93 fix(node_info): use balanced 50/50 columns in node summary sensor tables (#409) by @Meliox
+  * 1aaacd9 feat(node_info): show ZFS and SMART storage health on the node summary (#408) by @Meliox
+  * eed8a51 feat(node_info): record GPU history in RRD and graph it on the node summary (#407) by @Meliox
+  * 12c0842 feat(oidc_console_access): allow selected groups to access node consoles (#406) by @Meliox
+  * c59f304 feat(installer): Show file path, line and code context when a patch fails (#403) by @Meliox
+  * fbeb71e fix(installer): Remove unused config key to remove "New configuration options are available" warning - (#394) by @Meliox
+  * e215a67 fix(node_info): Use label from sensors output for System Fans, fall back to default name (#393) by @Meliox
+  * b8b6fa8 fix(node_info): Only show fans when enabled (#391) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Mon, 09 Nov 2026 18:53:03 +0000
+
 pve-mods (2.1.1) stable; urgency=low
 
   * 84dac9e fix(installer): revert applied patches before package upgrade (#383) by @Meliox
