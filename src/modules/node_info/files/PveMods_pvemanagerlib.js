@@ -1885,6 +1885,7 @@ Ext.define('PVE.mod.GpuChart', {
                     fields: metrics.map((m) => ({
                         yField: m.field,
                         title: m.title,
+                        fill: m.unit === '%',
                         showInLegend: m.unit === '%',
                         hidden: m.unit === '%' ? !shownPercent.includes(m.field)
                             : m.unit !== me.selectedUnit,
