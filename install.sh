@@ -98,11 +98,7 @@ fi
 confirm_install "$VERSION"
 info "Installing pve-mods ${VERSION}..."
 
-dpkg -i "$TMP" || {
-    info "Resolving missing dependencies..."
-    apt-get install -f -y
-    dpkg -i "$TMP"
-}
+apt-get install -y "$TMP"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
