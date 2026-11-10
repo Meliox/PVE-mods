@@ -102,12 +102,21 @@ jobs:
             fi
 
             for package in "${packages[@]}"; do
+              package_name=$(dpkg-deb --field "$package" Package)
+              case "$package_name" in
+                pve-mod|pve-mods) ;;
+                *)
+                  echo "::error::Unsupported Debian package $package_name in $package."
+                  exit 1
+                  ;;
+              esac
+
               version=$(dpkg-deb --field "$package" Version)
               version=${version#*:}
-              changelog_dir="changelogs/main/p/pve-mods/pve-mods_$version"
+              changelog_dir="changelogs/main/p/$package_name/${package_name}_$version"
               mkdir -p "$changelog_dir"
               dpkg-deb --fsys-tarfile "$package" \
-                | tar -xOf - ./usr/share/doc/pve-mods/changelog.gz \
+                | tar -xOf - "./usr/share/doc/$package_name/changelog.gz" \
                 | gzip -dc > "$changelog_dir/changelog"
               if [ ! -s "$changelog_dir/changelog" ]; then
                 echo "::error::Missing or empty changelog in $package."
