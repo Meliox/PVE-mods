@@ -12,8 +12,9 @@
 
   <h2>Installation</h2>
 
-  <p>Run as root on the Proxmox VE host. Stable contains the latest published
-    non-prerelease and is recommended for normal installations.</p>
+  <p>Run as root on the Proxmox VE host. Stable contains published
+    non-prereleases with Debian packages and is recommended for normal
+    installations. APT selects the highest available version by default.</p>
 
   <pre>
 install -d -m 0755 /etc/apt/keyrings
@@ -30,7 +31,7 @@ apt install pve-mods
 
   <h2>Testing channel</h2>
 
-  <p>Testing contains the latest published prerelease. After installing the
+  <p>Testing contains published prereleases with Debian packages. After installing the
     signing key above, replace the stable source with testing to opt in:</p>
 
   <pre>
@@ -45,6 +46,23 @@ apt install pve-mods
     back to stable does not automatically downgrade an installed testing version.
     Both channels have signed metadata, allowing APT to verify the package
     indexes and downloaded package checksums.</p>
+
+  <h2>Installing an older version</h2>
+
+  <p>Only the 100 newest published releases by publication date are retained,
+    counting stable releases and prereleases together.</p>
+
+  <p>List versions available in your configured channel, then select an exact
+    version. For example, if 2.1.0 is listed:</p>
+
+  <pre>
+apt update
+apt-cache madison pve-mods
+apt-get install --allow-downgrades pve-mods=2.1.0
+  </pre>
+
+  <p>Downgrades may be incompatible with your configuration or Proxmox version.
+    A later upgrade will select the highest available version again.</p>
 
   <p>Existing users of trusted=yes should run the installation commands above
     to install the key and replace the old source entry. The initial key download

@@ -48,29 +48,31 @@ jobs:
               prerelease=true
             fi
 
-            tag=$(jq -r --argjson prerelease "$prerelease" '
+            jq -r --argjson prerelease "$prerelease" '
               add
-              | map(select(.draft == false and .prerelease == $prerelease))
-              | sort_by(.published_at)
-              | last
-              | .tag_name // empty
-            ' "$RUNNER_TEMP/releases.json")
+              | map(select(.draft == false and .published_at != null))
+              | sort_by([.published_at, .id])
+              | reverse
+              | .[:100]
+              | map(select(
+                  .prerelease == $prerelease
+                  and any(.assets[]?; .name | endswith(".deb"))
+                ))
+              | .[].tag_name
+            ' "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/$channel-tags"
 
-            if [ -z "$tag" ]; then
-              echo "::warning::No published $channel release; generating an empty channel."
+            if [ ! -s "$RUNNER_TEMP/$channel-tags" ]; then
+              echo "::warning::No published $channel release has Debian packages; generating an empty channel."
               continue
             fi
 
-            echo "Downloading $channel packages from $tag"
-            gh release download "$tag" \
-              --repo "$GITHUB_REPOSITORY" \
-              --pattern '*.deb' \
-              --dir "$RUNNER_TEMP/packages/$channel"
-
-            if ! compgen -G "$RUNNER_TEMP/packages/$channel/*.deb" > /dev/null; then
-              echo "::error::No Debian packages found in $channel release $tag."
-              exit 1
-            fi
+            while IFS= read -r tag; do
+              echo "Downloading $channel packages from $tag"
+              gh release download "$tag" \
+                --repo "$GITHUB_REPOSITORY" \
+                --pattern '*.deb' \
+                --dir "$RUNNER_TEMP/packages/$channel"
+            done < "$RUNNER_TEMP/$channel-tags"
           done
 
           if ! find "$RUNNER_TEMP/packages" -name '*.deb' -print -quit | grep -q .; then
@@ -99,7 +101,7 @@ jobs:
               cp "${packages[@]}" pool/main/p/pve-mods/
             fi
 
-            dpkg-scanpackages --arch all pool /dev/null \
+            dpkg-scanpackages --multiversion --arch all pool /dev/null \
               > "dists/$channel/main/binary-amd64/Packages"
             gzip -9 -k "dists/$channel/main/binary-amd64/Packages"
 
