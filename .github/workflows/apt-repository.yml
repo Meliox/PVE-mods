@@ -1,0 +1,115 @@
+
+name: Build Testing APT Repository
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Only build GitHub Pre-releases
+    if: github.event.release.prerelease == true
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+        with:
+          ref: main
+
+      - name: Install Debian tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+
+      - name: Download release packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/packages"
+
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.deb' \
+            --dir "$RUNNER_TEMP/packages"
+
+          if ! ls "$RUNNER_TEMP/packages/"*.deb >/dev/null 2>&1; then
+            echo "No Debian packages found in release."
+            exit 1
+          fi
+
+      - name: Build testing repository
+        run: |
+          set -euo pipefail
+
+          # Remove previous testing metadata only
+          rm -rf docs/dists/testing
+
+          mkdir -p \
+            docs/dists/testing/main/binary-amd64 \
+            docs/pool/main/p/pve-mods
+
+          touch docs/.nojekyll
+
+          # Copy release packages temporarily
+          cp "$RUNNER_TEMP"/packages/*.deb \
+            docs/pool/main/p/pve-mods/
+
+          cd docs
+
+          # Generate APT package index
+          dpkg-scanpackages \
+            --arch all \
+            pool /dev/null \
+            > dists/testing/main/binary-amd64/Packages
+
+          # Compress package index
+          gzip -9 -k \
+            dists/testing/main/binary-amd64/Packages
+
+          # Generate Release metadata
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin="Meliox" \
+            -o APT::FTPArchive::Release::Label="PVE-mods" \
+            -o APT::FTPArchive::Release::Suite="testing" \
+            -o APT::FTPArchive::Release::Codename="testing" \
+            release dists/testing \
+            > dists/testing/Release
+
+          # Packages are downloaded from GitHub Releases
+          # through Cloudflare, not GitHub Pages
+          rm -rf pool
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # 6.0.0
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # 5.0.0
+        with:
+          path: docs
+          include-hidden-files: true
+
+  deploy:
+    if: github.event.release.prerelease == true
+
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # 5.0.1
