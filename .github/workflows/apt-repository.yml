@@ -1,9 +1,10 @@
 
-name: Build Testing APT Repository
+name: Build APT Repository
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,9 +17,6 @@ concurrency:
 
 jobs:
   build:
-    # Only build GitHub Pre-releases
-    if: github.event.release.prerelease == true
-
     runs-on: ubuntu-latest
 
     steps:
@@ -36,59 +34,85 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "$RUNNER_TEMP/packages"
+          set -euo pipefail
 
-          gh release download "${{ github.event.release.tag_name }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern '*.deb' \
-            --dir "$RUNNER_TEMP/packages"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > "$RUNNER_TEMP/releases.json"
 
-          if ! ls "$RUNNER_TEMP/packages/"*.deb >/dev/null 2>&1; then
-            echo "No Debian packages found in release."
+          for channel in stable testing; do
+            mkdir -p "$RUNNER_TEMP/packages/$channel"
+            prerelease=false
+            if [ "$channel" = "testing" ]; then
+              prerelease=true
+            fi
+
+            tag=$(jq -r --argjson prerelease "$prerelease" '
+              add
+              | map(select(.draft == false and .prerelease == $prerelease))
+              | sort_by(.published_at)
+              | last
+              | .tag_name // empty
+            ' "$RUNNER_TEMP/releases.json")
+
+            if [ -z "$tag" ]; then
+              echo "::warning::No published $channel release; generating an empty channel."
+              continue
+            fi
+
+            echo "Downloading $channel packages from $tag"
+            gh release download "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern '*.deb' \
+              --dir "$RUNNER_TEMP/packages/$channel"
+
+            if ! compgen -G "$RUNNER_TEMP/packages/$channel/*.deb" > /dev/null; then
+              echo "::error::No Debian packages found in $channel release $tag."
+              exit 1
+            fi
+          done
+
+          if ! find "$RUNNER_TEMP/packages" -name '*.deb' -print -quit | grep -q .; then
+            echo "::error::No Debian packages found in either channel."
             exit 1
           fi
 
-      - name: Build testing repository
+      - name: Build stable and testing repositories
         run: |
           set -euo pipefail
 
-          # Remove previous testing metadata only
-          rm -rf docs/dists/testing
+          rm -rf docs/dists docs/pool
 
-          mkdir -p \
-            docs/dists/testing/main/binary-amd64 \
-            docs/pool/main/p/pve-mods
-
+          mkdir -p docs
           touch docs/.nojekyll
-
-          # Copy release packages temporarily
-          cp "$RUNNER_TEMP"/packages/*.deb \
-            docs/pool/main/p/pve-mods/
-
           cd docs
 
-          # Generate APT package index
-          dpkg-scanpackages \
-            --arch all \
-            pool /dev/null \
-            > dists/testing/main/binary-amd64/Packages
+          for channel in stable testing; do
+            mkdir -p \
+              "dists/$channel/main/binary-amd64" \
+              pool/main/p/pve-mods
 
-          # Compress package index
-          gzip -9 -k \
-            dists/testing/main/binary-amd64/Packages
+            shopt -s nullglob
+            packages=("$RUNNER_TEMP/packages/$channel/"*.deb)
+            if [ "${#packages[@]}" -gt 0 ]; then
+              cp "${packages[@]}" pool/main/p/pve-mods/
+            fi
 
-          # Generate Release metadata
-          apt-ftparchive \
-            -o APT::FTPArchive::Release::Origin="Meliox" \
-            -o APT::FTPArchive::Release::Label="PVE-mods" \
-            -o APT::FTPArchive::Release::Suite="testing" \
-            -o APT::FTPArchive::Release::Codename="testing" \
-            release dists/testing \
-            > dists/testing/Release
+            dpkg-scanpackages --arch all pool /dev/null \
+              > "dists/$channel/main/binary-amd64/Packages"
+            gzip -9 -k "dists/$channel/main/binary-amd64/Packages"
 
-          # Packages are downloaded from GitHub Releases
-          # through Cloudflare, not GitHub Pages
-          rm -rf pool
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="Meliox" \
+              -o APT::FTPArchive::Release::Label="PVE-mods" \
+              -o APT::FTPArchive::Release::Suite="$channel" \
+              -o APT::FTPArchive::Release::Codename="$channel" \
+              release "dists/$channel" \
+              > "dists/$channel/Release"
+
+            # Keep each index isolated; the Worker serves packages from Releases.
+            rm -rf pool
+          done
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # 6.0.0
@@ -100,8 +124,6 @@ jobs:
           include-hidden-files: true
 
   deploy:
-    if: github.event.release.prerelease == true
-
     needs: build
     runs-on: ubuntu-latest
 

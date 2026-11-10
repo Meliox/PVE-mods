@@ -12,6 +12,9 @@
 
   <h2>Installation</h2>
 
+  <p>Run as root on the Proxmox VE host. Stable contains the latest published
+    non-prerelease and is recommended for normal installations.</p>
+
   <pre>
 echo "deb [trusted=yes] https://pve-mods-apt.meliox.workers.dev stable main" \
   > /etc/apt/sources.list.d/pve-mods.list
@@ -19,6 +22,24 @@ echo "deb [trusted=yes] https://pve-mods-apt.meliox.workers.dev stable main" \
 apt update
 apt install pve-mods
   </pre>
+
+  <h2>Testing channel</h2>
+
+  <p>Testing contains the latest published prerelease. To opt in, replace the
+    stable source with testing:</p>
+
+  <pre>
+echo "deb [trusted=yes] https://pve-mods-apt.meliox.workers.dev testing main" \
+  > /etc/apt/sources.list.d/pve-mods.list
+
+apt update
+apt install pve-mods
+  </pre>
+
+  <p>A channel is empty until a matching release has been published. Switching
+    back to stable does not automatically downgrade an installed testing version.
+    Repository metadata is unsigned; trusted=yes disables APT signature checks
+    for this source.</p>
 
   <p>
     <a href="https://github.com/Meliox/PVE-mods">
