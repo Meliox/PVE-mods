@@ -107,7 +107,13 @@ curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh 
 apt-get remove pve-mods
 ```
 
-Removing the package reverts all applied patches and asks whether to keep `/etc/pve-mods/pve-mods.conf`. Use `apt-get purge pve-mods` to also delete all configuration and state (`/etc/pve-mods`, `/var/lib/pve-mods`).
+Removing the package reverts all applied patches and preserves configuration without prompting.
+
+To also delete all configuration and state (`/etc/pve-mods`, `/var/lib/pve-mods`), use:
+
+```bash
+apt-get purge pve-mods
+```
 
 Afterwards, remove the dependencies installed for the respective mods if no longer needed.
 
@@ -136,4 +142,3 @@ Bitcoin (BTC): `16hg7syEJ3HkSP1PAANkpSW6pZ4vCdvUnK`
 ## License
 
 Released under the [MIT License](LICENSE).
-
