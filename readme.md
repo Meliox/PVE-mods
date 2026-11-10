@@ -115,8 +115,6 @@ To also delete all configuration and state (`/etc/pve-mods`, `/var/lib/pve-mods`
 apt-get purge pve-mods
 ```
 
-Neither command asks a separate question about preserving configuration.
-
 Afterwards, remove the dependencies installed for the respective mods if no longer needed.
 
 ### Notes
