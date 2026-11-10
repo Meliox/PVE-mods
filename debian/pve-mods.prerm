@@ -9,29 +9,8 @@ _revert_patches() {
 
 case "$1" in
     remove|deconfigure)
-        # 1. Revert patches before files are removed.
+        # Revert patches before files are removed.
         _revert_patches
-
-        # 2. Ask whether to keep the config (only in interactive sessions).
-        if [ -t 0 ] && [ -f /etc/pve-mods/pve-mods.conf ]; then
-            printf '\npve-mods: Keep /etc/pve-mods/pve-mods.conf for re-use after reinstall? [Y/n] '
-            read -r _keep
-            case "$_keep" in
-                # Reset to the packaged defaults instead of deleting: dpkg keeps
-                # conffiles after "remove" and would otherwise prompt about a
-                # "deleted" conffile on reinstall (or silently leave it missing
-                # in non-interactive runs). The reset copy matches the shipped
-                # conffile, so dpkg treats it as unmodified.
-                [nN]*) cp -f /usr/share/pve-mods/pve-mods.conf.default /etc/pve-mods/pve-mods.conf
-                       for _def in /usr/share/pve-mods/conf.d/*.default; do
-                           [ -f "$_def" ] || continue
-                           _usr="/etc/pve-mods/conf.d/$(basename "${_def%.default}")"
-                           [ -f "$_usr" ] && cp -f "$_def" "$_usr"
-                       done
-                       echo "pve-mods: Configuration reset to defaults." ;;
-                *)     echo "pve-mods: Configuration kept at /etc/pve-mods/pve-mods.conf" ;;
-            esac
-        fi
         ;;
 
 esac
