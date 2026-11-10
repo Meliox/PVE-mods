@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          rm -rf docs/dists docs/pool
+          rm -rf docs/dists docs/pool docs/changelogs
 
           mkdir -p docs
           touch docs/.nojekyll
@@ -101,6 +101,20 @@ jobs:
               cp "${packages[@]}" pool/main/p/pve-mods/
             fi
 
+            for package in "${packages[@]}"; do
+              version=$(dpkg-deb --field "$package" Version)
+              version=${version#*:}
+              changelog_dir="changelogs/main/p/pve-mods/pve-mods_$version"
+              mkdir -p "$changelog_dir"
+              dpkg-deb --fsys-tarfile "$package" \
+                | tar -xOf - ./usr/share/doc/pve-mods/changelog.gz \
+                | gzip -dc > "$changelog_dir/changelog"
+              if [ ! -s "$changelog_dir/changelog" ]; then
+                echo "::error::Missing or empty changelog in $package."
+                exit 1
+              fi
+            done
+
             dpkg-scanpackages --multiversion --arch all pool /dev/null \
               > "dists/$channel/main/binary-amd64/Packages"
             gzip -9 -k "dists/$channel/main/binary-amd64/Packages"
@@ -112,6 +126,9 @@ jobs:
               -o APT::FTPArchive::Release::Codename="$channel" \
               release "dists/$channel" \
               > "dists/$channel/Release"
+            printf '%s\n' \
+              'Changelogs: https://pve-mods-apt.meliox.workers.dev/changelogs/@CHANGEPATH@/changelog' \
+              >> "dists/$channel/Release"
 
             # Keep each index isolated; the Worker serves packages from Releases.
             rm -rf pool

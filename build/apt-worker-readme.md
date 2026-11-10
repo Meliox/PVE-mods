@@ -20,6 +20,12 @@ Package filenames must be unique within
 each channel; conflicting downloads fail rather than overwrite an asset.
 Signing and the Pages deployment cover both channels together.
 
+The workflow extracts each package's embedded `changelog.gz` and publishes it
+under `changelogs/main/p/pve-mods/pve-mods_VERSION/changelog`. Both signed Release
+files advertise the `Changelogs` URL template used by `apt changelog` and Proxmox.
+Missing or corrupt embedded changelogs fail the build. The Worker proxies these
+paths to Pages without a separate deployment change.
+
 Run the Worker tests with:
 
 ```bash
