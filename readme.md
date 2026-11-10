@@ -9,7 +9,7 @@ PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) 
   <em>Click the image to view it in full size.</em>
 </p>
 
-Compatibility: PVE 9.0+
+Compatibility: PVE 9.2+ (some mods may work on older and some may require newer version of specific packages - generally combatibility is aimed towards newest and greatest due to security patching) 
 
 All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
 
