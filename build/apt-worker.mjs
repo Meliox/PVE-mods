@@ -16,7 +16,7 @@ export default {
 
     if (url.pathname.endsWith(".deb")) {
       const filename = url.pathname.split("/").pop();
-      if (!/^pve-mods_[a-zA-Z0-9.+~-]+_all\.deb$/.test(filename)) {
+      if (!/^pve-mods?_[a-zA-Z0-9.+~-]+_all\.deb$/.test(filename)) {
         return new Response("Invalid package", { status: 400 });
       }
 

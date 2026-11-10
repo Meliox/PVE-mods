@@ -46,6 +46,18 @@ test("finds historical assets on later pages and skips drafts", async t => {
   assert.match(calls[1], /page=2$/);
 });
 
+test("resolves legacy pve-mod package assets", async t => {
+  const filename = "pve-mod_1.0.7_all.deb";
+  const url = "https://github.com/Meliox/PVE-mods/releases/download/v1.0.7/" + filename;
+  t.mock.method(globalThis, "fetch", async () => Response.json([{
+    ...release(),
+    assets: [{ name: filename, browser_download_url: url }],
+  }]));
+  const response = await worker.fetch(new Request(origin + "/pool/main/p/pve-mods/" + filename));
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("Location"), url);
+});
+
 test("returns 404 after the final page for missing or draft assets", async t => {
   t.mock.method(globalThis, "fetch", async () => Response.json([release(false, true)]));
   const response = await worker.fetch(new Request(origin + packagePath));
