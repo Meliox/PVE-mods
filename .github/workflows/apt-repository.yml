@@ -18,6 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: apt-signing
 
     steps:
       - name: Checkout repository
@@ -28,7 +29,7 @@ jobs:
       - name: Install Debian tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev apt-utils
+          sudo apt-get install -y dpkg-dev apt-utils gnupg
 
       - name: Download release packages
         env:
@@ -112,6 +113,44 @@ jobs:
 
             # Keep each index isolated; the Worker serves packages from Releases.
             rm -rf pool
+          done
+
+      - name: Sign repository metadata
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_GPG_KEY_ID: ${{ secrets.APT_GPG_KEY_ID }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          : "${APT_GPG_PRIVATE_KEY:?APT_GPG_PRIVATE_KEY secret is required}"
+          : "${APT_GPG_KEY_ID:?APT_GPG_KEY_ID secret is required}"
+          : "${APT_GPG_PASSPHRASE:?APT_GPG_PASSPHRASE secret is required}"
+
+          export GNUPGHOME
+          GNUPGHOME=$(mktemp -d "$RUNNER_TEMP/apt-gnupg.XXXXXX")
+          trap 'rm -rf "$GNUPGHOME"' EXIT
+
+          printf '%s\n' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --export-options export-minimal --export "$APT_GPG_KEY_ID" \
+            > docs/pve-mods.gpg
+          test -s docs/pve-mods.gpg
+
+          for channel in stable testing; do
+            release="docs/dists/$channel/Release"
+            gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+              --digest-algo SHA256 --local-user "$APT_GPG_KEY_ID" --clearsign \
+              --output "docs/dists/$channel/InRelease" "$release" \
+              <<< "$APT_GPG_PASSPHRASE"
+            gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+              --digest-algo SHA256 --local-user "$APT_GPG_KEY_ID" --armor --detach-sign \
+              --output "$release.gpg" "$release" \
+              <<< "$APT_GPG_PASSPHRASE"
+
+            gpgv --keyring "$GITHUB_WORKSPACE/docs/pve-mods.gpg" \
+              "docs/dists/$channel/InRelease"
+            gpgv --keyring "$GITHUB_WORKSPACE/docs/pve-mods.gpg" \
+              "$release.gpg" "$release"
           done
 
       - name: Configure GitHub Pages
