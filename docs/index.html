@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PVE-mods APT Repository</title>
+</head>
+<body>
+  <h1>PVE-mods APT Repository</h1>
+
+  <p>Official Debian repository for PVE-mods.</p>
+
+  <h2>Installation</h2>
+
+  <pre>
+echo "deb [trusted=yes] https://pve-mods-apt.meliox.workers.dev stable main" \
+  > /etc/apt/sources.list.d/pve-mods.list
+
+apt update
+apt install pve-mods
+  </pre>
+
+  <p>
+    <a href="https://github.com/Meliox/PVE-mods">
+      GitHub repository
+    </a>
+  </p>
+
+  <p>
+    <a href="https://github.com/Meliox/PVE-mods/releases">
+      Releases and download statistics
+    </a>
+  </p>
+</body>
+</html>
