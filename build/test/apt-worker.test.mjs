@@ -111,7 +111,12 @@ test("rejects invalid filenames and unsupported methods before fetching", async 
 });
 
 test("proxies metadata and the signing key without release lookup", async t => {
-  for (const path of ["/pve-mods.gpg", "/dists/stable/InRelease", "/dists/testing/Release?test=1"]) {
+  for (const path of [
+    "/pve-mods.gpg",
+    "/dists/stable/InRelease",
+    "/dists/testing/Release?test=1",
+    "/changelogs/main/p/pve-mods/pve-mods_2.1.0/changelog",
+  ]) {
     const fetch = t.mock.method(globalThis, "fetch", async (url, options) => {
       assert.equal(url, "https://meliox.github.io/PVE-mods" + path);
       assert.equal(options.method, "HEAD");

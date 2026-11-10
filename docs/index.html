@@ -64,6 +64,15 @@ apt-get install --allow-downgrades pve-mods=2.1.0
   <p>Downgrades may be incompatible with your configuration or Proxmox version.
     A later upgrade will select the highest available version again.</p>
 
+  <h2>Changelogs</h2>
+
+  <p>View the changelog for the candidate version, or an exact available version:</p>
+
+  <pre>
+apt changelog pve-mods
+apt changelog pve-mods=2.1.0
+  </pre>
+
   <p>Existing users of trusted=yes should run the installation commands above
     to install the key and replace the old source entry. The initial key download
     relies on HTTPS; verify its fingerprint against the maintainer's signing key
