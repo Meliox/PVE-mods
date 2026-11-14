@@ -21,7 +21,7 @@ const context = vm.createContext({
     PVE: { mod: { TempHelper: { CELSIUS: 0, FAHRENHEIT: 1 } } },
     Ext: {
         htmlEncode: encode,
-        util: { Format: { number: (value, format = '0') => {
+        util: { Format: { htmlEncode: encode, number: (value, format = '0') => {
             const decimals = format.split('.')[1] || '';
             const fixed = Number(value).toFixed(decimals.length);
             return decimals.includes('#') ? String(Number(fixed)) : fixed;
@@ -338,11 +338,20 @@ test('other temperatures join several sensors, colour thresholds and skip fan-on
         'fan-only-isa-0': { fan1: { input: { value: 1000 } } },
         'plain-text': 'text',
     }));
-    assert.ok(html.includes(`VRM:&nbsp;<span style="${YELLOW}">85.0&deg;C</span>&nbsp;| temp2:&nbsp;<span style="${RED}">95.0&deg;C`));
+    assert.ok(html.includes(`VRM:&nbsp;<span style="${YELLOW}">85.0&deg;C</span>&nbsp;| <span style="${RED}">95.0&deg;C`));
+    assert.ok(!html.includes('temp2:'), 'a generic tempN name is not shown as a label');
     assert.ok(!html.includes('fan-only'));
     assert.ok(!html.includes('plain-text'));
     assert.equal(renderers.otherThermals(enabled({ 'fan-only-isa-0': { fan1: {} } })), '', 'no rows renders nothing');
     assert.equal(renderers.otherThermals({ ...payload, other: false }), '');
+});
+
+test('other temperature labels are HTML-escaped', () => {
+    const html = renderers.otherThermals(enabled({
+        'it8686-isa-0a40': { temp1: { label: '<b>VRM</b>', input: { value: 40 } } },
+    }));
+    assert.ok(html.includes('&lt;b&gt;VRM&lt;/b&gt;:&nbsp;<span style="">40.0&deg;C</span>'));
+    assert.ok(!html.includes('<b>VRM'));
 });
 
 // ---- Fans ------------------------------------------------------------------------
@@ -433,12 +442,12 @@ test('sensors -J capture (02): CPU, DDR5, NVMe, other temperatures and fans', ()
 
     const other = renderers.otherThermals(real);
     assert.ok(other.includes('>it8620-isa-0a20<') && other.includes('>acpitz-acpi-0<'));
-    assert.ok(other.includes(`temp2:&nbsp;<span style="${YELLOW}">38.0&deg;C</span>`),
+    assert.ok(other.includes(`<span style="${YELLOW}">38.0&deg;C</span>`),
         'the live thermistor is shown; its reported max of -23 puts it over its limit');
     const row = other.split('<tr>').find(part => part.includes('>it8620-isa-0a20<'));
-    assert.ok(row.includes('temp2:'), 'the live thermistor is listed');
-    assert.ok(!/temp[134]:/.test(row) && !row.includes('-128'),
-        'disconnected (-128) and zero readings of the same chip are hidden');
+    assert.ok(row.includes('38.0&deg;C') && !/temp\d+:/.test(row), 'the live thermistor is listed without a generic label');
+    assert.equal((row.match(/&deg;C/g) || []).length, 1, 'only the live reading of the chip is listed');
+    assert.ok(!row.includes('-128'), 'disconnected (-128) and zero readings of the same chip are hidden');
 
     const fans = renderers.speedFan(real);
     assert.ok(fans.includes('>Fan2</td>') && fans.includes('1347 RPM'));
@@ -467,7 +476,7 @@ test('real Raspberry Pi 5 capture: SoC, RP1, NVMe controllers and the fan', () =
 
     const other = renderers.otherThermals(real);
     assert.ok(other.includes('>rp1_adc-isa-0000<'), `the RP1 chip is listed: ${other}`);
-    assert.ok(other.includes('temp1:&nbsp;<span style="">52.0&deg;C</span>'));
+    assert.ok(other.includes('<span style="">52.0&deg;C</span>') && !other.includes('temp1:'));
     assert.ok(!other.includes('>hidpp_battery') && !other.includes('>rpi_volt'), 'voltage-only chips are not temperatures');
     assert.ok(!other.includes('in1'), 'RP1 voltages are not temperatures');
 

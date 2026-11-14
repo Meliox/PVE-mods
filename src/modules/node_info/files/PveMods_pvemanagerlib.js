@@ -1223,7 +1223,10 @@ Ext.define('PVE.node.StatusView', {
 									if (!isNaN(tempCrit) && tempVal >= tempCrit) {
 										tempStyle = 'color: red; font-weight: bold;';
 									}
-                                    tempParts.push(`${getSensorLabel(tempData, tempKey)}:&nbsp;<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
+                                    const label = getSensorLabel(tempData, '').trim();
+                                    const prefix = label && !/^temp\d+$/i.test(label)
+                                        ? `${Ext.util.Format.htmlEncode(label)}:&nbsp;` : '';
+                                    tempParts.push(`${prefix}<span style="${tempStyle}">${Ext.util.Format.number(tempVal, '0.0')}${tempHelper.getUnit()}</span>`);
 								}
 							} catch(e) { /*_*/ }
 						});
