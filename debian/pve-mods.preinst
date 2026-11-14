@@ -3,7 +3,63 @@ set -e
 
 PATCHES_DIR="${PVE_MODs_PATCHES_DIR:-/usr/lib/pve-mods/patches}"
 PATCH_ROOT="${PVE_MODs_ROOT:-/}"
+MAIN_CONF="${PVE_MODs_MAIN_CONF:-/etc/pve-mods/pve-mods.conf}"
+STATE_DIR="${PVE_MODs_STATE_DIR:-/var/lib/pve-mods}"
+AUTO_DISABLED_FILE="$STATE_DIR/auto-disabled"
 CHANGED=false
+
+# Prints the modules set to 1 in the [modules] section of the main config.
+list_enabled_modules() {
+    [ -f "$MAIN_CONF" ] || return 0
+    awk -F= '
+        /^\[/ { in_sec = ($0 == "[modules]") }
+        in_sec && /^[^#=]+=/ {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+            if ($2 == "1") print $1
+        }
+    ' "$MAIN_CONF"
+}
+
+# Sets <module>=0 in the [modules] section of the main config.
+disable_module() {
+    local mod="$1" tmp
+    tmp="$(mktemp "${MAIN_CONF}.XXXXXX")" || return 1
+    awk -v mod="$mod" '
+        /^\[/ { in_sec = ($0 == "[modules]") }
+        in_sec && $0 ~ "^[[:space:]]*" mod "[[:space:]]*=" { print mod "=0"; next }
+        { print }
+    ' "$MAIN_CONF" > "$tmp" \
+        && chmod --reference="$MAIN_CONF" "$tmp" \
+        && mv "$tmp" "$MAIN_CONF" \
+        || { rm -f "$tmp"; return 1; }
+}
+
+# Prints the files a patch modifies, one per line.
+patch_target_files() {
+    awk '/^\+\+\+ / { sub(/^b\//, "", $2); print $2 }' "$1"
+}
+
+# Prints how to restore the given files (newline-separated, relative to the
+# root): the owning package(s) when known, otherwise a generic instruction.
+restore_hint() {
+    local file pkg
+    local -a pkgs=()
+    if [ "$PATCH_ROOT" = "/" ] && command -v dpkg >/dev/null 2>&1; then
+        while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            pkg="$(dpkg -S -- "/$file" 2>/dev/null | awk '!/^diversion/ { sub(/: .*/, ""); print; exit }')"
+            if [ -n "$pkg" ] && [[ " ${pkgs[*]} " != *" $pkg "* ]]; then
+                pkgs+=("$pkg")
+            fi
+        done <<< "$1"
+    fi
+    if [ "${#pkgs[@]}" -gt 0 ]; then
+        echo "[pve-mods] If they were modified outside pve-mods, restore the originals with: apt reinstall ${pkgs[*]}" >&2
+    else
+        echo "[pve-mods] If they were modified outside pve-mods, reinstall the packages that own these files ('dpkg -S <file>' shows which)." >&2
+    fi
+}
 
 # Keep this diagnostic self-contained: preinst runs before package payload files
 # are installed, so the helper script may not yet exist on upgrade.
@@ -40,13 +96,21 @@ case "$1" in
         echo "[pve-mods] Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
         # This new preinst runs before the old package files are replaced, so
         # its manifests and patches still describe exactly what is installed.
-        # Check every patch in every old manifest, regardless of enabled
-        # config flags; reverse only patches detected as currently applied.
+        # Only modules enabled in the config are handled; disabled modules are
+        # never touched. Reverse only patches detected as currently applied.
+        # A patch in an unknown state (e.g. its file was modified by another
+        # tool) never aborts the upgrade: the module is disabled in the config
+        # so the user can re-enable it after fixing the file.
+        mapfile -t enabled_mods < <(list_enabled_modules)
+        DISABLED_MODS=()
         if [ -d "$PATCHES_DIR" ]; then
-            for mod_dir in "$PATCHES_DIR"/*/; do
+            for mod in "${enabled_mods[@]}"; do
+                mod_dir="$PATCHES_DIR/$mod/"
                 [ -d "$mod_dir" ] || continue
                 manifest="${mod_dir}patches.list"
                 [ -f "$manifest" ] || continue
+                unknown_files=""
+                unknown_plain=""
                 mapfile -t patches < <(
                     while IFS= read -r line || [ -n "$line" ]; do
                         line="${line%%#*}"
@@ -69,12 +133,32 @@ case "$1" in
                         echo "[pve-mods] Reverted ${patches[$i]} before package upgrade."
                         CHANGED=true
                     elif ! patch -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
-                        echo "[pve-mods] ERROR: ${patches[$i]} is in an unknown state; cannot safely upgrade." >&2
+                        echo "[pve-mods] WARNING: ${patches[$i]} of module '${mod}' is in an unknown state." >&2
                         report_patch_failure "$patch_file"
-                        exit 1
+                        unknown_files="${unknown_files}$(patch_target_files "$patch_file" | sed 's/^/    /')"$'\n'
+                        unknown_plain="${unknown_plain}$(patch_target_files "$patch_file")"$'\n'
                     fi
                 done
+
+                if [ -n "$unknown_files" ]; then
+                    if disable_module "$mod"; then
+                        DISABLED_MODS+=("$mod")
+                        echo "[pve-mods] WARNING: Module '${mod}' was disabled automatically because these files do not match what its patches expect:" >&2
+                    else
+                        echo "[pve-mods] WARNING: Module '${mod}' could not be disabled in ${MAIN_CONF}; its patches may fail to apply. Files that do not match what its patches expect:" >&2
+                    fi
+                    printf '%s' "$unknown_files" >&2
+                    echo "[pve-mods] They were either modified outside pve-mods, or changed by a Proxmox update that the installed patches are incompatible with." >&2
+                    restore_hint "$unknown_plain"
+                    echo "[pve-mods] Then re-enable the module with 'pve-mods-configure'." >&2
+                fi
             done
+        fi
+
+        # Let postinst repeat the summary once the dpkg output has scrolled by.
+        rm -f "$AUTO_DISABLED_FILE"
+        if [ "${#DISABLED_MODS[@]}" -gt 0 ] && mkdir -p "$STATE_DIR" 2>/dev/null; then
+            printf '%s\n' "${DISABLED_MODS[@]}" > "$AUTO_DISABLED_FILE" 2>/dev/null || true
         fi
 
         echo "[pve-mods] Uninstallation of patches from version ${OLD_VERSION} completed."

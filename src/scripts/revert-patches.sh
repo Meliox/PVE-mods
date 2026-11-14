@@ -42,6 +42,7 @@ revert_one_patch() {
     fi
     warn "  $(basename "$patch") could not be reverted cleanly; manual cleanup may be needed"
     report_patch_failure "$patch" reverse
+    report_restore_hint "$patch"
     return 2
 }
 

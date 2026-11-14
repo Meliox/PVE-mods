@@ -78,6 +78,19 @@ EOF
     fi
 }
 
+# Reports modules that preinst disabled because their files were modified
+# outside pve-mods, then clears the marker.
+_report_auto_disabled() {
+    local marker="/var/lib/pve-mods/auto-disabled"
+    [ -s "$marker" ] || return 0
+    echo ""
+    echo "pve-mods: WARNING: These modules were disabled during the upgrade because files they patch do not match what the patches expect (modified outside pve-mods, or changed by a Proxmox update):" >&2
+    sed 's/^/    /' "$marker" >&2
+    echo "pve-mods: Fix the files (see the readme, 'A mod cannot be installed or upgraded'), then re-enable the modules with 'pve-mods-configure'." >&2
+    echo ""
+    rm -f "$marker"
+}
+
 case "$1" in
     configure)
         # Apply patches for any enabled modules. Don't abort the install if a
@@ -94,6 +107,7 @@ case "$1" in
         else
             # Upgrading from a previous version — warn about any new config keys.
             _check_new_config_keys
+            _report_auto_disabled
         fi
         ;;
 
