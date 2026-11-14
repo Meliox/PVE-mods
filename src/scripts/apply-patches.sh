@@ -176,6 +176,7 @@ for mod in "${_target_modules[@]}"; do
             else
                 warn "  $(basename "$pf") does not apply cleanly"
                 report_patch_failure "$pf"
+                report_restore_hint "$pf"
                 preflight_ok=false
                 break
             fi
