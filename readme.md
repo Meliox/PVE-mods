@@ -98,7 +98,7 @@ If the patches of a mod are incompatible with the new PVE version, they are not 
 To upgrade to the latest release, run the installer as `root`. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
 
 ```bash
-curl -sL https://github.com/Meliox/PVE-mods/releases/latest/download/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
 ```
 
 ### Uninstall
