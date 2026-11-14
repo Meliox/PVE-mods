@@ -1,3 +1,9 @@
+pve-mods (test.test.1) stable; urgency=low
+
+  * e737be2 fix(node_info): hide generic tempN labels in other temperatures (#459) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sat, 14 Nov 2026 12:16:38 +0000
+
 pve-mods (2.2.0) stable; urgency=low
 
   * cd7d072 feat(node_search): add guest network information to resource lists and search (#441) by @Meliox
