@@ -18,10 +18,15 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
 - [Available mods](#available-mods)
 - [How it works](#how-it-works)
 - [Install](#install)
+  - [Option A: APT repository](#option-a-apt-repository)
+  - [Option B: Installer script](#option-b-installer-script)
   - [Migrating from v1 (legacy scripts)](#migrating-from-v1-legacy-scripts)
   - [Manual configuration changes](#manual-configuration-changes)
   - [Re-applying patches after PVE upgrades](#re-applying-patches-after-pve-upgrades)
 - [Upgrade](#upgrade)
+  - [Testing channel](#testing-channel)
+  - [Installing an older version](#installing-an-older-version)
+  - [Changelogs](#changelogs)
 - [Uninstall](#uninstall)
 - [Notes](#notes)
   - [Reverse proxy / CDN caching](#reverse-proxy--cdn-caching)
@@ -56,17 +61,47 @@ Some mods need additional packages on the host. Required tools are listed in eac
 
 ### Install
 
-1. Install `pve-mods`. The installer downloads the latest release, verifies its checksum and asks for confirmation:
-
-   ```bash
-   curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
-   ```
-
+1. Install `pve-mods` with one of the two options below.
 2. Install the additional packages required by the mods you want to use - see each mod's readme linked in the [Available mods](#available-mods) section.
 3. Run `pve-mods-configure` to enable/disable and configure mods.
 4. Hard-refresh the browser (`Ctrl+F5`) so the patched web UI is loaded.
 
 For multiple nodes, install `pve-mods` on all nodes with identical configuration.
+
+#### Option A: APT repository
+
+Adding the signed PVE-mods APT repository lets `apt` install and upgrade `pve-mods` together with the rest of the system. The stable channel contains published releases and is recommended:
+
+```bash
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://pve-mods-apt.meliox.workers.dev/pve-mods.gpg \
+  -o /etc/apt/keyrings/pve-mods.gpg
+chmod 0644 /etc/apt/keyrings/pve-mods.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev stable main" \
+  > /etc/apt/sources.list.d/pve-mods.list
+
+apt update
+apt install pve-mods
+```
+
+The signing key is downloaded over HTTPS. To verify it, compare its fingerprint with the maintainer's signing key from an independent trusted source:
+
+```bash
+gpg --show-keys --with-fingerprint /etc/apt/keyrings/pve-mods.gpg
+```
+
+The repository metadata is signed, so `apt` verifies the package indexes and the checksums of downloaded packages. The package is architecture-independent but the repository only publishes the `amd64` index.
+
+#### Option B: Installer script
+
+The installer downloads the latest release, verifies its checksum and asks for confirmation. It does not add the APT repository, so later upgrades are done by running it again:
+
+```bash
+curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
+```
+
+To switch to the APT repository later, follow [Option A](#option-a-apt-repository); the package is the same, so you do not need to uninstall first.
 
 #### Migrating from v1 (legacy scripts)
 
@@ -95,10 +130,50 @@ If the patches of a mod are incompatible with the new PVE version, they are not 
 
 `pve-mods` follows [Semantic Versioning](https://semver.org/), using `MAJOR.MINOR.PATCH` version numbers. Major releases may include breaking changes. Before upgrading to a new major version, read its release notes and changelog so you can review those changes and any required migration steps. Minor releases add backward-compatible functionality, and patch releases contain backward-compatible fixes.
 
-To upgrade to the latest release, run the installer as `root`. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
+If you installed from the [APT repository](#option-a-apt-repository), `pve-mods` is upgraded with the rest of the system:
+
+```bash
+apt update
+apt install --only-upgrade pve-mods
+```
+
+If you used the installer script, run it again as `root`. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
 
 ```bash
 curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
+```
+
+#### Testing channel
+
+The testing channel contains published prereleases and is for trying changes before they reach stable. After installing the signing key as described in [Option A](#option-a-apt-repository), replace the stable source:
+
+```bash
+echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev testing main" \
+  > /etc/apt/sources.list.d/pve-mods.list
+
+apt update
+apt install pve-mods
+```
+
+A channel is empty until a matching release has been published. Switching back to stable does not downgrade an installed testing version.
+
+#### Installing an older version
+
+The repository keeps the 100 newest published releases, stable and prereleases together. List the versions in your configured channel and install an exact one, for example 2.1.0:
+
+```bash
+apt update
+apt-cache madison pve-mods
+apt-get install --allow-downgrades pve-mods=2.1.0
+```
+
+Downgrades may be incompatible with your configuration or Proxmox version. A later upgrade selects the highest available version again.
+
+#### Changelogs
+
+```bash
+apt changelog pve-mods
+apt changelog pve-mods=2.1.0
 ```
 
 ### Uninstall
@@ -115,7 +190,12 @@ To also delete all configuration and state (`/etc/pve-mods`, `/var/lib/pve-mods`
 apt-get purge pve-mods
 ```
 
-Afterwards, remove the dependencies installed for the respective mods if no longer needed.
+Afterwards, remove the dependencies installed for the respective mods if no longer needed. If you added the APT repository, also remove its source and key:
+
+```bash
+rm /etc/apt/sources.list.d/pve-mods.list /etc/apt/keyrings/pve-mods.gpg
+apt update
+```
 
 ### Notes
 
