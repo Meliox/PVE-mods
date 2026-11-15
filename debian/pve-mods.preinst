@@ -6,7 +6,8 @@ PATCH_ROOT="${PVE_MODs_ROOT:-/}"
 MAIN_CONF="${PVE_MODs_MAIN_CONF:-/etc/pve-mods/pve-mods.conf}"
 CHANGED=false
 
-# Prints the modules set to 1 in the [modules] section of the main config.
+# Prints "<module> <state>" for modules set to 1 (enabled) or 2 (enabled but
+# incompatible) in the [modules] section of the main config.
 list_enabled_modules() {
     [ -f "$MAIN_CONF" ] || return 0
     awk -F= '
@@ -14,7 +15,7 @@ list_enabled_modules() {
         in_sec && /^[^#=]+=/ {
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1)
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
-            if ($2 == "1") print $1
+            if ($2 == "1" || $2 == "2") print $1, $2
         }
     ' "$MAIN_CONF"
 }
@@ -95,15 +96,17 @@ case "$1" in
         echo "[pve-mods] Uninstalling patches from version ${OLD_VERSION} before installing version ${NEW_VERSION}."
         # This new preinst runs before the old package files are replaced, so
         # its manifests and patches still describe exactly what is installed.
-        # Only modules enabled (=1) in the config are handled; disabled (=0)
-        # and already-incompatible (=2) modules are never touched. Reverse only
-        # patches detected as currently applied.
+        # Modules enabled by the user (=1) and those enabled but marked
+        # incompatible (=2) are handled; disabled (=0) modules are never
+        # touched. Reverse only patches detected as currently applied.
         # A patch in an unknown state (e.g. its file was modified by another
-        # tool) never aborts the upgrade: the module is marked incompatible
-        # (=2) in the config and is re-tested on later updates.
+        # tool) never aborts the upgrade: a =1 module is marked incompatible
+        # (=2) with a warning; a =2 module stays =2 silently. Either way it is
+        # re-tested after the upgrade.
         mapfile -t enabled_mods < <(list_enabled_modules)
         if [ -d "$PATCHES_DIR" ]; then
-            for mod in "${enabled_mods[@]}"; do
+            for entry in "${enabled_mods[@]}"; do
+                read -r mod mod_state <<< "$entry"
                 mod_dir="$PATCHES_DIR/$mod/"
                 [ -d "$mod_dir" ] || continue
                 manifest="${mod_dir}patches.list"
@@ -132,6 +135,8 @@ case "$1" in
                         echo "[pve-mods] Reverted ${patches[$i]} before package upgrade."
                         CHANGED=true
                     elif ! patch -p1 -F0 -d "$PATCH_ROOT" -f --dry-run -s < "$patch_file" >/dev/null 2>&1; then
+                        # Already-incompatible modules are expected to fail; stay quiet.
+                        [ "$mod_state" = "1" ] || continue
                         echo "[pve-mods] WARNING: ${patches[$i]} of module '${mod}' is in an unknown state." >&2
                         report_patch_failure "$patch_file"
                         unknown_files="${unknown_files}$(patch_target_files "$patch_file" | sed 's/^/    /')"$'\n'

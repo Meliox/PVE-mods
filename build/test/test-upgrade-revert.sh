@@ -151,20 +151,29 @@ grep -q "incompatible with" "$TMP_DIR/upgrade.log" || fail "warning did not ment
 [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=old" ]] || fail "clean module was not reverted"
 grep -q "^\[pve_trigger\]" "$PVE_MODs_MAIN_CONF" || fail "config sections were damaged"
 
-# Disabled (0) and incompatible (2) modules are never touched by preinst.
+# Disabled (0) modules are never touched by preinst.
 patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
-for state in 0 2; do
-    printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
-    write_main_conf "$state" "$state"
-    cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
-    run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with only state $state modules"; }
-    cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a state $state module"
-    ! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "state $state module produced a warning"
-    [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "state $state module file was modified"
-    [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "state $state module patch was reverted"
-done
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 0 0
+cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
+run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with only disabled modules"; }
+cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a disabled module"
+! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "disabled module produced a warning"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "disabled module file was modified"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "disabled module patch was reverted"
+
+# Incompatible (2) modules are handled like enabled ones, but an unknown state
+# stays quiet and the flag stays 2. An applied patch is still reverted.
+write_main_conf 2 2
+cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
+run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with state 2 modules"; }
+cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a state 2 module"
+! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "state 2 module produced a warning"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "state 2 module file in unknown state was modified"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=old" ]] || fail "applied patch of a state 2 module was not reverted"
 
 # Missing config: nothing is reverted or edited.
+patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
 rm -f "$PVE_MODs_MAIN_CONF"
 run_upgrade || fail "upgrade failed without a main config"
 [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "reverted a patch without a main config"
