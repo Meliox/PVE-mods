@@ -74,6 +74,23 @@ list_modules() {
     ' "$MAIN_CONF"
 }
 
+# set_module_state <mod> <0|1|2>
+# Rewrites <mod>=<state> in the [modules] section of the main config.
+# 2 = enabled by the user but incompatible right now; retried on later runs.
+set_module_state() {
+    local mod="$1" state="$2" tmp
+    [[ -f "$MAIN_CONF" ]] || return 1
+    tmp="$(mktemp "${MAIN_CONF}.XXXXXX")" || return 1
+    awk -v mod="$mod" -v state="$state" '
+        /^\[/ { in_sec = ($0 == "[modules]") }
+        in_sec && $0 ~ "^[[:space:]]*" mod "[[:space:]]*=" { print mod "=" state; next }
+        { print }
+    ' "$MAIN_CONF" > "$tmp" \
+        && chmod --reference="$MAIN_CONF" "$tmp" \
+        && mv "$tmp" "$MAIN_CONF" \
+        || { rm -f "$tmp"; return 1; }
+}
+
 # Patch-state helpers (all use zero fuzz for deterministic detection).
 _dry_forward() { patch -p1 -F0 -f --dry-run -s -d "$PVE_MODs_ROOT" < "$1" >/dev/null 2>&1; }
 _dry_reverse() { patch -R -p1 -F0 -f --dry-run -s -d "$PVE_MODs_ROOT" < "$1" >/dev/null 2>&1; }
@@ -110,8 +127,10 @@ _target_modules=("${@:-${_all_modules[@]}}")
 for mod in "${_target_modules[@]}"; do
     # When modules are explicitly named as args, the caller decides what to apply.
     # When running for all modules (no args from dpkg trigger), respect the config.
+    # State 2 (enabled but incompatible) is retried quietly on every such run.
+    mod_state="$(read_conf "$MAIN_CONF" modules "$mod" 0)"
     if [[ $# -eq 0 ]]; then
-        [[ "$(read_conf "$MAIN_CONF" modules "$mod" 0)" == "1" ]] || continue
+        [[ "$mod_state" == "1" || "$mod_state" == "2" ]] || continue
     fi
 
     mod_dir="$PATCHES_DIR/$mod"
@@ -174,13 +193,27 @@ for mod in "${_target_modules[@]}"; do
             elif can_apply "$pf"; then
                 to_apply+=("$pf")
             else
-                warn "  $(basename "$pf") does not apply cleanly"
-                report_patch_failure "$pf"
-                report_restore_hint "$pf"
+                if [[ "$mod_state" != "2" ]]; then
+                    warn "  $(basename "$pf") does not apply cleanly"
+                    report_patch_failure "$pf"
+                    report_restore_hint "$pf"
+                fi
                 preflight_ok=false
                 break
             fi
         done
+    fi
+
+    # Still incompatible: leave it for the next retry without further noise.
+    if [[ "$preflight_ok" != "true" && "$mod_state" == "2" ]]; then
+        for (( i=${#active[@]}-1 ; i>=0 ; i-- )); do
+            pf="${active[$i]}"
+            if is_applied "$pf"; then
+                do_revert "$pf" && CHANGED=true
+            fi
+        done
+        info "  still incompatible; will retry after the next pve-mods or Proxmox update"
+        continue
     fi
 
     # If preflight failed, revert the whole mod back to a clean state so it is
@@ -194,6 +227,10 @@ for mod in "${_target_modules[@]}"; do
             fi
         done
         run_hook "$mod_dir/post-revert.sh" "$mod_conf"
+        if [[ "$mod_state" == "1" ]] && set_module_state "$mod" 2; then
+            warn "Mod '$mod' is not compatible with this system right now and is marked as incompatible (state 2)."
+            warn "It will be re-tested after the next pve-mods or Proxmox update and re-enabled automatically if compatible."
+        fi
         FAILED=true
         continue
     fi
@@ -220,6 +257,10 @@ for mod in "${_target_modules[@]}"; do
         done
         FAILED=true
         continue
+    fi
+
+    if [[ "$mod_state" == "2" ]] && set_module_state "$mod" 1; then
+        info "Mod '$mod' is compatible again and has been re-enabled."
     fi
 done
 

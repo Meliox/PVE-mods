@@ -102,7 +102,7 @@ To upgrade to the latest release, run the installer as `root`. It downloads and 
 curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
 ```
 
-If a mod's patch no longer matches its file, the upgrade still completes, but that mod is disabled. See [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
+If a mod's patch no longer matches its file, the upgrade still completes and the mod is marked as incompatible (`2` in `pve-mods.conf`). It is re-tested after later updates. See [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
 
 ### Uninstall
 
@@ -126,6 +126,10 @@ Afterwards, remove the dependencies installed for the respective mods if no long
 
 Mods work by patching Proxmox files. If a patch does not apply (when enabling a mod, after a Proxmox update, or during a `pve-mods` upgrade), either the file was changed by something other than `pve-mods` (another tweak script or a manual edit), or the patch is not compatible with the installed Proxmox version. The warning lists the affected file, the failing hunk and the package that owns the file.
 
+A mod you enabled that cannot be applied is marked as incompatible (`2` in `/etc/pve-mods/pve-mods.conf`; `0` is disabled, `1` is enabled) and shown as such in `pve-mods-configure`. It is re-tested after every `pve-mods` upgrade and, with auto re-patching enabled, after every Proxmox update, and it is enabled again automatically once its patches apply. Nothing is left half-patched meanwhile.
+
+To fix it sooner:
+
 1. Check whether the file is modified. If another tool re-edits it (for example a post-install hook in `/etc/apt/apt.conf.d/` that patches `proxmoxlib.js` after every `dpkg` run), disable that tool first. It would otherwise change the file again right after the next step.
 2. Restore the original file by reinstalling the package that owns it, as named in the warning (`dpkg -S <file>` shows the owner), for example:
 
@@ -133,7 +137,7 @@ Mods work by patching Proxmox files. If a patch does not apply (when enabling a 
    apt reinstall proxmox-widget-toolkit
    ```
 
-3. Enable the module again with `pve-mods-configure`.
+3. Select the module in `pve-mods-configure` and choose to retry it. Choose to disable it instead to stop the retries.
 
 If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
 

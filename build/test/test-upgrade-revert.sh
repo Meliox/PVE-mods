@@ -22,7 +22,6 @@ mkdir -p "$ROOT/usr/share/demo" "$MOD_DIR" "$CONF"
 printf 'version=old\n' > "$ROOT/usr/share/demo/config"
 
 export PVE_MODs_MAIN_CONF="$CONF/pve-mods.conf"
-export PVE_MODs_STATE_DIR="$TMP_DIR/state"
 write_main_conf() {
     printf '[modules]\ntest_mod=%s\nother_mod=%s\n\n[pve_trigger]\nenabled=0\n' "$1" "${2:-0}" > "$PVE_MODs_MAIN_CONF"
 }
@@ -134,41 +133,79 @@ run_upgrade() {
         bash "$PREINST" upgrade 2.0.0 2.1.0 > "$TMP_DIR/upgrade.log" 2>&1
 }
 
-# Enabled module in an unknown state: warn, disable it, never abort.
+# Enabled module in an unknown state: warn, mark it incompatible (2), never abort.
 printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
 write_main_conf 1 1
 run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade aborted on a patch in an unknown state"; }
 grep -q "is in an unknown state" "$TMP_DIR/upgrade.log" || fail "no unknown-state warning"
-grep -q "Module 'test_mod' was disabled automatically" "$TMP_DIR/upgrade.log" || fail "no auto-disable warning"
+grep -q "Module 'test_mod' is marked as incompatible (state 2)" "$TMP_DIR/upgrade.log" || fail "no incompatible-state warning"
 grep -Fq "usr/share/demo/config" "$TMP_DIR/upgrade.log" || fail "warning did not name the modified file"
 grep -Fq "Context at $ROOT/usr/share/demo/config:1" "$TMP_DIR/upgrade.log" || fail "no absolute target path and line"
 grep -Fq "version=unexpected" "$TMP_DIR/upgrade.log" || fail "no target file context"
-grep -q "pve-mods-configure" "$TMP_DIR/upgrade.log" || fail "warning did not point to pve-mods-configure"
+grep -q "re-enabled automatically if compatible" "$TMP_DIR/upgrade.log" || fail "warning did not explain the automatic retry"
 grep -q "reinstall the packages that own these files" "$TMP_DIR/upgrade.log" || fail "warning did not explain how to restore the files"
 grep -q "incompatible with" "$TMP_DIR/upgrade.log" || fail "warning did not mention version incompatibility"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "file in unknown state was modified"
-[[ "$(read_flag test_mod)" == "0" ]] || fail "unknown-state module was not disabled in the config"
-[[ "$(read_flag other_mod)" == "1" ]] || fail "unrelated module was disabled"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "unknown-state module was not marked incompatible in the config"
+[[ "$(read_flag other_mod)" == "1" ]] || fail "unrelated module was changed"
 [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=old" ]] || fail "clean module was not reverted"
-grep -qx "test_mod" "$PVE_MODs_STATE_DIR/auto-disabled" || fail "auto-disabled marker missing"
 grep -q "^\[pve_trigger\]" "$PVE_MODs_MAIN_CONF" || fail "config sections were damaged"
 
-# Disabled module with a modified file: ignored, config untouched, no warning.
-printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
-write_main_conf 0 0
-cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
-rm -rf "$PVE_MODs_STATE_DIR"
-run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with only disabled modules"; }
-cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a disabled module"
-! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "disabled module produced a warning"
-[[ ! -e "$PVE_MODs_STATE_DIR/auto-disabled" ]] || fail "marker written for a disabled module"
-[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "disabled module file was modified"
+# Disabled (0) and incompatible (2) modules are never touched by preinst.
+patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
+for state in 0 2; do
+    printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+    write_main_conf "$state" "$state"
+    cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
+    run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with only state $state modules"; }
+    cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a state $state module"
+    ! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "state $state module produced a warning"
+    [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "state $state module file was modified"
+    [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "state $state module patch was reverted"
+done
 
 # Missing config: nothing is reverted or edited.
-patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
 rm -f "$PVE_MODs_MAIN_CONF"
 run_upgrade || fail "upgrade failed without a main config"
 [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "reverted a patch without a main config"
 [[ ! -e "$PVE_MODs_MAIN_CONF" ]] || fail "created a main config"
+
+# apply-patches lifecycle: 1 -> 2 on incompatibility, quiet retries, 2 -> 1 once compatible.
+APPLY="${PVE_MODs_APPLY_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/scripts/apply-patches.sh}"
+run_apply() {
+    PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
+        PVE_MODs_STASH_DIR="$TMP_DIR/stash" PATH="$TMP_DIR/bin:$PATH" \
+        bash "$APPLY" "$@" > "$TMP_DIR/apply.log" 2>&1
+}
+
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 0
+if run_apply; then fail "apply succeeded for an incompatible module"; fi
+grep -q "marked as incompatible (state 2)" "$TMP_DIR/apply.log" || fail "apply did not report the incompatible state"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "failing module was not set to 2"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "apply modified an incompatible file"
+
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "retry of a state 2 module failed the run"; }
+! grep -q "WARNING" "$TMP_DIR/apply.log" || fail "state 2 retry was noisy"
+grep -q "still incompatible" "$TMP_DIR/apply.log" || fail "state 2 retry did not report it is still incompatible"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "still incompatible module left state 2"
+
+printf 'version=old\n' > "$ROOT/usr/share/demo/config"
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "compatible state 2 module failed to apply"; }
+grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message"
+[[ "$(read_flag test_mod)" == "1" ]] || fail "compatible module was not set back to 1"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-new" ]] || fail "re-enabled module was not applied"
+
+patch -R -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch" >/dev/null
+write_main_conf 0 0
+run_apply || fail "apply failed with only disabled modules"
+[[ "$(read_flag test_mod)" == "0" ]] || fail "disabled module state changed"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=old" ]] || fail "disabled module was applied"
+
+# Explicitly applying a module (as pve-mods-configure does) also records the failure.
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 0
+if run_apply test_mod; then fail "explicit apply succeeded for an incompatible module"; fi
+[[ "$(read_flag test_mod)" == "2" ]] || fail "explicit apply failure did not set 2"
 
 echo "[test] PASS: upgrade revert restores patches without running hooks"
