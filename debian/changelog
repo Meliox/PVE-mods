@@ -1,3 +1,11 @@
+pve-mods (2.2.1) stable; urgency=low
+
+  * a48003b fix(debian): do not abort upgrade on patches in an unknown state (#458) by @Meliox
+  * e737be2 fix(node_info): hide generic tempN labels in other temperatures (#459) by @Meliox
+  * 0ebfb23 fix(uninstall): remove configuration preservation prompts (#445) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Sun, 15 Nov 2026 14:20:04 +0000
+
 pve-mods (2.2.0) stable; urgency=low
 
   * cd7d072 feat(node_search): add guest network information to resource lists and search (#441) by @Meliox
