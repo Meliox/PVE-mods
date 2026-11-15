@@ -21,6 +21,13 @@ chmod +x "$TMP_DIR/bin/systemctl"
 mkdir -p "$ROOT/usr/share/demo" "$MOD_DIR" "$CONF"
 printf 'version=old\n' > "$ROOT/usr/share/demo/config"
 
+export PVE_MODs_MAIN_CONF="$CONF/pve-mods.conf"
+write_main_conf() {
+    printf '[modules]\ntest_mod=%s\nother_mod=%s\n\n[pve_trigger]\nenabled=0\n' "$1" "${2:-0}" > "$PVE_MODs_MAIN_CONF"
+}
+read_flag() { sed -n "s/^$1=//p" "$PVE_MODs_MAIN_CONF" | head -n1; }
+write_main_conf 1
+
 cat > "$MOD_DIR/old.patch" <<'PATCH'
 --- a/usr/share/demo/config
 +++ b/usr/share/demo/config
@@ -104,31 +111,184 @@ PVE_MODs_CONFD_DIR="$CONF" \
 }
 
 printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
-if PVE_MODs_ROOT="$ROOT" \
-   PVE_MODs_PATCHES_DIR="$PATCHES" \
-   PATH="$TMP_DIR/bin:$PATH" \
-    bash "$PREINST" upgrade 2.0.0 2.1.0 > "$TMP_DIR/upgrade-error.log" 2>&1; then
-    echo "[test] upgrade unexpectedly accepted a patch in an unknown state" >&2
-    exit 1
-fi
-grep -q "cannot safely upgrade" "$TMP_DIR/upgrade-error.log" || {
-    echo "[test] upgrade failure did not explain the unknown patch state" >&2
-    cat "$TMP_DIR/upgrade-error.log" >&2
-    exit 1
+fail() { echo "[test] $*" >&2; exit 1; }
+
+# A second enabled module with a cleanly applied patch must still be reverted
+# when another module is in an unknown state.
+OTHER_DIR="$PATCHES/other_mod"
+mkdir -p "$OTHER_DIR"
+printf 'other=old\n' > "$ROOT/usr/share/demo/other"
+cat > "$OTHER_DIR/o.patch" <<'PATCH'
+--- a/usr/share/demo/other
++++ b/usr/share/demo/other
+@@ -1 +1 @@
+-other=old
++other=patched
+PATCH
+printf 'o.patch\n' > "$OTHER_DIR/patches.list"
+patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch"
+
+run_upgrade() {
+    PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PATH="$TMP_DIR/bin:$PATH" \
+        bash "$PREINST" upgrade 2.0.0 2.1.0 > "$TMP_DIR/upgrade.log" 2>&1
 }
-grep -Fq "Context at $ROOT/usr/share/demo/config:1" "$TMP_DIR/upgrade-error.log" || {
-    echo "[test] upgrade failure did not include the absolute target path and line" >&2
-    cat "$TMP_DIR/upgrade-error.log" >&2
-    exit 1
+
+# Enabled module in an unknown state: warn, mark it incompatible (2), never abort.
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 1
+run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade aborted on a patch in an unknown state"; }
+grep -q "is in an unknown state" "$TMP_DIR/upgrade.log" || fail "no unknown-state warning"
+grep -q "Module 'test_mod' is marked as incompatible (state 2)" "$TMP_DIR/upgrade.log" || fail "no incompatible-state warning"
+grep -Fq "usr/share/demo/config" "$TMP_DIR/upgrade.log" || fail "warning did not name the modified file"
+grep -Fq "Context at $ROOT/usr/share/demo/config:1" "$TMP_DIR/upgrade.log" || fail "no absolute target path and line"
+grep -Fq "version=unexpected" "$TMP_DIR/upgrade.log" || fail "no target file context"
+grep -q "re-enabled automatically if compatible" "$TMP_DIR/upgrade.log" || fail "warning did not explain the automatic retry"
+grep -q "reinstall the packages that own these files" "$TMP_DIR/upgrade.log" || fail "warning did not explain how to restore the files"
+grep -q "incompatible with" "$TMP_DIR/upgrade.log" || fail "warning did not mention version incompatibility"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "file in unknown state was modified"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "unknown-state module was not marked incompatible in the config"
+[[ "$(read_flag other_mod)" == "1" ]] || fail "unrelated module was changed"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=old" ]] || fail "clean module was not reverted"
+grep -q "^\[pve_trigger\]" "$PVE_MODs_MAIN_CONF" || fail "config sections were damaged"
+
+# Disabled (0) modules are never touched by preinst.
+patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 0 0
+cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
+run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with only disabled modules"; }
+cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a disabled module"
+! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "disabled module produced a warning"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "disabled module file was modified"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "disabled module patch was reverted"
+
+# Incompatible (2) modules are handled like enabled ones, but an unknown state
+# stays quiet and the flag stays 2. An applied patch is still reverted.
+write_main_conf 2 2
+cp "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before"
+run_upgrade || { cat "$TMP_DIR/upgrade.log" >&2; fail "upgrade failed with state 2 modules"; }
+cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for a state 2 module"
+! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "state 2 module produced a warning"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "state 2 module file in unknown state was modified"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=old" ]] || fail "applied patch of a state 2 module was not reverted"
+
+# Missing config: nothing is reverted or edited.
+patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch" >/dev/null
+rm -f "$PVE_MODs_MAIN_CONF"
+run_upgrade || fail "upgrade failed without a main config"
+[[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "reverted a patch without a main config"
+[[ ! -e "$PVE_MODs_MAIN_CONF" ]] || fail "created a main config"
+
+# apply-patches lifecycle: 1 -> 2 on incompatibility, quiet retries, 2 -> 1 once compatible.
+APPLY="${PVE_MODs_APPLY_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/scripts/apply-patches.sh}"
+run_apply() {
+    PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
+        PVE_MODs_STASH_DIR="$TMP_DIR/stash" PATH="$TMP_DIR/bin:$PATH" \
+        bash "$APPLY" "$@" > "$TMP_DIR/apply.log" 2>&1
 }
-grep -Fq "version=unexpected" "$TMP_DIR/upgrade-error.log" || {
-    echo "[test] upgrade failure did not include the target file context" >&2
-    cat "$TMP_DIR/upgrade-error.log" >&2
-    exit 1
+
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 0
+if run_apply; then fail "apply succeeded for an incompatible module"; fi
+grep -q "marked as incompatible (state 2)" "$TMP_DIR/apply.log" || fail "apply did not report the incompatible state"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "failing module was not set to 2"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "apply modified an incompatible file"
+
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "retry of a state 2 module failed the run"; }
+! grep -q "WARNING" "$TMP_DIR/apply.log" || fail "state 2 retry was noisy"
+grep -q "still incompatible" "$TMP_DIR/apply.log" || fail "state 2 retry did not report it is still incompatible"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "still incompatible module left state 2"
+
+printf 'version=old\n' > "$ROOT/usr/share/demo/config"
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "compatible state 2 module failed to apply"; }
+grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message"
+[[ "$(read_flag test_mod)" == "1" ]] || fail "compatible module was not set back to 1"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-new" ]] || fail "re-enabled module was not applied"
+
+patch -R -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch" >/dev/null
+write_main_conf 0 0
+run_apply || fail "apply failed with only disabled modules"
+[[ "$(read_flag test_mod)" == "0" ]] || fail "disabled module state changed"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=old" ]] || fail "disabled module was applied"
+
+# Explicitly applying a module (as pve-mods-configure does) also records the failure.
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 0
+if run_apply test_mod; then fail "explicit apply succeeded for an incompatible module"; fi
+[[ "$(read_flag test_mod)" == "2" ]] || fail "explicit apply failure did not set 2"
+
+# Full upgrade path: the file was changed by another tool, so the old patch is
+# incompatible and the module ends up at 2. A newer pve-mods then ships a patch
+# that fits the changed file, and the post-upgrade apply re-enables the module.
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+write_main_conf 1 0
+echo "[test] scenario: upgrade 2.0.0 -> 2.1.0, file changed by another tool"
+echo "[test]   before upgrade:       test_mod=$(read_flag test_mod)"
+run_upgrade || fail "upgrade aborted for an incompatible module"
+echo "[test]   after 2.0.0 preinst:  test_mod=$(read_flag test_mod)"
+[[ "$(read_flag test_mod)" == "2" ]] || fail "preinst did not mark the module incompatible"
+cat > "$MOD_DIR/compat.patch" <<'PATCH'
+--- a/usr/share/demo/config
++++ b/usr/share/demo/config
+@@ -1 +1 @@
+-version=unexpected
++version=patched-compat
+PATCH
+printf 'compat.patch\n' > "$MOD_DIR/patches.list"
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "newer patch did not apply to the changed file"; }
+echo "[test]   after 2.1.0 apply:    test_mod=$(read_flag test_mod)"
+grep "re-enabled" "$TMP_DIR/apply.log" | sed 's/^/[test]   apply-patches: /'
+grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message after the new version"
+[[ "$(read_flag test_mod)" == "1" ]] || fail "module was not set back to 1 by the new version"
+[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-compat" ]] || fail "new version's patch was not applied"
+
+# A state 2 module that is partly applied (one clean patch applied, one in an
+# unknown state) must be rolled back completely and stay 2.
+MULTI_DIR="$PATCHES/multi_mod"
+mkdir -p "$MULTI_DIR"
+printf 'a=old\n' > "$ROOT/usr/share/demo/multi-a"
+printf 'b=old\n' > "$ROOT/usr/share/demo/multi-b"
+for n in a b; do
+    cat > "$MULTI_DIR/$n.patch" <<PATCH
+--- a/usr/share/demo/multi-$n
++++ b/usr/share/demo/multi-$n
+@@ -1 +1 @@
+-$n=old
++$n=patched
+PATCH
+done
+printf 'a.patch\nb.patch\n' > "$MULTI_DIR/patches.list"
+patch -p1 -F0 -d "$ROOT" < "$MULTI_DIR/a.patch" >/dev/null
+printf 'b=unexpected\n' > "$ROOT/usr/share/demo/multi-b"
+printf '[modules]\nmulti_mod=2\n\n[pve_trigger]\nenabled=0\n' > "$PVE_MODs_MAIN_CONF"
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "partly applied state 2 module failed the run"; }
+[[ "$(read_flag multi_mod)" == "2" ]] || fail "partly applied module left state 2"
+[[ "$(cat "$ROOT/usr/share/demo/multi-a")" == "a=old" ]] || fail "applied patch of a state 2 module was not rolled back"
+[[ "$(cat "$ROOT/usr/share/demo/multi-b")" == "b=unexpected" ]] || fail "file in unknown state was modified"
+! grep -q "WARNING" "$TMP_DIR/apply.log" || fail "state 2 rollback was noisy"
+
+# Changing one module's state must not touch similarly named keys, other
+# sections, or the config file's permissions.
+printf '[modules]\ntest_mod=1\ntest_mod_extra=1\n\n[other]\ntest_mod=1\n\n[pve_trigger]\nenabled=0\n' > "$PVE_MODs_MAIN_CONF"
+chmod 640 "$PVE_MODs_MAIN_CONF"
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+printf 'new.patch\n' > "$MOD_DIR/patches.list"
+if run_apply test_mod; then fail "apply succeeded for an incompatible module"; fi
+[[ "$(read_flag test_mod)" == "2" ]] || fail "target module was not set to 2"
+[[ "$(read_flag test_mod_extra)" == "1" ]] || fail "similarly named module was changed"
+grep -A1 '^\[other\]' "$PVE_MODs_MAIN_CONF" | grep -qx 'test_mod=1' || fail "key in another section was changed"
+[[ "$(stat -c %a "$PVE_MODs_MAIN_CONF")" == "640" ]] || fail "config permissions were not preserved"
+
+# postinst lists modules in state 2 and stays silent otherwise.
+POSTINST="${PVE_MODs_POSTINST_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/debian/pve-mods.postinst}"
+report_incompatible() {
+    CONF_DIR="$CONF" bash -c "$(awk '/^_report_incompatible_modules\(\)/,/^}/' "$POSTINST"); _report_incompatible_modules" 2>&1
 }
-[[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || {
-    echo "[test] failed upgrade modified a file in an unknown state" >&2
-    exit 1
-}
+printf '[modules]\nnode_info=2\nnag_screen=1\nnode_search=0\n' > "$PVE_MODs_MAIN_CONF"
+report_incompatible > "$TMP_DIR/postinst.log"
+grep -qx '    node_info' "$TMP_DIR/postinst.log" || fail "postinst did not list the state 2 module"
+! grep -q 'nag_screen\|node_search' "$TMP_DIR/postinst.log" || fail "postinst listed a module that is not in state 2"
+printf '[modules]\nnode_info=1\nnag_screen=0\n' > "$PVE_MODs_MAIN_CONF"
+[[ -z "$(report_incompatible)" ]] || fail "postinst printed output with no state 2 modules"
 
 echo "[test] PASS: upgrade revert restores patches without running hooks"

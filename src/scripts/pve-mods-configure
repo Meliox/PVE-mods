@@ -33,7 +33,13 @@ ask()  {
 bool() { [[ "$1" == true ]] && echo 1 || echo 0; }
 mod_status() {
     local val="$1" on_label="${2:-[enabled]}" off_label="${3:-[disabled]}"
-    [[ "$val" == "1" ]] && echo -e "\e[0;32m${on_label}\e[0m" || echo -e "\e[0;33m${off_label}\e[0m"
+    if [[ "$val" == "2" ]]; then
+        echo -e "\e[0;31m[incompatible - will retry after updates]\e[0m"
+    elif [[ "$val" == "1" ]]; then
+        echo -e "\e[0;32m${on_label}\e[0m"
+    else
+        echo -e "\e[0;33m${off_label}\e[0m"
+    fi
 }
 #endregion helpers
 
@@ -74,7 +80,9 @@ write_main_conf() {
 #
 # This file only declares which mods are enabled. Each mod keeps its own
 # settings in ${CONFD_DIR}/<mod>.conf
-
+#
+# Module values: 0 = disabled, 1 = enabled, 2 = enabled but incompatible with
+# this system right now (set automatically, re-tested after updates).
 [modules]
 node_info=${MOD_NODE_INFO}
 nag_screen=${MOD_NAG_SCREEN}
@@ -146,6 +154,22 @@ main() {
     echo    "  [n] None / cancel"
     local modChoice selected_mod="" patching_needed=0 refresh_patches=0
     modChoice=$(ask "Select an option (1/2/3/4/5/6/n)")
+
+    # A module in state 2 (enabled but incompatible) is either retried now or
+    # switched off. Setting it to 1 lets the toggles below disable it.
+    local _state_var=""
+    case "$modChoice" in
+        1) _state_var=MOD_NODE_INFO ;;
+        2) _state_var=MOD_NAG_SCREEN ;;
+        5) _state_var=MOD_GUEST_SUMMARY ;;
+        6) _state_var=MOD_NODE_SEARCH ;;
+    esac
+    if [[ -n "$_state_var" && "${!_state_var}" == "2" ]]; then
+        warn "This module is enabled but incompatible with this system right now."
+        case "$(ask "[r]etry enabling now or [d]isable it? (r/d)")" in
+            [dD]) printf -v "$_state_var" '%s' 1 ;;
+        esac
+    fi
     case "$modChoice" in
         1)
             selected_mod="node_info"

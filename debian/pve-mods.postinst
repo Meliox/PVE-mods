@@ -78,6 +78,26 @@ EOF
     fi
 }
 
+# Lists modules in state 2 (enabled but incompatible) once patches were applied.
+_report_incompatible_modules() {
+    local mods
+    mods="$(awk -F= '
+        /^\[/ { in_sec = ($0 == "[modules]") }
+        in_sec && /^[^#=]+=/ {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+            if ($2 == "2") print "    " $1
+        }
+    ' "${CONF_DIR}/pve-mods.conf" 2>/dev/null)" || true
+    [ -n "$mods" ] || return 0
+    echo ""
+    echo "pve-mods: WARNING: These modules are enabled but not compatible with this system right now (state 2):" >&2
+    echo "$mods" >&2
+    echo "pve-mods: They are re-tested after the next pve-mods or Proxmox update and re-enabled automatically if compatible." >&2
+    echo "pve-mods: To fix them sooner, see the readme ('A mod cannot be installed or upgraded'), then run 'pve-mods-configure'." >&2
+    echo ""
+}
+
 case "$1" in
     configure)
         # Apply patches for any enabled modules. Don't abort the install if a
@@ -95,6 +115,7 @@ case "$1" in
             # Upgrading from a previous version — warn about any new config keys.
             _check_new_config_keys
         fi
+        _report_incompatible_modules
         ;;
 
     triggered)
