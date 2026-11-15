@@ -25,7 +25,7 @@ export PVE_MODs_MAIN_CONF="$CONF/pve-mods.conf"
 write_main_conf() {
     printf '[modules]\ntest_mod=%s\nother_mod=%s\n\n[pve_trigger]\nenabled=0\n' "$1" "${2:-0}" > "$PVE_MODs_MAIN_CONF"
 }
-read_flag() { sed -n "s/^$1=//p" "$PVE_MODs_MAIN_CONF"; }
+read_flag() { sed -n "s/^$1=//p" "$PVE_MODs_MAIN_CONF" | head -n1; }
 write_main_conf 1
 
 cat > "$MOD_DIR/old.patch" <<'PATCH'
@@ -241,5 +241,54 @@ grep "re-enabled" "$TMP_DIR/apply.log" | sed 's/^/[test]   apply-patches: /'
 grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message after the new version"
 [[ "$(read_flag test_mod)" == "1" ]] || fail "module was not set back to 1 by the new version"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-compat" ]] || fail "new version's patch was not applied"
+
+# A state 2 module that is partly applied (one clean patch applied, one in an
+# unknown state) must be rolled back completely and stay 2.
+MULTI_DIR="$PATCHES/multi_mod"
+mkdir -p "$MULTI_DIR"
+printf 'a=old\n' > "$ROOT/usr/share/demo/multi-a"
+printf 'b=old\n' > "$ROOT/usr/share/demo/multi-b"
+for n in a b; do
+    cat > "$MULTI_DIR/$n.patch" <<PATCH
+--- a/usr/share/demo/multi-$n
++++ b/usr/share/demo/multi-$n
+@@ -1 +1 @@
+-$n=old
++$n=patched
+PATCH
+done
+printf 'a.patch\nb.patch\n' > "$MULTI_DIR/patches.list"
+patch -p1 -F0 -d "$ROOT" < "$MULTI_DIR/a.patch" >/dev/null
+printf 'b=unexpected\n' > "$ROOT/usr/share/demo/multi-b"
+printf '[modules]\nmulti_mod=2\n\n[pve_trigger]\nenabled=0\n' > "$PVE_MODs_MAIN_CONF"
+run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "partly applied state 2 module failed the run"; }
+[[ "$(read_flag multi_mod)" == "2" ]] || fail "partly applied module left state 2"
+[[ "$(cat "$ROOT/usr/share/demo/multi-a")" == "a=old" ]] || fail "applied patch of a state 2 module was not rolled back"
+[[ "$(cat "$ROOT/usr/share/demo/multi-b")" == "b=unexpected" ]] || fail "file in unknown state was modified"
+! grep -q "WARNING" "$TMP_DIR/apply.log" || fail "state 2 rollback was noisy"
+
+# Changing one module's state must not touch similarly named keys, other
+# sections, or the config file's permissions.
+printf '[modules]\ntest_mod=1\ntest_mod_extra=1\n\n[other]\ntest_mod=1\n\n[pve_trigger]\nenabled=0\n' > "$PVE_MODs_MAIN_CONF"
+chmod 640 "$PVE_MODs_MAIN_CONF"
+printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
+printf 'new.patch\n' > "$MOD_DIR/patches.list"
+if run_apply test_mod; then fail "apply succeeded for an incompatible module"; fi
+[[ "$(read_flag test_mod)" == "2" ]] || fail "target module was not set to 2"
+[[ "$(read_flag test_mod_extra)" == "1" ]] || fail "similarly named module was changed"
+grep -A1 '^\[other\]' "$PVE_MODs_MAIN_CONF" | grep -qx 'test_mod=1' || fail "key in another section was changed"
+[[ "$(stat -c %a "$PVE_MODs_MAIN_CONF")" == "640" ]] || fail "config permissions were not preserved"
+
+# postinst lists modules in state 2 and stays silent otherwise.
+POSTINST="${PVE_MODs_POSTINST_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/debian/pve-mods.postinst}"
+report_incompatible() {
+    CONF_DIR="$CONF" bash -c "$(awk '/^_report_incompatible_modules\(\)/,/^}/' "$POSTINST"); _report_incompatible_modules" 2>&1
+}
+printf '[modules]\nnode_info=2\nnag_screen=1\nnode_search=0\n' > "$PVE_MODs_MAIN_CONF"
+report_incompatible > "$TMP_DIR/postinst.log"
+grep -qx '    node_info' "$TMP_DIR/postinst.log" || fail "postinst did not list the state 2 module"
+! grep -q 'nag_screen\|node_search' "$TMP_DIR/postinst.log" || fail "postinst listed a module that is not in state 2"
+printf '[modules]\nnode_info=1\nnag_screen=0\n' > "$PVE_MODs_MAIN_CONF"
+[[ -z "$(report_incompatible)" ]] || fail "postinst printed output with no state 2 modules"
 
 echo "[test] PASS: upgrade revert restores patches without running hooks"
