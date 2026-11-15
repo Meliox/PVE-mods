@@ -222,7 +222,10 @@ if run_apply test_mod; then fail "explicit apply succeeded for an incompatible m
 # that fits the changed file, and the post-upgrade apply re-enables the module.
 printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
 write_main_conf 1 0
+echo "[test] scenario: upgrade 2.0.0 -> 2.1.0, file changed by another tool"
+echo "[test]   before upgrade:       test_mod=$(read_flag test_mod)"
 run_upgrade || fail "upgrade aborted for an incompatible module"
+echo "[test]   after 2.0.0 preinst:  test_mod=$(read_flag test_mod)"
 [[ "$(read_flag test_mod)" == "2" ]] || fail "preinst did not mark the module incompatible"
 cat > "$MOD_DIR/compat.patch" <<'PATCH'
 --- a/usr/share/demo/config
@@ -233,6 +236,8 @@ cat > "$MOD_DIR/compat.patch" <<'PATCH'
 PATCH
 printf 'compat.patch\n' > "$MOD_DIR/patches.list"
 run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "newer patch did not apply to the changed file"; }
+echo "[test]   after 2.1.0 apply:    test_mod=$(read_flag test_mod)"
+grep "re-enabled" "$TMP_DIR/apply.log" | sed 's/^/[test]   apply-patches: /'
 grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message after the new version"
 [[ "$(read_flag test_mod)" == "1" ]] || fail "module was not set back to 1 by the new version"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-compat" ]] || fail "new version's patch was not applied"
