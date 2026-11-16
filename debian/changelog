@@ -1,3 +1,9 @@
+pve-mods (2.2.2) stable; urgency=low
+
+  * 19f08d0 fix(node_info): restore compatibility with pve-manager 9.2.28 (#463) by @HaughtyEyes
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Mon, 16 Nov 2026 09:03:09 +0000
+
 pve-mods (2.2.1) stable; urgency=low
 
   * a48003b fix(debian): do not abort upgrade on patches in an unknown state (#458) by @Meliox
