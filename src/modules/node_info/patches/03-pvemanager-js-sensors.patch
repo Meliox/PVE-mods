@@ -163,7 +163,7 @@
 -            nodetab: 'aptrepositories',
 -        });
 -
--        me.items.push({
+-        me.items = me.items.concat({
 -            xtype: 'pmxNodeInfoRepoStatus',
 -            itemId: 'repositoryStatus',
 -            product: 'Proxmox VE',
@@ -337,7 +337,7 @@
 +//             nodetab: 'aptrepositories',
 +//         });
 +// 
-+//         me.items.push({
++//         me.items = me.items.concat({
 +//             xtype: 'pmxNodeInfoRepoStatus',
 +//             itemId: 'repositoryStatus',
 +//             product: 'Proxmox VE',

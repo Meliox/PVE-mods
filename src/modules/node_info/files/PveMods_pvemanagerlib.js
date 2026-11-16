@@ -1581,7 +1581,7 @@ Ext.define('PVE.node.StatusView', {
             nodetab: 'aptrepositories',
         });
 
-        me.items.push({
+        me.items = me.items.concat({
             xtype: 'pmxNodeInfoRepoStatus',
             itemId: 'repositoryStatus',
             product: 'Proxmox VE',
