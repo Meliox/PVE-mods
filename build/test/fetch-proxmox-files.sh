@@ -25,4 +25,9 @@ for deb in *.deb; do
     sudo dpkg-deb -x "$deb" /
 done
 
+if [[ -n "${PVE_MODS_PACKAGE_DIR:-}" ]]; then
+    mkdir -p "$PVE_MODS_PACKAGE_DIR"
+    mv -- *.deb "$PVE_MODS_PACKAGE_DIR/"
+fi
+
 echo "[fetch] Done."
