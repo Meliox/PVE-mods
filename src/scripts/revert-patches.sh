@@ -12,7 +12,7 @@
 # Called by prerm before the package's files are removed.
 #
 # Hook exit-code convention: a hook returns 0 (no change), 100 (made a change,
-# triggers a pveproxy restart), or any other code (error).
+# triggers a pveproxy reload), or any other code (error).
 
 set -u
 
@@ -108,8 +108,12 @@ for mod in "${_target_modules[@]}"; do
 done
 
 if [[ "$CHANGED" == "true" ]]; then
-    info "Restarting pveproxy..."
-    systemctl restart pveproxy 2>/dev/null || true
+    info "Reloading pveproxy..."
+    if ! systemctl reload-or-try-restart pveproxy; then
+        warn "Could not reload pveproxy. Run 'systemctl reload-or-try-restart pveproxy' to retry."
+    fi
+    info "Web UI files changed. After this operation finishes, hard-refresh"
+    info "your browser (Ctrl+F5 or Ctrl+Shift+R) to load the updated interface."
 fi
 
 [[ "$FAILED" == "false" ]] || exit 1

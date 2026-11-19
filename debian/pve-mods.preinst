@@ -161,8 +161,8 @@ case "$1" in
         echo "[pve-mods] Uninstallation of patches from version ${OLD_VERSION} completed."
 
         if [ "$CHANGED" = "true" ] && command -v systemctl >/dev/null 2>&1; then
-            if ! systemctl restart pveproxy; then
-                echo "[pve-mods] WARNING: Could not restart pveproxy after reverting patches." >&2
+            if ! systemctl reload-or-try-restart pveproxy; then
+                echo "[pve-mods] WARNING: Could not reload pveproxy after reverting patches." >&2
             fi
         fi
         ;;
