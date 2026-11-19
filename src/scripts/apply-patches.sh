@@ -269,6 +269,8 @@ if [[ "$CHANGED" == "true" ]]; then
     if ! systemctl reload-or-try-restart pveproxy; then
         warn "Could not reload pveproxy. Run 'systemctl reload-or-try-restart pveproxy' to retry."
     fi
+    info "Web UI files changed. After this operation finishes, hard-refresh"
+    info "your browser (Ctrl+F5 or Ctrl+Shift+R) to load the updated interface."
 fi
 
 [[ "$FAILED" == "true" ]] && exit 1

@@ -122,7 +122,8 @@ patch -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch"
 PVE_MODs_ROOT="$ROOT" \
 PVE_MODs_PATCHES_DIR="$PATCHES" \
 PVE_MODs_CONFD_DIR="$CONF" \
-    bash "$REVERT"
+    bash "$REVERT" > "$TMP_DIR/revert.log" 2>&1
+cat "$TMP_DIR/revert.log"
 [[ -e "$ROOT/hook-ran" ]] || {
     echo "[test] regular revert did not run the post-revert hook" >&2
     exit 1
@@ -132,6 +133,9 @@ PVE_MODs_CONFD_DIR="$CONF" \
     exit 1
 }
 assert_proxy_reload
+
+grep -Fq 'After this operation finishes, hard-refresh' "$TMP_DIR/revert.log" || fail "revert did not remind the user to refresh after completion"
+grep -Fq 'Ctrl+F5 or Ctrl+Shift+R' "$TMP_DIR/revert.log" || fail "revert did not include refresh shortcuts"
 
 printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
 
@@ -230,11 +234,20 @@ grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail 
 [[ "$(read_flag test_mod)" == "1" ]] || fail "compatible module was not set back to 1"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-new" ]] || fail "re-enabled module was not applied"
 assert_proxy_reload
+grep -Fq 'After this operation finishes, hard-refresh' "$TMP_DIR/apply.log" || fail "apply did not remind the user to refresh after completion"
+grep -Fq 'Ctrl+F5 or Ctrl+Shift+R' "$TMP_DIR/apply.log" || fail "apply did not include refresh shortcuts"
 
 run_apply || fail "reapplying unchanged patches failed"
 [[ ! -s "$PVE_MODs_TEST_CALLS" ]] || fail "unchanged patches refreshed a service"
+! grep -Fq 'hard-refresh' "$TMP_DIR/apply.log" || fail "unchanged patches printed a refresh reminder"
 
-patch -R -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch" >/dev/null
+: > "$PVE_MODs_TEST_CALLS"
+PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
+    bash "$REVERT" test_mod > "$TMP_DIR/revert.log" 2>&1 || fail "test module reversion failed"
+PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
+    bash "$REVERT" test_mod > "$TMP_DIR/revert.log" 2>&1 || fail "unchanged reversion failed"
+! grep -Fq 'hard-refresh' "$TMP_DIR/revert.log" || fail "unchanged reversion printed a refresh reminder"
+
 write_main_conf 0 0
 run_apply || fail "apply failed with only disabled modules"
 [[ "$(read_flag test_mod)" == "0" ]] || fail "disabled module state changed"
