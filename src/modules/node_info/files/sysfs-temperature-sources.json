@@ -1,0 +1,10 @@
+{
+    "sources": [
+        {
+            "id": "coral",
+            "label": "Coral Edge TPU",
+            "path": "/sys/class/apex/apex_*/temp",
+            "temp_scale": 0.001
+        }
+    ]
+}

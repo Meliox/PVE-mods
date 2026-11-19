@@ -80,7 +80,8 @@ for chip_name, chip in data.items():
             nvme_sensors.append(chip_name)
         else:
             other_count += 1
-            other_sensors.append(chip_name)
+            label = chip.get("label")
+            other_sensors.append(label if chip.get("source") == "sysfs" and isinstance(label, str) else chip_name)
 
     for name, feature in chip.items():
         if not re.fullmatch(r"fan\d+", name) or not isinstance(feature, dict):
@@ -98,6 +99,15 @@ print("\t".join(map(str, (
     joined_names(hdd_sensors), joined_names(nvme_sensors),
     joined_names(other_sensors), joined_names(fan_sensors)
 ))))
+    '
+}
+
+merge_sysfs_sensor_output() {
+    perl -MJSON -MPVE::PVEMods::Collector::SysfsSensors=merge_sysfs_temperatures -0777 -e '
+        my $sensors = decode_json(<STDIN>);
+        die "Expected an lm-sensors object\n" unless ref($sensors) eq "HASH";
+        merge_sysfs_temperatures($sensors, {});
+        print encode_json($sensors);
     '
 }
 
@@ -445,6 +455,12 @@ node_info_configure() {
     if [[ "$lm_sensors_ok" == true ]]; then
         local sanitisedSensorsOutput
         sanitisedSensorsOutput=$(sanitize_sensors_output "$sensorsOutput")
+        local mergedSensorsOutput
+        if mergedSensorsOutput=$(printf '%s\n' "$sanitisedSensorsOutput" | merge_sysfs_sensor_output); then
+            sanitisedSensorsOutput="$mergedSensorsOutput"
+        else
+            warn "Could not detect additional sysfs temperatures; continuing with lm-sensors readings."
+        fi
         local sensorCounts cpuCount ramCount hddList nvmeCount otherTempCount fanCount
         local cpuList ramSensors hddSensors nvmeSensors otherSensors fanSensors
         sensorCounts=$(printf '%s\n' "$sanitisedSensorsOutput" | detect_sensor_counts 2>/dev/null) \
