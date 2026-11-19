@@ -1,3 +1,11 @@
+pve-mods (2.2.3) stable; urgency=low
+
+  * fcc1ae2 fix(debian): Change GUI upgrade interruptions with graceful service reloads (#474) by @Meliox
+  * 41464ad fix(nag_screen): support for proxmox-widget-toolkit 5.2.15 (#473) by @Meliox
+  * caa30d4 fix(oidc_console_access): OIDC console patch for pve-manager 9.2.31 (#471) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Thu, 19 Nov 2026 20:59:58 +0000
+
 pve-mods (2.2.2) stable; urgency=low
 
   * 19f08d0 fix(node_info): restore compatibility with pve-manager 9.2.28 (#463) by @HaughtyEyes
