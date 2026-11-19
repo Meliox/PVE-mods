@@ -1,6 +1,6 @@
 --- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.orig	2026-09-27 12:31:57.553624715 +0200
 +++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-09-27 12:43:53.586947583 +0200
-@@ -21170,21 +21163,7 @@
+@@ -25321,21 +25321,7 @@
                  if (components === undefined) {
                      return '';
                  }
@@ -18,12 +18,12 @@
 -                        metaData.tdAttr = `data-qtip="${Ext.htmlEncode(Ext.htmlEncode(qtip))}"`;
 -                    }
 -                }
--                return components.join(' ') + err;
-+                return components.join(' ');
+-                return Ext.htmlEncode(components.join(' ')) + err;
++                return Ext.htmlEncode(components.join(' '));
              },
              width: 170,
          },
-@@ -21315,7 +21294,7 @@
+@@ -25470,7 +25456,7 @@
              store.removeAll();
  
              let status = 'good'; // start with best, the helper below will downgrade if needed
@@ -32,7 +32,7 @@
  
              let addGood = (message) => store.add({ status: 'good', message });
              let addWarn = (message, important) => {
-@@ -21374,7 +21353,7 @@
+@@ -25529,7 +25515,7 @@
                  addWarn(gettext('Detected mixed suites before upgrade'));
              }
  
@@ -41,7 +41,7 @@
                  if (!activeSubscription && repos.enterprise) {
                      addWarn(
                          Ext.String.format(
-@@ -21386,18 +21365,6 @@
+@@ -25541,18 +25527,6 @@
                      );
                  }
  
@@ -60,7 +60,7 @@
                  if (repos.test) {
                      addWarn(
                          Ext.String.format(
-@@ -21410,9 +21377,9 @@
+@@ -25565,9 +25539,9 @@
                  }
              };
  
