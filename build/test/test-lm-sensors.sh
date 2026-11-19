@@ -7,7 +7,7 @@
 # The GUI tests consume the payload the Perl collector produces for the shared
 # fixture, so both sides are checked against the same contract. Needs no
 # sensors hardware and does not touch the live configuration. Requires Perl
-# with the JSON module, prove and Node.js.
+# with the JSON module, prove, Node.js and Python 3.
 # Includes fake-sysfs tests for cached temperature source discovery.
 #
 # fixtures/lm_sensors hold `sensors -J` output, the only layout supported. They are
@@ -42,7 +42,7 @@ FILES_DIR="$REPO_DIR/src/modules/node_info/files"
 info() { echo "[lm-sensors] $*"; }
 warn() { echo "[lm-sensors] WARNING: $*" >&2; }
 
-for cmd in perl prove node; do
+for cmd in perl prove node python3; do
     command -v "$cmd" >/dev/null 2>&1 || { warn "'$cmd' command not found."; exit 1; }
 done
 perl -MJSON -e1 2>/dev/null || { warn "Perl module JSON not found; install libjson-perl."; exit 1; }
