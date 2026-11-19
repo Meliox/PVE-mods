@@ -318,6 +318,21 @@ test('NVMe temperatures sort by chip, colour thresholds and omit empty serials',
 });
 
 // ---- Other temperatures ----------------------------------------------------------
+test('merged sysfs readings use escaped labels, display units and thresholds', () => {
+    const merged = loadPayload('sysfs-merged.json');
+    const html = renderers.otherThermals(merged);
+    assert.ok(html.includes('Test &lt;sensor&gt;&amp; (device0)'));
+    assert.ok(html.includes('Test &lt;sensor&gt;&amp; (device1)'));
+    assert.ok(html.includes(`${(38.05).toFixed(1)}&deg;C`));
+    assert.ok(!html.includes('<sensor>'));
+    assert.ok(html.includes(`<span style="${YELLOW}">50.0&deg;C</span>`));
+    assert.ok(html.includes('>fixture-chip<') && html.includes('42.0&deg;C'));
+    assert.equal(renderers.otherThermals({ ...merged, other: false }), '');
+    const fahrenheit = renderers.otherThermals({ ...merged, temp_unit: 'F' });
+    assert.ok(fahrenheit.includes(`${(38.05 * 9 / 5 + 32).toFixed(1)}&deg;F`));
+    assert.ok(fahrenheit.includes(`<span style="${YELLOW}">122.0&deg;F</span>`));
+});
+
 test('other temperatures exclude CPU, drive and DIMM chips and show labelled readings', () => {
     const html = renderers.otherThermals(payload);
     assert.ok(html.includes('>acpitz-acpi-0<'));

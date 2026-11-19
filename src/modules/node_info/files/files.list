@@ -20,9 +20,11 @@ Collector/GpuIntel.pm                   usr/share/perl5/PVE/PVEMods/Collector/Gp
 Collector/GpuNvidia.pm                  usr/share/perl5/PVE/PVEMods/Collector/GpuNvidia.pm
 Collector/GpuAmd.pm                     usr/share/perl5/PVE/PVEMods/Collector/GpuAmd.pm
 Collector/LmSensors.pm                  usr/share/perl5/PVE/PVEMods/Collector/LmSensors.pm
+Collector/SysfsSensors.pm               usr/share/perl5/PVE/PVEMods/Collector/SysfsSensors.pm
 Collector/Ups.pm                        usr/share/perl5/PVE/PVEMods/Collector/Ups.pm
 Collector/StorageHealth.pm              usr/share/perl5/PVE/PVEMods/Collector/StorageHealth.pm
 Collector/systemInformation.pm          usr/share/perl5/PVE/PVEMods/Collector/SystemInformation.pm
+sysfs-temperature-sources.json          usr/share/pve-mods/sysfs-temperature-sources.json
 
 # JS module (rename to match loader reference)
 PveMods_pvemanagerlib.js                 usr/share/pve-manager/js/PveMods_PveNodeStatusView.js
