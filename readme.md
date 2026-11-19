@@ -51,7 +51,7 @@ Some mods need additional packages on the host. Required tools are listed in eac
 1. The `pve-mods` package installs the patch files and scripts under `/usr/lib/pve-mods/`.
 2. The main configuration file and per-mod settings are stored under `/etc/pve-mods/`.
 3. Running `pve-mods-configure` prompts for which mods to enable and how to configure them.
-4. The wizard applies the selected patches to the PVE system files and restarts `pveproxy`.
+4. The wizard applies the selected patches to the PVE system files and gracefully reloads `pveproxy`.
 5. When upgrading `pve-mods`, the previous patches are reverted before package files are replaced, then the new version's patches are applied.
 6. Optionally, patches are re-applied automatically after a `pve-manager` upgrade (see [Re-applying patches after PVE upgrades](#re-applying-patches-after-pve-upgrades)).
 
@@ -80,10 +80,10 @@ bash pve-mods-gui-sensors.sh uninstall
 The scripts are available in [legacy-scripts/](legacy-scripts/readme.md).
 
 #### Manual configuration changes
-Configuration files are located in `/etc/pve-mods/`. After any manual edits, restart `pveproxy` to apply the changes:
+Configuration files are located in `/etc/pve-mods/`. After any manual edits, gracefully reload `pveproxy` to apply the changes:
 
 ```bash
-systemctl restart pveproxy
+systemctl reload-or-try-restart pveproxy
 ```
 
 #### Re-applying patches after PVE upgrades

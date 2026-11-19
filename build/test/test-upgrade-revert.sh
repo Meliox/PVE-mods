@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Verifies package-upgrade reversion restores old patches without running
 # disable/removal hooks, allowing a replacement patch to apply cleanly.
+# Service operations are stubbed; no real services are changed.
 
 set -euo pipefail
 
@@ -9,14 +10,32 @@ PREINST="${PVE_MODs_PREINST_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/debian/pve-
 REVERT="${PVE_MODs_REVERT_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/scripts/revert-patches.sh}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+fail() { echo "[test] $*" >&2; exit 1; }
 
 ROOT="$TMP_DIR/root"
 PATCHES="$TMP_DIR/patches"
 CONF="$TMP_DIR/conf"
 MOD_DIR="$PATCHES/test_mod"
+export PVE_MODs_TEST_CALLS="$TMP_DIR/service-calls"
+export PATH="$TMP_DIR/bin:$PATH"
 mkdir -p "$TMP_DIR/bin"
-printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP_DIR/bin/systemctl"
-chmod +x "$TMP_DIR/bin/systemctl"
+: > "$PVE_MODs_TEST_CALLS"
+cat > "$TMP_DIR/bin/systemctl" <<'STUB'
+#!/usr/bin/env bash
+echo "systemctl $*" >> "$PVE_MODs_TEST_CALLS"
+[[ ! -f "${PVE_MODs_TEST_CALLS}.fail" ]]
+STUB
+cat > "$TMP_DIR/bin/systemd-run" <<'STUB'
+#!/usr/bin/env bash
+echo "systemd-run $*" >> "$PVE_MODs_TEST_CALLS"
+[[ ! -f "${PVE_MODs_TEST_CALLS}.fail" ]]
+STUB
+chmod +x "$TMP_DIR/bin/systemctl" "$TMP_DIR/bin/systemd-run"
+
+assert_proxy_reload() {
+    [[ "$(cat "$PVE_MODs_TEST_CALLS")" == "systemctl reload-or-try-restart pveproxy" ]] \
+        || fail "expected one graceful pveproxy reload, got: $(cat "$PVE_MODs_TEST_CALLS")"
+}
 
 mkdir -p "$ROOT/usr/share/demo" "$MOD_DIR" "$CONF"
 printf 'version=old\n' > "$ROOT/usr/share/demo/config"
@@ -56,6 +75,7 @@ PATH="$TMP_DIR/bin:$PATH" \
     echo "[test] initial install unexpectedly reverted an existing file" >&2
     exit 1
 }
+[[ ! -s "$PVE_MODs_TEST_CALLS" ]] || fail "preinst refreshed a service during initial installation"
 
 upgrade_output="$(PVE_MODs_ROOT="$ROOT" \
     PVE_MODs_PATCHES_DIR="$PATCHES" \
@@ -79,6 +99,7 @@ exit 1
     echo "[test] upgrade revert ran the post-revert hook" >&2
     exit 1
 }
+assert_proxy_reload
 
 cat > "$MOD_DIR/new.patch" <<'PATCH'
 --- a/usr/share/demo/config
@@ -97,6 +118,7 @@ patch -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch"
     exit 1
 }
 
+: > "$PVE_MODs_TEST_CALLS"
 PVE_MODs_ROOT="$ROOT" \
 PVE_MODs_PATCHES_DIR="$PATCHES" \
 PVE_MODs_CONFD_DIR="$CONF" \
@@ -109,9 +131,9 @@ PVE_MODs_CONFD_DIR="$CONF" \
     echo "[test] regular revert did not restore the replacement patch" >&2
     exit 1
 }
+assert_proxy_reload
 
 printf 'version=unexpected\n' > "$ROOT/usr/share/demo/config"
-fail() { echo "[test] $*" >&2; exit 1; }
 
 # A second enabled module with a cleanly applied patch must still be reverted
 # when another module is in an unknown state.
@@ -129,6 +151,7 @@ printf 'o.patch\n' > "$OTHER_DIR/patches.list"
 patch -p1 -F0 -d "$ROOT" < "$OTHER_DIR/o.patch"
 
 run_upgrade() {
+    : > "$PVE_MODs_TEST_CALLS"
     PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PATH="$TMP_DIR/bin:$PATH" \
         bash "$PREINST" upgrade 2.0.0 2.1.0 > "$TMP_DIR/upgrade.log" 2>&1
 }
@@ -161,6 +184,7 @@ cmp -s "$PVE_MODs_MAIN_CONF" "$TMP_DIR/conf.before" || fail "config changed for 
 ! grep -q "WARNING" "$TMP_DIR/upgrade.log" || fail "disabled module produced a warning"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=unexpected" ]] || fail "disabled module file was modified"
 [[ "$(cat "$ROOT/usr/share/demo/other")" == "other=patched" ]] || fail "disabled module patch was reverted"
+[[ ! -s "$PVE_MODs_TEST_CALLS" ]] || fail "preinst refreshed a service without reverting patches"
 
 # Incompatible (2) modules are handled like enabled ones, but an unknown state
 # stays quiet and the flag stays 2. An applied patch is still reverted.
@@ -182,6 +206,7 @@ run_upgrade || fail "upgrade failed without a main config"
 # apply-patches lifecycle: 1 -> 2 on incompatibility, quiet retries, 2 -> 1 once compatible.
 APPLY="${PVE_MODs_APPLY_SOURCE:-$(cd "$SCRIPT_DIR/../.." && pwd)/src/scripts/apply-patches.sh}"
 run_apply() {
+    : > "$PVE_MODs_TEST_CALLS"
     PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
         PVE_MODs_STASH_DIR="$TMP_DIR/stash" PATH="$TMP_DIR/bin:$PATH" \
         bash "$APPLY" "$@" > "$TMP_DIR/apply.log" 2>&1
@@ -204,6 +229,10 @@ run_apply || { cat "$TMP_DIR/apply.log" >&2; fail "compatible state 2 module fai
 grep -q "compatible again and has been re-enabled" "$TMP_DIR/apply.log" || fail "no re-enable message"
 [[ "$(read_flag test_mod)" == "1" ]] || fail "compatible module was not set back to 1"
 [[ "$(cat "$ROOT/usr/share/demo/config")" == "version=patched-new" ]] || fail "re-enabled module was not applied"
+assert_proxy_reload
+
+run_apply || fail "reapplying unchanged patches failed"
+[[ ! -s "$PVE_MODs_TEST_CALLS" ]] || fail "unchanged patches refreshed a service"
 
 patch -R -p1 -F0 -d "$ROOT" < "$MOD_DIR/new.patch" >/dev/null
 write_main_conf 0 0
@@ -291,4 +320,35 @@ grep -qx '    node_info' "$TMP_DIR/postinst.log" || fail "postinst did not list 
 printf '[modules]\nnode_info=1\nnag_screen=0\n' > "$PVE_MODs_MAIN_CONF"
 [[ -z "$(report_incompatible)" ]] || fail "postinst printed output with no state 2 modules"
 
-echo "[test] PASS: upgrade revert restores patches without running hooks"
+# Refresh failures remain non-fatal but must be visible to the user.
+write_main_conf 1 0
+printf 'version=old\n' > "$ROOT/usr/share/demo/config"
+touch "${PVE_MODs_TEST_CALLS}.fail"
+run_apply || fail "reload failure aborted patch application"
+assert_proxy_reload
+grep -q 'WARNING: Could not reload pveproxy' "$TMP_DIR/apply.log" || fail "apply hid the reload failure"
+: > "$PVE_MODs_TEST_CALLS"
+PVE_MODs_ROOT="$ROOT" PVE_MODs_PATCHES_DIR="$PATCHES" PVE_MODs_CONFD_DIR="$CONF" \
+    bash "$REVERT" test_mod > "$TMP_DIR/revert.log" 2>&1 || fail "reload failure aborted patch reversion"
+assert_proxy_reload
+grep -q 'WARNING: Could not reload pveproxy' "$TMP_DIR/revert.log" || fail "revert hid the reload failure"
+rm -f "${PVE_MODs_TEST_CALLS}.fail"
+
+# OIDC hooks must schedule a graceful refresh, never stop the daemon running APT.
+for hook in post-apply.sh post-revert.sh; do
+    : > "$PVE_MODs_TEST_CALLS"
+    rc=0
+    bash "$SCRIPT_DIR/../../src/modules/oidc_console_access/patches/$hook" > "$TMP_DIR/hook.log" 2>&1 || rc=$?
+    [[ "$rc" == "100" ]] || fail "$hook did not request a pveproxy reload"
+    [[ "$(cat "$PVE_MODs_TEST_CALLS")" == "systemd-run --quiet --on-active=5s --unit=pve-mods-reload-pvedaemon systemctl reload-or-try-restart pvedaemon" ]] \
+        || fail "$hook did not schedule a graceful pvedaemon reload"
+
+    touch "${PVE_MODs_TEST_CALLS}.fail"
+    rc=0
+    bash "$SCRIPT_DIR/../../src/modules/oidc_console_access/patches/$hook" > "$TMP_DIR/hook.log" 2>&1 || rc=$?
+    [[ "$rc" == "100" ]] || fail "$hook aborted after a scheduling failure"
+    grep -q 'WARNING: Could not schedule pvedaemon reload' "$TMP_DIR/hook.log" || fail "$hook hid the scheduling failure"
+    rm -f "${PVE_MODs_TEST_CALLS}.fail"
+done
+
+echo "[test] PASS: upgrade reversion and graceful service reloads"

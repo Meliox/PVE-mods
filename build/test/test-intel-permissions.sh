@@ -62,7 +62,7 @@ cat > "$TMP_DIR/bin/systemctl" <<'STUB'
 echo "systemctl $*" >> "$INTEL_TEST_DIR/calls"
 if [[ "$1" == "is-active" ]]; then
     [[ -f "$INTEL_TEST_DIR/history-active" ]]
-elif [[ "$1" == "restart" ]]; then
+elif [[ "$1" == "restart" || "$1" == "reload-or-try-restart" ]]; then
     [[ ! -f "$INTEL_TEST_DIR/restart-fail" ]]
 fi
 STUB
@@ -236,12 +236,12 @@ reset_case
 touch "$TMP_DIR/history-active"
 expect_rc 0 bash "$TMP_DIR/postinst" triggered /usr/bin/intel_gpu_top
 grep -q cap_perfmon "$TMP_DIR/caps"
-grep -q 'systemctl restart pveproxy' "$TMP_DIR/calls"
+grep -qx 'systemctl reload-or-try-restart pveproxy' "$TMP_DIR/calls"
 grep -q 'systemctl restart pve-mods-gpu-history.service' "$TMP_DIR/calls"
 ! grep -q '^apply$' "$TMP_DIR/calls"
 : > "$TMP_DIR/calls"
 expect_rc 0 bash "$TMP_DIR/postinst" triggered /usr/bin/intel_gpu_top
-! grep -q 'systemctl restart' "$TMP_DIR/calls"
+! grep -qE 'systemctl (restart|reload-or-try-restart)' "$TMP_DIR/calls"
 assert_no_grant
 
 for setting in module-disabled intel-disabled debug; do
@@ -264,7 +264,7 @@ grep -q 'WARNING: Could not restore Intel GPU monitoring permission' "$TMP_DIR/o
 reset_case
 touch "$TMP_DIR/restart-fail"
 expect_rc 1 bash "$PVE_MODs_INTEL_GPU_HELPER"
-grep -q 'could not restart pveproxy' "$TMP_DIR/output"
+grep -q 'could not reload pveproxy' "$TMP_DIR/output"
 
 reset_case
 sed -i 's/enabled=0/enabled=1/' "$PVE_MODs_MAIN_CONF"

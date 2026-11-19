@@ -102,8 +102,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     else
         rc=$?
         [[ "$rc" == "100" ]] || exit "$rc"
-        systemctl restart pveproxy || {
-            intel_gpu_permission_error "could not restart pveproxy after restoring permission."
+        systemctl reload-or-try-restart pveproxy || {
+            intel_gpu_permission_error "could not reload pveproxy after restoring permission."
             exit 1
         }
         if systemctl is-active --quiet pve-mods-gpu-history.service; then
