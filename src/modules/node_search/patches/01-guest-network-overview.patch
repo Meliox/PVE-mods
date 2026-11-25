@@ -1,6 +1,6 @@
 --- a/usr/share/pve-manager/js/pvemanagerlib.js
 +++ b/usr/share/pve-manager/js/pvemanagerlib.js
-@@ -4591,6 +4591,330 @@
+@@ -5001,6 +5001,330 @@
          });
      },
  });
@@ -331,9 +331,9 @@
  Ext.define('PVE.data.ResourceStore', {
      extend: 'Proxmox.data.UpdateStore',
      singleton: true,
-@@ -4929,6 +5253,13 @@
+@@ -5346,6 +5670,13 @@
                  sortable: true,
-                 width: 100,
+                 width: 170,
              },
 +            ...Object.fromEntries(PVE.mod.GuestNetworkInfo.columns().map(({ dataIndex, text, ...column }) => [
 +                dataIndex, {
@@ -345,7 +345,7 @@
              tags: {
                  header: gettext('Tags'),
                  renderer: (value) => PVE.Utils.renderTags(value, PVE.UIOptions.tagOverrides),
-@@ -4943,6 +5274,9 @@
+@@ -5360,6 +5691,9 @@
          let fieldNames = [];
          Ext.Object.each(field_defaults, function (key, value) {
              var field = { name: key, type: value.type };
@@ -355,7 +355,7 @@
              if (Ext.isDefined(value.convert)) {
                  field.convert = value.convert;
              }
-@@ -4954,6 +5288,9 @@
+@@ -5371,6 +5705,9 @@
              if (Ext.isDefined(value.defaultValue)) {
                  field.defaultValue = value.defaultValue;
              }
@@ -365,7 +365,7 @@
  
              fields.push(field);
              fieldNames.push(key);
-@@ -4991,6 +5328,7 @@
+@@ -5408,6 +5745,7 @@
          me.callParent([config]);
  
          me.on('beforeload', me.clearCache, me);
@@ -373,7 +373,7 @@
      },
  });
  Ext.define('pve-rrd-node', {
-@@ -6928,6 +7266,7 @@
+@@ -7458,6 +7796,7 @@
                  text: gettext('Pool'),
                  dataIndex: 'pool',
              },
@@ -381,7 +381,7 @@
          ],
      },
  
-@@ -6943,7 +7282,8 @@
+@@ -7473,7 +7812,8 @@
              pool: ['type', 'pool', 'text'],
              node: ['type', 'node', 'text'],
              storage: ['type', 'pool', 'node', 'storage'],
@@ -391,7 +391,7 @@
          };
          let fields = fieldMap[item.data.type] || fieldMap.default;
          let fieldArr = fields.map((field) => item.data[field]?.toString().toLowerCase());
-@@ -7019,7 +7359,11 @@
+@@ -7554,7 +7894,11 @@
          let me = this;
          me.hasFocus = true;
          me.grid.textfield = me;
@@ -404,7 +404,7 @@
          me.grid.showBy(me, 'tl-bl');
      },
  
-@@ -7031,6 +7375,14 @@
+@@ -7566,6 +7910,14 @@
          }
      },
  
@@ -419,7 +419,7 @@
      listeners: {
          change: {
              fn: 'updateFilter',
-@@ -7063,6 +7415,8 @@
+@@ -7598,6 +7950,8 @@
          me.grid = Ext.create(me.grid);
  
          me.callParent();
@@ -428,17 +428,17 @@
  
          // bind CTRL + SHIFT + F and CTRL + SPACE to open/close the search
          me.keymap = new Ext.KeyMap({
-@@ -15284,7 +15638,8 @@
+@@ -16043,7 +16397,8 @@
  
          let textfilter = '';
-         let textfilterMatch = function (item) {
+         let textfilterMatch = function (item, orgNode) {
 -            for (const field of ['name', 'storage', 'node', 'type', 'text']) {
 +            for (const field of ['name', 'storage', 'node', 'type', 'text',
 +                'guest_ips', 'guest_macs', 'guest_hostname', 'guest_os']) {
                  let v = item.data[field];
                  if (v && v.toLowerCase().indexOf(textfilter) >= 0) {
                      return true;
-@@ -15299,6 +15654,8 @@
+@@ -16063,6 +16418,8 @@
              store.suspendEvents();
  
              let nodeidx = {};
@@ -447,13 +447,13 @@
              let gather_child_nodes;
              gather_child_nodes = function (node) {
                  if (!node || !node.childNodes) {
-@@ -15307,11 +15664,15 @@
+@@ -16071,11 +16428,15 @@
                  for (let child of node.childNodes) {
                      let orgNode = rstore.data.get(child.data.realId ?? child.data.id);
                      if (orgNode) {
 -                        if (
 -                            (!filterfn || filterfn(child)) &&
--                            (!textfilter || textfilterMatch(child))
+-                            (!textfilter || textfilterMatch(child, orgNode))
 -                        ) {
 -                            nodeidx[child.data.id] = orgNode;
 +                        if (!filterfn || filterfn(child)) {
@@ -462,13 +462,13 @@
 +                                const type = orgNode.get('type');
 +                                typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
 +                            }
-+                            if (!textfilter || textfilterMatch(orgNode)) {
++                            if (!textfilter || textfilterMatch(orgNode, orgNode)) {
 +                                nodeidx[child.data.id] = orgNode;
 +                            }
                          }
                      }
                      gather_child_nodes(child);
-@@ -15358,6 +15719,19 @@
+@@ -16122,6 +16483,19 @@
              store.sort();
              store.resumeEvents();
              store.fireEvent('refresh', store);
@@ -488,7 +488,7 @@
          };
  
          Ext.apply(me, {
-@@ -15365,6 +15739,11 @@
+@@ -16129,6 +16503,11 @@
              stateful: true,
              stateId: 'grid-resource',
              tbar: [
@@ -500,7 +500,7 @@
                  '->',
                  gettext('Search') + ':',
                  ' ',
-@@ -15399,6 +15778,8 @@
+@@ -16163,6 +16542,8 @@
          });
          me.callParent();
          me.mon(rstore, 'load', () => updateGrid());
