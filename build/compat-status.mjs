@@ -1,0 +1,234 @@
+// build/compat-status.mjs
+//
+// Aggregates per-mod daily mods test results into the compatibility-data
+// branch: persistent per-mod status JSON, Shields.io endpoint badge JSON and a
+// human-readable report.md.
+//
+// Usage: node build/compat-status.mjs --results <dir> --data <dir>
+//
+//   --results  directory with one <mod>.json per tested mod:
+//              { mod, status: "pass"|"fail"|"unavailable", packages: {name: version},
+//                pve_mods_version, run_url, date }
+//   --data     working tree of the compatibility-data branch; previous state is
+//              read from <data>/status/*.json and status/, badges/ and
+//              report.md are (re)written in place.
+//
+// Merge rules per mod:
+//   pass        -> status "passing"; last_passing updated; failure info cleared
+//   fail        -> status "failing"; last_failing updated; failing_since kept or
+//                  set to the result date; last_passing preserved
+//   unavailable -> status "unavailable" (the test could not run, e.g. download
+//                  failure); everything else preserved
+//   no result   -> previous state carried over unchanged (e.g. cancelled job)
+
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const BADGE_COLORS = {
+  passing: "brightgreen",
+  failing: "red",
+  unavailable: "lightgrey",
+};
+
+// Merge one result into the previous persisted status of the same mod.
+// Either argument may be undefined.
+export function mergeStatus(previous, result) {
+  if (!result) return previous;
+
+  const merged = {
+    mod: result.mod,
+    status: "unavailable",
+    last_checked: result.date,
+    pve_mods_version: result.pve_mods_version,
+    run_url: result.run_url,
+  };
+  if (previous?.last_passing) merged.last_passing = previous.last_passing;
+  if (previous?.last_failing) merged.last_failing = previous.last_failing;
+  if (previous?.failing_since) merged.failing_since = previous.failing_since;
+
+  if (result.status === "pass") {
+    merged.status = "passing";
+    merged.last_passing = {
+      date: result.date,
+      packages: result.packages ?? {},
+      run_url: result.run_url,
+    };
+    delete merged.last_failing;
+    delete merged.failing_since;
+  } else if (result.status === "fail") {
+    merged.status = "failing";
+    merged.last_failing = {
+      date: result.date,
+      packages: result.packages ?? {},
+      run_url: result.run_url,
+    };
+    if (previous?.status !== "failing" || !previous.failing_since) {
+      merged.failing_since = result.date;
+    }
+  }
+
+  return merged;
+}
+
+// Shields.io endpoint JSON for the status badge.
+export function statusBadge(status) {
+  if (!status) {
+    return { schemaVersion: 1, label: "mods test", message: "unknown", color: "lightgrey" };
+  }
+  let message = status.status;
+  if (status.status === "failing" && status.failing_since) {
+    message = `failing since ${status.failing_since}`;
+  }
+  return {
+    schemaVersion: 1,
+    label: "mods test",
+    message,
+    color: BADGE_COLORS[status.status] ?? "lightgrey",
+  };
+}
+
+// Shields.io endpoint JSON per patched package, keyed by full package name:
+// label is the shortened package name, message the last passing version.
+// While the mod is failing, a package whose version changed since the last
+// pass is coloured orange to flag the likely culprit. The package set is the
+// union of last passing and last failing/current packages, so badge files
+// exist even for mods that have never passed.
+export function packageBadges(status) {
+  const passing = status?.last_passing?.packages ?? {};
+  const failing = status?.last_failing?.packages ?? {};
+  const known = { ...failing, ...passing };
+  const badges = {};
+  for (const name of Object.keys(known)) {
+    const version = passing[name];
+    let color = version ? "blue" : "lightgrey";
+    if (version && status?.status === "failing" && failing[name] && failing[name] !== version) {
+      color = "orange";
+    }
+    badges[name] = {
+      schemaVersion: 1,
+      label: name.replace(/^proxmox-/, "").replace(/-perl$/, ""),
+      message: version ? version.replace(/^\d+:/, "") : "unknown",
+      color,
+    };
+  }
+  return badges;
+}
+
+// Shields.io endpoint JSON summarizing all mods for the readme header badge.
+export function overallBadge(statuses) {
+  const total = statuses.length;
+  const passing = statuses.filter((s) => s.status === "passing").length;
+  const failing = statuses.filter((s) => s.status === "failing").length;
+  let color = "brightgreen";
+  if (failing > 0) color = "red";
+  else if (passing < total) color = "yellow";
+  return {
+    schemaVersion: 1,
+    label: "daily mods test",
+    message: total ? `${passing}/${total} mods passing` : "unknown",
+    color: total ? color : "lightgrey",
+  };
+}
+
+function packagesMarkdown(entry) {
+  if (!entry) return "–";
+  const list = Object.entries(entry.packages ?? {})
+    .map(([name, version]) => `\`${name} ${version}\``)
+    .join("<br>");
+  const date = entry.run_url ? `[${entry.date}](${entry.run_url})` : entry.date;
+  return list ? `${date}<br>${list}` : date;
+}
+
+export function reportMarkdown(statuses, generatedAt) {
+  const lines = [
+    "# PVE-mods compatibility report",
+    "",
+    "<!-- Generated by build/compat-status.mjs via the daily mods test workflow. Do not edit. -->",
+    "",
+    "Each mod's patches are tested daily against the latest Proxmox VE packages",
+    "from the `pve-no-subscription` repository. \"Packages\" lists the exact",
+    "versions of the packages the mod patches, as downloaded for that run.",
+    "",
+    `Last updated: ${generatedAt}`,
+    "",
+    "| Mod | Status | Last checked | Last passing | Failing since | Last failing |",
+    "|-----|--------|--------------|--------------|---------------|--------------|",
+  ];
+  for (const s of statuses) {
+    const checked = s.run_url ? `[${s.last_checked}](${s.run_url})` : s.last_checked;
+    lines.push(
+      `| \`${s.mod}\` | ${s.status} | ${checked} | ${packagesMarkdown(s.last_passing)} | ` +
+      `${s.failing_since ?? "–"} | ${packagesMarkdown(s.last_failing)} |`,
+    );
+  }
+  lines.push(
+    "",
+    "A failing mod means its patches no longer apply cleanly to the newest",
+    "Proxmox packages; a fix is tracked in an open",
+    "[patch-break issue](https://github.com/Meliox/PVE-mods/issues?q=is%3Aissue+is%3Aopen+label%3Apatch-break).",
+    "An unavailable mod means the last test run could not complete (for example",
+    "a package download failure), not that the mod is broken.",
+    "",
+  );
+  return lines.join("\n");
+}
+
+function readJsonFiles(dir) {
+  let names;
+  try {
+    names = readdirSync(dir).filter((n) => n.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  return names.map((n) => JSON.parse(readFileSync(join(dir, n), "utf8")));
+}
+
+export function aggregate(resultsDir, dataDir, generatedAt) {
+  const previous = new Map(readJsonFiles(join(dataDir, "status")).map((s) => [s.mod, s]));
+  const results = new Map(readJsonFiles(resultsDir).map((r) => [r.mod, r]));
+  const mods = [...new Set([...previous.keys(), ...results.keys()])].sort();
+
+  mkdirSync(join(dataDir, "status"), { recursive: true });
+  mkdirSync(join(dataDir, "badges"), { recursive: true });
+
+  const statuses = [];
+  for (const mod of mods) {
+    const merged = mergeStatus(previous.get(mod), results.get(mod));
+    statuses.push(merged);
+    writeFileSync(join(dataDir, "status", `${mod}.json`), JSON.stringify(merged, null, 2) + "\n");
+    writeFileSync(join(dataDir, "badges", `${mod}.json`), JSON.stringify(statusBadge(merged)) + "\n");
+    const perPackage = packageBadges(merged);
+    if (Object.keys(perPackage).length > 0) {
+      mkdirSync(join(dataDir, "badges", mod), { recursive: true });
+      for (const [name, badge] of Object.entries(perPackage)) {
+        writeFileSync(join(dataDir, "badges", mod, `${name}.json`), JSON.stringify(badge) + "\n");
+      }
+    }
+  }
+  writeFileSync(join(dataDir, "badges", "all.json"), JSON.stringify(overallBadge(statuses)) + "\n");
+  writeFileSync(join(dataDir, "report.md"), reportMarkdown(statuses, generatedAt));
+  return statuses;
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const opts = {};
+  for (let i = 0; i < args.length; i += 2) {
+    if (!["--results", "--data"].includes(args[i]) || !args[i + 1]) {
+      console.error("Usage: node build/compat-status.mjs --results <dir> --data <dir>");
+      process.exit(2);
+    }
+    opts[args[i].slice(2)] = args[i + 1];
+  }
+  if (!opts.results || !opts.data) {
+    console.error("Usage: node build/compat-status.mjs --results <dir> --data <dir>");
+    process.exit(2);
+  }
+  const statuses = aggregate(opts.results, opts.data, new Date().toISOString().replace(/\.\d+Z$/, "Z"));
+  for (const s of statuses) console.log(`${s.mod}: ${s.status}`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

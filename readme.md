@@ -1,4 +1,9 @@
 # PVE-mods
+
+[![Latest release](https://img.shields.io/github/v/release/Meliox/PVE-mods?label=release)](https://github.com/Meliox/PVE-mods/releases/latest)
+[![Daily mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fall.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)
+[![Downloads](https://img.shields.io/github/downloads/Meliox/PVE-mods/total)](https://github.com/Meliox/PVE-mods/releases)
+
 PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
 
 <p align="center">
@@ -36,13 +41,17 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
 
 Each mod is optional and enabled individually in `pve-mods-configure`. See the mod readmes for details and screenshots.
 
-| Mod | Description |
-|-----|-------------|
-| [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA/AMD), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. |
-| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. |
-| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. |
-| [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. |
-| [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. |
+The patches of every mod are tested daily against the latest Proxmox VE packages from the `pve-no-subscription` repository. The badges below update automatically; each package badge always shows the latest version of that Proxmox package the mod is known to work with. Full details, including failure history and test logs, are in the [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md).
+
+| Mod | Description | Daily mods test |
+|-----|-------------|------------------|
+| [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA/AMD), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info%2Fpve-manager.json) |
+| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![proxmox-widget-toolkit](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fproxmox-widget-toolkit.json)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-manager.json)<br>![pve-yew-mobile-gui](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-yew-mobile-gui.json) |
+| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access%2Fpve-manager.json) |
+| [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary%2Fpve-manager.json) |
+| [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search%2Fpve-manager.json) |
+
+A *failing* badge means the mod's patches no longer apply to the newest Proxmox packages; the fix is tracked in an open [patch-break issue](https://github.com/Meliox/PVE-mods/issues?q=is%3Aissue+is%3Aopen+label%3Apatch-break). While a mod is failing, its package badges keep showing the latest *working* versions; an orange badge marks a package that was since updated upstream - the likely cause of the break, with the newer version not working yet. An *unavailable* badge means the last test run could not complete (for example a repository outage), not that the mod is broken.
 
 Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
@@ -139,7 +148,7 @@ To fix it sooner:
 
 3. Select the module in `pve-mods-configure` and choose to retry it. Choose to disable it instead to stop the retries.
 
-If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
+If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check the daily [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md) for the mod's status and the last known-good package versions, check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
 
 #### Reverse proxy / CDN caching
 
