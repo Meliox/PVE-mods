@@ -36,13 +36,17 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
 
 Each mod is optional and enabled individually in `pve-mods-configure`. See the mod readmes for details and screenshots.
 
-| Mod | Description |
-|-----|-------------|
-| [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA/AMD), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. |
-| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. |
-| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. |
-| [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. |
-| [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. |
+The patches of every mod are tested daily against the latest Proxmox VE packages from the `pve-no-subscription` repository. The badges below update automatically; the *last passing* badge shows the newest versions of the patched packages that the mod is known to work with. Full details, including failure history and test logs, are in the [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md).
+
+| Mod | Description | Daily patch test |
+|-----|-------------|------------------|
+| [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA/AMD), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. | [![patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![last passing](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info-packages.json) |
+| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | [![patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![last passing](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen-packages.json) |
+| [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. | [![patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![last passing](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access-packages.json) |
+| [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. | [![patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![last passing](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary-packages.json) |
+| [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. | [![patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![last passing](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search-packages.json) |
+
+A *failing* badge means the mod's patches no longer apply to the newest Proxmox packages; the fix is tracked in an open [patch-break issue](https://github.com/Meliox/PVE-mods/issues?q=is%3Aissue+is%3Aopen+label%3Apatch-break). An *unavailable* badge means the last test run could not complete (for example a repository outage), not that the mod is broken.
 
 Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
@@ -139,7 +143,7 @@ To fix it sooner:
 
 3. Select the module in `pve-mods-configure` and choose to retry it. Choose to disable it instead to stop the retries.
 
-If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
+If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check the daily [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md) for the mod's status and the last known-good package versions, check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
 
 #### Reverse proxy / CDN caching
 

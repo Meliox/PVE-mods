@@ -55,6 +55,12 @@ bash "$SCRIPT_DIR/report-patch-packages.sh" "$TMP_DIR/patches" "$TMP_DIR/package
 diff -u "$TMP_DIR/expected" "$TMP_DIR/actual"
 
 cat > "$TMP_DIR/expected" <<'EOF'
+{"proxmox-widget-toolkit": "5.2.13", "pve-manager": "1:9.2.28-1"}
+EOF
+bash "$SCRIPT_DIR/report-patch-packages.sh" "$TMP_DIR/patches" "$TMP_DIR/packages" json > "$TMP_DIR/actual"
+diff -u "$TMP_DIR/expected" "$TMP_DIR/actual"
+
+cat > "$TMP_DIR/expected" <<'EOF'
 - `/usr/share/perl5/PVE/API2/Nodes.pm`: `pve-manager` `1:9.2.28-1`
 - `/usr/share/pve-manager/js/pvemanagerlib.js`: `pve-manager` `1:9.2.28-1`
 EOF
