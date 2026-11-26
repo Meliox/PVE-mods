@@ -90,19 +90,26 @@ export function statusBadge(status) {
 
 // Shields.io endpoint JSON per patched package, keyed by full package name:
 // label is the shortened package name, message the last passing version.
-// The package set is the union of last passing and last failing/current
-// packages, so badge files exist even for mods that have never passed.
+// While the mod is failing, a package whose version changed since the last
+// pass is coloured orange to flag the likely culprit. The package set is the
+// union of last passing and last failing/current packages, so badge files
+// exist even for mods that have never passed.
 export function packageBadges(status) {
   const passing = status?.last_passing?.packages ?? {};
-  const known = { ...status?.last_failing?.packages, ...passing };
+  const failing = status?.last_failing?.packages ?? {};
+  const known = { ...failing, ...passing };
   const badges = {};
   for (const name of Object.keys(known)) {
     const version = passing[name];
+    let color = version ? "blue" : "lightgrey";
+    if (version && status?.status === "failing" && failing[name] && failing[name] !== version) {
+      color = "orange";
+    }
     badges[name] = {
       schemaVersion: 1,
       label: name.replace(/^proxmox-/, "").replace(/-perl$/, ""),
       message: version ? version.replace(/^\d+:/, "") : "unknown",
-      color: version ? "blue" : "lightgrey",
+      color,
     };
   }
   return badges;

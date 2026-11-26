@@ -101,6 +101,24 @@ test("badges reflect status and shorten package names", () => {
   });
 });
 
+test("package badges flag upstream-updated packages while failing", () => {
+  const passed = mergeStatus(undefined, result("pass", { date: "2026-11-25", packages: PKGS_OLD }));
+  const failed = mergeStatus(passed, result("fail"));
+  const badges = packageBadges(failed);
+  // Both packages changed between the pass and the failure -> orange.
+  assert.equal(badges["pve-manager"].color, "orange");
+  assert.equal(badges["pve-manager"].message, "9.2.4-1");
+  // A package that did not change stays blue.
+  const partialFail = mergeStatus(
+    passed,
+    result("fail", { packages: { ...PKGS_NEW, "proxmox-widget-toolkit": PKGS_OLD["proxmox-widget-toolkit"] } }),
+  );
+  assert.equal(packageBadges(partialFail)["proxmox-widget-toolkit"].color, "blue");
+  assert.equal(packageBadges(partialFail)["pve-manager"].color, "orange");
+  // Back to passing -> blue again.
+  assert.equal(packageBadges(mergeStatus(failed, result("pass")))["pve-manager"].color, "blue");
+});
+
 test("aggregate writes status, badges and report for all known mods", () => {
   const dir = mkdtempSync(join(tmpdir(), "compat-status-"));
   try {
