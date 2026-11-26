@@ -1,7 +1,7 @@
 --- a/usr/share/pve-manager/js/pvemanagerlib.js
 +++ b/usr/share/pve-manager/js/pvemanagerlib.js
-@@ -50737,175 +50737,181 @@
-         me.reload();
+@@ -56012,175 +56012,181 @@
+         });
      },
  });
 -Ext.define('PVE.node.StatusView', {
@@ -350,7 +350,7 @@
  Ext.define('PVE.node.SubscriptionKeyEdit', {
      extend: 'Proxmox.window.Edit',
  
-@@ -51112,333 +51118,333 @@
+@@ -56409,333 +56415,333 @@
          me.callParent();
      },
  });

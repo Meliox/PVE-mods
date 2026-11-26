@@ -1,7 +1,6 @@
 --- /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.orig	2026-08-23 01:17:11.563403975 +0200
 +++ /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js	2026-08-23 01:19:00.972084488 +0200
-@@ -612,37 +612,8 @@
-             ),
+@@ -646,35 +646,6 @@
  
          checked_command: function (orig_cmd) {
 -            Proxmox.Utils.API2Request({
@@ -39,4 +38,3 @@
 +            orig_cmd();
          },
  
-         assemble_field_data: function (values, data) {

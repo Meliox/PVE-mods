@@ -5,9 +5,9 @@
              { name => 'rrd' }, # fixme: remove?
              { name => 'rrddata' },
 +            { name => 'gpurrddata' },
+             { name => 'san' },
              { name => 'scan' },
              { name => 'sdn' },
-             { name => 'services' },
 @@ -879,6 +880,58 @@
          );
      },
