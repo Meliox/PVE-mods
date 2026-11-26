@@ -36,7 +36,7 @@ PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) 
 
 ## Available mods
 
-Each mod is optional and is enabled and configured individually through `pve-mods-configure`. The table below summarizes what each mod does; see the linked mod readmes for full details, configuration options and screenshots.
+PVE-mods ships with a collection of mods, each of which is optional and is enabled and configured individually through `pve-mods-configure`. The table below summarizes what each mod does; see the linked mod readmes for full details, configuration options and screenshots.
 
 **Compatibility:** Development targets the latest Proxmox VE release. Every mod's patches are verified daily against the newest packages from the `pve-no-subscription` repository, and the badges below reflect the latest results: the status badge indicates whether the mod currently applies cleanly, and the package badges show the most recent version of each patched Proxmox package the mod is confirmed to work with. The full history, including failure details and test logs, is available in the [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md).
 
