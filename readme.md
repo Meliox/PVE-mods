@@ -5,7 +5,8 @@
 [![Downloads](https://img.shields.io/github/downloads/Meliox/PVE-mods/total)](https://github.com/Meliox/PVE-mods/releases)
 
 PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
-Compatibility: Development targets the latest Proxmox VE packages, and the badges in [Available mods](#available-mods) show the exact package versions each mod is known to work with.
+
+
 <p align="center">
   <a href="images/proxmox-node-overview.png">
     <img src="images/proxmox-node-overview-small.png" alt="PVE-mods node summary on a simulated Proxmox VE node">
@@ -13,8 +14,6 @@ Compatibility: Development targets the latest Proxmox VE packages, and the badge
   <br>
   <em>Click the image to view it in full size.</em>
 </p>
-
-
 
 ## Table of contents
 
@@ -37,9 +36,9 @@ Compatibility: Development targets the latest Proxmox VE packages, and the badge
 
 ## Available mods
 
-Each mod is optional and enabled individually in `pve-mods-configure`. See the mod readmes for details and screenshots.
+Each mod is optional and is enabled and configured individually through `pve-mods-configure`. The table below summarizes what each mod does; see the linked mod readmes for full details, configuration options and screenshots.
 
-The patches of every mod are tested daily against the latest Proxmox VE packages from the `pve-no-subscription` repository. The badges below update automatically; each package badge always shows the latest version of that Proxmox package the mod is known to work with. Full details, including failure history and test logs, are in the [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md).
+**Compatibility:** Development targets the latest Proxmox VE release. Every mod's patches are verified daily against the newest packages from the `pve-no-subscription` repository, and the badges below reflect the latest results: the status badge indicates whether the mod currently applies cleanly, and the package badges show the most recent version of each patched Proxmox package the mod is confirmed to work with. The full history, including failure details and test logs, is available in the [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md).
 
 | Mod | Description | Daily mods test |
 |-----|-------------|------------------|
