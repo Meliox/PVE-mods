@@ -1,4 +1,4 @@
-name: Test Patches - Daily
+name: Test Mods - Daily
 
 # Daily regression test of pve-mods against the latest upstream Proxmox VE files.
 # Mods are auto-discovered from the [modules] section of src/pve-mods.conf and
@@ -179,7 +179,7 @@ jobs:
         run: |
           TITLE="[patch-break] ${MOD}"
           {
-            echo "The daily patch test failed for mod \`${MOD}\` against the latest Proxmox VE files."
+            echo "The daily mods test failed for mod \`${MOD}\` against the latest Proxmox VE files."
             echo ""
             echo "**Patch target packages:**"
             if [[ -s "$RUNNER_TEMP/patch-packages.md" ]]; then

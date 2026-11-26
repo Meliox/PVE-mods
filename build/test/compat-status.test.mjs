@@ -82,7 +82,7 @@ test("badges reflect status and shorten package names", () => {
   const failing = mergeStatus(undefined, result("fail"));
   assert.deepEqual(statusBadge(failing), {
     schemaVersion: 1,
-    label: "patch test",
+    label: "mods test",
     message: "failing since 2026-11-26",
     color: "red",
   });
@@ -126,7 +126,7 @@ test("overall badge summarizes all mods", () => {
   const unavailable = { status: "unavailable" };
   assert.deepEqual(overallBadge([pass, pass]), {
     schemaVersion: 1,
-    label: "daily patch test",
+    label: "daily mods test",
     message: "2/2 mods passing",
     color: "brightgreen",
   });
