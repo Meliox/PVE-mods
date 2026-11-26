@@ -10,8 +10,7 @@ import { tmpdir } from "node:os";
 import {
   aggregate,
   mergeStatus,
-  packagesBadge,
-  shortPackageList,
+  packageBadges,
   statusBadge,
 } from "../compat-status.mjs";
 
@@ -89,14 +88,17 @@ test("badges reflect status and shorten package names", () => {
   assert.equal(statusBadge(mergeStatus(undefined, result("pass"))).color, "brightgreen");
   assert.equal(statusBadge(undefined).message, "unknown");
 
-  assert.equal(shortPackageList(PKGS_NEW), "pve-manager 9.2.5-1, widget-toolkit 5.1.4");
-  assert.deepEqual(packagesBadge(mergeStatus(undefined, result("pass"))), {
-    schemaVersion: 1,
-    label: "last passing",
-    message: "pve-manager 9.2.5-1, widget-toolkit 5.1.4",
-    color: "blue",
+  assert.deepEqual(packageBadges(mergeStatus(undefined, result("pass"))), {
+    "pve-manager": { schemaVersion: 1, label: "pve-manager", message: "9.2.5-1", color: "blue" },
+    "proxmox-widget-toolkit": { schemaVersion: 1, label: "widget-toolkit", message: "5.1.4", color: "blue" },
   });
-  assert.equal(packagesBadge(failing).message, "none yet");
+  // Never passed: packages known from the failing run, versions unknown.
+  assert.deepEqual(packageBadges(failing)["pve-manager"], {
+    schemaVersion: 1,
+    label: "pve-manager",
+    message: "unknown",
+    color: "lightgrey",
+  });
 });
 
 test("aggregate writes status, badges and report for all known mods", () => {
@@ -122,6 +124,8 @@ test("aggregate writes status, badges and report for all known mods", () => {
 
     const badge = JSON.parse(readFileSync(join(dataDir, "badges", "node_info.json"), "utf8"));
     assert.equal(badge.message, "failing since 2026-11-26");
+    const pkgBadge = JSON.parse(readFileSync(join(dataDir, "badges", "node_info", "pve-manager.json"), "utf8"));
+    assert.equal(pkgBadge.message, "unknown");
     const persisted = JSON.parse(readFileSync(join(dataDir, "status", "node_info.json"), "utf8"));
     assert.equal(persisted.last_failing.date, "2026-11-26");
 

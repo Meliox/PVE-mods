@@ -31,17 +31,6 @@ const BADGE_COLORS = {
   unavailable: "lightgrey",
 };
 
-// Shorten package names and versions for badge messages.
-export function shortPackageList(packages) {
-  return Object.entries(packages ?? {})
-    .map(([name, version]) => {
-      const shortName = name.replace(/^proxmox-/, "").replace(/-perl$/, "");
-      const shortVersion = version.replace(/^\d+:/, "");
-      return `${shortName} ${shortVersion}`;
-    })
-    .join(", ");
-}
-
 // Merge one result into the previous persisted status of the same mod.
 // Either argument may be undefined.
 export function mergeStatus(previous, result) {
@@ -99,15 +88,24 @@ export function statusBadge(status) {
   };
 }
 
-// Shields.io endpoint JSON for the "last passing" package versions badge.
-export function packagesBadge(status) {
-  const list = shortPackageList(status?.last_passing?.packages);
-  return {
-    schemaVersion: 1,
-    label: "last passing",
-    message: list || "none yet",
-    color: list ? "blue" : "lightgrey",
-  };
+// Shields.io endpoint JSON per patched package, keyed by full package name:
+// label is the shortened package name, message the last passing version.
+// The package set is the union of last passing and last failing/current
+// packages, so badge files exist even for mods that have never passed.
+export function packageBadges(status) {
+  const passing = status?.last_passing?.packages ?? {};
+  const known = { ...status?.last_failing?.packages, ...passing };
+  const badges = {};
+  for (const name of Object.keys(known)) {
+    const version = passing[name];
+    badges[name] = {
+      schemaVersion: 1,
+      label: name.replace(/^proxmox-/, "").replace(/-perl$/, ""),
+      message: version ? version.replace(/^\d+:/, "") : "unknown",
+      color: version ? "blue" : "lightgrey",
+    };
+  }
+  return badges;
 }
 
 function packagesMarkdown(entry) {
@@ -177,7 +175,13 @@ export function aggregate(resultsDir, dataDir, generatedAt) {
     statuses.push(merged);
     writeFileSync(join(dataDir, "status", `${mod}.json`), JSON.stringify(merged, null, 2) + "\n");
     writeFileSync(join(dataDir, "badges", `${mod}.json`), JSON.stringify(statusBadge(merged)) + "\n");
-    writeFileSync(join(dataDir, "badges", `${mod}-packages.json`), JSON.stringify(packagesBadge(merged)) + "\n");
+    const perPackage = packageBadges(merged);
+    if (Object.keys(perPackage).length > 0) {
+      mkdirSync(join(dataDir, "badges", mod), { recursive: true });
+      for (const [name, badge] of Object.entries(perPackage)) {
+        writeFileSync(join(dataDir, "badges", mod, `${name}.json`), JSON.stringify(badge) + "\n");
+      }
+    }
   }
   writeFileSync(join(dataDir, "report.md"), reportMarkdown(statuses, generatedAt));
   return statuses;
