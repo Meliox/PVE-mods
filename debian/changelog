@@ -1,3 +1,9 @@
+pve-mods (2.2.4) stable; urgency=low
+
+  * 111921c fix(node_info, nag_screen, node_search): support pve-manager 9.3.1 and proxmox-widget-toolkit 5.2.23 (#481) by @ccooss
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Thu, 26 Nov 2026 07:59:18 +0000
+
 pve-mods (2.2.3) stable; urgency=low
 
   * fcc1ae2 fix(debian): Change GUI upgrade interruptions with graceful service reloads (#474) by @Meliox
