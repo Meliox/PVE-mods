@@ -115,6 +115,22 @@ export function packageBadges(status) {
   return badges;
 }
 
+// Shields.io endpoint JSON summarizing all mods for the readme header badge.
+export function overallBadge(statuses) {
+  const total = statuses.length;
+  const passing = statuses.filter((s) => s.status === "passing").length;
+  const failing = statuses.filter((s) => s.status === "failing").length;
+  let color = "brightgreen";
+  if (failing > 0) color = "red";
+  else if (passing < total) color = "yellow";
+  return {
+    schemaVersion: 1,
+    label: "daily patch test",
+    message: total ? `${passing}/${total} mods passing` : "unknown",
+    color: total ? color : "lightgrey",
+  };
+}
+
 function packagesMarkdown(entry) {
   if (!entry) return "–";
   const list = Object.entries(entry.packages ?? {})
@@ -190,6 +206,7 @@ export function aggregate(resultsDir, dataDir, generatedAt) {
       }
     }
   }
+  writeFileSync(join(dataDir, "badges", "all.json"), JSON.stringify(overallBadge(statuses)) + "\n");
   writeFileSync(join(dataDir, "report.md"), reportMarkdown(statuses, generatedAt));
   return statuses;
 }

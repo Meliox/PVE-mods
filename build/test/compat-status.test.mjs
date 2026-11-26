@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import {
   aggregate,
   mergeStatus,
+  overallBadge,
   packageBadges,
   statusBadge,
 } from "../compat-status.mjs";
@@ -119,6 +120,22 @@ test("package badges flag upstream-updated packages while failing", () => {
   assert.equal(packageBadges(mergeStatus(failed, result("pass")))["pve-manager"].color, "blue");
 });
 
+test("overall badge summarizes all mods", () => {
+  const pass = { status: "passing" };
+  const fail = { status: "failing" };
+  const unavailable = { status: "unavailable" };
+  assert.deepEqual(overallBadge([pass, pass]), {
+    schemaVersion: 1,
+    label: "daily patch test",
+    message: "2/2 mods passing",
+    color: "brightgreen",
+  });
+  assert.equal(overallBadge([pass, fail, pass]).color, "red");
+  assert.equal(overallBadge([pass, fail, pass]).message, "2/3 mods passing");
+  assert.equal(overallBadge([pass, unavailable]).color, "yellow");
+  assert.equal(overallBadge([]).message, "unknown");
+});
+
 test("aggregate writes status, badges and report for all known mods", () => {
   const dir = mkdtempSync(join(tmpdir(), "compat-status-"));
   try {
@@ -144,6 +161,8 @@ test("aggregate writes status, badges and report for all known mods", () => {
     assert.equal(badge.message, "failing since 2026-11-26");
     const pkgBadge = JSON.parse(readFileSync(join(dataDir, "badges", "node_info", "pve-manager.json"), "utf8"));
     assert.equal(pkgBadge.message, "unknown");
+    const overall = JSON.parse(readFileSync(join(dataDir, "badges", "all.json"), "utf8"));
+    assert.deepEqual([overall.message, overall.color], ["1/2 mods passing", "red"]);
     const persisted = JSON.parse(readFileSync(join(dataDir, "status", "node_info.json"), "utf8"));
     assert.equal(persisted.last_failing.date, "2026-11-26");
 

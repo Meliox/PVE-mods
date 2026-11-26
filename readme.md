@@ -1,4 +1,9 @@
 # PVE-mods
+
+[![Latest release](https://img.shields.io/github/v/release/Meliox/PVE-mods?label=release)](https://github.com/Meliox/PVE-mods/releases/latest)
+[![Daily patch test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fall.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)
+[![Downloads](https://img.shields.io/github/downloads/Meliox/PVE-mods/total)](https://github.com/Meliox/PVE-mods/releases)
+
 PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
 
 <p align="center">
