@@ -14,7 +14,7 @@ PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) 
   <em>Click the image to view it in full size.</em>
 </p>
 
-Compatibility: PVE 9.2+ (some mods may work on older and some may require newer version of specific packages - generally combatibility is aimed towards newest and greatest due to security patching) 
+Compatibility: PVE 9.2+ - development targets the latest Proxmox VE packages, and the badges in [Available mods](#available-mods) show the exact package versions each mod is known to work with.
 
 All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
 
@@ -51,7 +51,7 @@ The patches of every mod are tested daily against the latest Proxmox VE packages
 | [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary%2Fpve-manager.json) |
 | [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search%2Fpve-manager.json) |
 
-A *failing* badge means the mod's patches no longer apply to the newest Proxmox packages; the fix is tracked in an open [patch-break issue](https://github.com/Meliox/PVE-mods/issues?q=is%3Aissue+is%3Aopen+label%3Apatch-break). While a mod is failing, its package badges keep showing the latest *working* versions; an orange badge marks a package that was since updated upstream - the likely cause of the break, with the newer version not working yet. An *unavailable* badge means the last test run could not complete (for example a repository outage), not that the mod is broken.
+A *failing* badge means the mod's patches no longer apply to the newest Proxmox packages; the fix is tracked in an open [patch-break issue](https://github.com/Meliox/PVE-mods/issues?q=is%3Aissue+is%3Aopen+label%3Apatch-break). The package badges keep showing the latest *working* versions, with an orange badge marking the package whose newer upstream version likely caused the break. An *unavailable* badge means the last test run could not complete (for example a repository outage), not that the mod is broken.
 
 Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
@@ -89,6 +89,7 @@ bash pve-mods-gui-sensors.sh uninstall
 The scripts are available in [legacy-scripts/](legacy-scripts/readme.md).
 
 #### Manual configuration changes
+
 Configuration files are located in `/etc/pve-mods/`. After any manual edits, gracefully reload `pveproxy` to apply the changes:
 
 ```bash
@@ -99,7 +100,7 @@ systemctl reload-or-try-restart pveproxy
 
 Upgrading Proxmox packages (e.g. `pve-manager`) can overwrite the patched files and remove the mods. Enable the "Auto re-patch on PVE upgrade" option in `pve-mods-configure` to have `pve-mods` re-apply the enabled patches automatically after such upgrades. Otherwise, run `pve-mods-configure` again after a PVE upgrade.
 
-If the patches of a mod are incompatible with the new PVE version, they are not applied: the mod is left unpatched (reverted to a clean state), a warning is printed, and the PVE upgrade itself is not blocked. Check for a newer `pve-mods` release that supports your PVE version, then run `pve-mods-configure` to apply the mod.
+If the patches of a mod are incompatible with the new PVE version, they are not applied: the mod is left unpatched (reverted to a clean state), a warning is printed, and the PVE upgrade itself is not blocked. See [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
 
 ### Upgrade
 
@@ -111,7 +112,7 @@ To upgrade to the latest release, run the installer as `root`. It downloads and 
 curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
 ```
 
-If a mod's patch no longer matches its file, the upgrade still completes and the mod is marked as incompatible (`2` in `pve-mods.conf`). It is re-tested after later updates. See [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
+If a mod's patch no longer matches its file, the upgrade still completes and the mod is marked as incompatible and re-tested after later updates - see [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
 
 ### Uninstall
 
