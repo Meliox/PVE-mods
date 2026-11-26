@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/github/downloads/Meliox/PVE-mods/total)](https://github.com/Meliox/PVE-mods/releases)
 
 PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) web interface with mods. Mods are enabled and configured through the interactive `pve-mods-configure` wizard.
-
+Compatibility: Development targets the latest Proxmox VE packages, and the badges in [Available mods](#available-mods) show the exact package versions each mod is known to work with.
 <p align="center">
   <a href="images/proxmox-node-overview.png">
     <img src="images/proxmox-node-overview-small.png" alt="PVE-mods node summary on a simulated Proxmox VE node">
@@ -14,9 +14,7 @@ PVE-mods is a Debian package that extends the Proxmox Virtual Environment (PVE) 
   <em>Click the image to view it in full size.</em>
 </p>
 
-Compatibility: PVE 9.2+ - development targets the latest Proxmox VE packages, and the badges in [Available mods](#available-mods) show the exact package versions each mod is known to work with.
 
-All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
 
 ## Table of contents
 
@@ -37,7 +35,7 @@ All commands in this document (install, configure, upgrade, uninstall) must be r
 
 > Looking for the old standalone bash scripts (v1)? They are archived, see the [legacy scripts readme](https://github.com/Meliox/PVE-mods/blob/e1c3eb0524fbb8ca940454aef3a51c0644a2d170/legacy-scripts/readme.md).
 
-### Available mods
+## Available mods
 
 Each mod is optional and enabled individually in `pve-mods-configure`. See the mod readmes for details and screenshots.
 
@@ -46,7 +44,7 @@ The patches of every mod are tested daily against the latest Proxmox VE packages
 | Mod | Description | Daily mods test |
 |-----|-------------|------------------|
 | [`node_info`](src/modules/node_info/readme.md) | Adds live hardware data to the node summary panel: CPU/NVMe/HDD/SSD/RAM temperatures, fan speeds, GPU stats and history graphs (Intel/NVIDIA/AMD), UPS status, ZFS/SMART storage health and system/motherboard info. Data is collected by a background daemon. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_info%2Fpve-manager.json) |
-| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![proxmox-widget-toolkit](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fproxmox-widget-toolkit.json)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-manager.json)<br>![pve-yew-mobile-gui](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-yew-mobile-gui.json) |
+| [`nag_screen`](src/modules/nag_screen/readme.md) | Removes the subscription nag screen from the PVE web UI, including the mobile UI. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![proxmox-widget-toolkit](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fproxmox-widget-toolkit.json)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-manager.json)<br>![pve-yew-mobile-gui](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnag_screen%2Fpve-yew-mobile-gui.json) |
 | [`oidc_console_access`](src/modules/oidc_console_access/readme.md) | Allows selected Proxmox groups, including OIDC-synced groups, to use the node Upgrade console and/or passwordless root Shell. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Foidc_console_access%2Fpve-manager.json) |
 | [`guest_summary`](src/modules/guest_summary/readme.md) | Merges the VM and LXC summary graphs into five charts: CPU and memory with Some/Full pressure, plus network, disk IO and IO pressure stall. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fguest_summary%2Fpve-manager.json) |
 | [`node_search`](src/modules/node_search/readme.md) | Adds guest IP/MAC addresses, hostname and OS to the resource lists and global Search, with address search, numeric IP sorting and result counts. | [![mods test](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search.json)](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md)<br>![pve-manager](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FMeliox%2FPVE-mods%2Fcompatibility-data%2Fbadges%2Fnode_search%2Fpve-manager.json) |
@@ -55,7 +53,7 @@ A *failing* badge means the mod's patches no longer apply to the newest Proxmox 
 
 Some mods need additional packages on the host. Required tools are listed in each mod's readme (for example [`node_info` requirements](src/modules/node_info/readme.md#requirements)).
 
-### How it works
+## How it works
 
 1. The `pve-mods` package installs the patch files and scripts under `/usr/lib/pve-mods/`.
 2. The main configuration file and per-mod settings are stored under `/etc/pve-mods/`.
@@ -64,7 +62,9 @@ Some mods need additional packages on the host. Required tools are listed in eac
 5. When upgrading `pve-mods`, the previous patches are reverted before package files are replaced, then the new version's patches are applied.
 6. Optionally, patches are re-applied automatically after a `pve-manager` upgrade (see [Re-applying patches after PVE upgrades](#re-applying-patches-after-pve-upgrades)).
 
-### Install
+All commands in this document (install, configure, upgrade, uninstall) must be run as `root` on the Proxmox VE host.
+
+## Install
 
 1. Install `pve-mods`. The installer downloads the latest release, verifies its checksum and asks for confirmation:
 
@@ -78,17 +78,17 @@ Some mods need additional packages on the host. Required tools are listed in eac
 
 For multiple nodes, install `pve-mods` on all nodes with identical configuration.
 
-#### Migrating from v1 (legacy scripts)
+### Migrating from v1 (legacy scripts)
 
 `pve-mods-configure` refuses to run if it detects a v1 script installation. Remove it first with the legacy script you installed, for example:
 
 ```bash
-bash pve-mods-gui-sensors.sh uninstall
+bash pve-mod-gui-sensors.sh uninstall
 ```
 
 The scripts are available in [legacy-scripts/](legacy-scripts/readme.md).
 
-#### Manual configuration changes
+### Manual configuration changes
 
 Configuration files are located in `/etc/pve-mods/`. After any manual edits, gracefully reload `pveproxy` to apply the changes:
 
@@ -96,17 +96,17 @@ Configuration files are located in `/etc/pve-mods/`. After any manual edits, gra
 systemctl reload-or-try-restart pveproxy
 ```
 
-#### Re-applying patches after PVE upgrades
+### Re-applying patches after PVE upgrades
 
 Upgrading Proxmox packages (e.g. `pve-manager`) can overwrite the patched files and remove the mods. Enable the "Auto re-patch on PVE upgrade" option in `pve-mods-configure` to have `pve-mods` re-apply the enabled patches automatically after such upgrades. Otherwise, run `pve-mods-configure` again after a PVE upgrade.
 
 If the patches of a mod are incompatible with the new PVE version, they are not applied: the mod is left unpatched (reverted to a clean state), a warning is printed, and the PVE upgrade itself is not blocked. See [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
 
-### Upgrade
+## Upgrade
 
 `pve-mods` follows [Semantic Versioning](https://semver.org/), using `MAJOR.MINOR.PATCH` version numbers. Major releases may include breaking changes. Before upgrading to a new major version, read its release notes and changelog so you can review those changes and any required migration steps. Minor releases add backward-compatible functionality, and patch releases contain backward-compatible fixes.
 
-To upgrade to the latest release, run the installer as `root`. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
+To upgrade to the latest release, run the installer. It downloads and verifies the release package, then installs it over the current version; you do not need to uninstall first.
 
 ```bash
 curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/install.sh | bash
@@ -114,7 +114,7 @@ curl -sL https://raw.githubusercontent.com/Meliox/PVE-mods/refs/heads/main/insta
 
 If a mod's patch no longer matches its file, the upgrade still completes and the mod is marked as incompatible and re-tested after later updates - see [A mod cannot be installed or upgraded](#a-mod-cannot-be-installed-or-upgraded).
 
-### Uninstall
+## Uninstall
 
 ```bash
 apt-get remove pve-mods
@@ -130,9 +130,9 @@ apt-get purge pve-mods
 
 Afterwards, remove the dependencies installed for the respective mods if no longer needed.
 
-### Notes
+## Notes
 
-#### A mod cannot be installed or upgraded
+### A mod cannot be installed or upgraded
 
 Mods work by patching Proxmox files. If a patch does not apply (when enabling a mod, after a Proxmox update, or during a `pve-mods` upgrade), either the file was changed by something other than `pve-mods` (another tweak script or a manual edit), or the patch is not compatible with the installed Proxmox version. The warning lists the affected file, the failing hunk and the package that owns the file.
 
@@ -147,11 +147,11 @@ To fix it sooner:
    apt reinstall proxmox-widget-toolkit
    ```
 
-3. Select the module in `pve-mods-configure` and choose to retry it. Choose to disable it instead to stop the retries.
+3. Select the mod in `pve-mods-configure` and choose to retry it. Choose to disable it instead to stop the retries.
 
 If the patch still fails on a freshly reinstalled file, it is not compatible with the installed Proxmox version yet. Check the daily [compatibility report](https://github.com/Meliox/PVE-mods/blob/compatibility-data/report.md) for the mod's status and the last known-good package versions, check for a newer `pve-mods` release, or report it through a [GitHub issue](https://github.com/Meliox/PVE-mods/issues) with your PVE and `pve-mods` versions.
 
-#### Reverse proxy / CDN caching
+### Reverse proxy / CDN caching
 
 If mod details appear when accessing a node directly but not through a reverse proxy or CDN, it may be serving a cached, unpatched `pvemanagerlib.js`. Its URL version may not change when the file is patched, so purge the cache for Proxmox JavaScript assets (such as `/pve2/js/`), disable asset caching for the PVE host, and hard-refresh the browser. After a Proxmox update, reapply the mod and purge the proxy/CDN cache again.
 
@@ -167,7 +167,7 @@ If mod details appear when accessing a node directly but not through a reverse p
 
 If you find this helpful, a small donation is appreciated:
 
-Paypal: [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W)
+PayPal: [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=K8XPMSEBERH3W)
 
 Bitcoin (BTC): `16hg7syEJ3HkSP1PAANkpSW6pZ4vCdvUnK`
 
