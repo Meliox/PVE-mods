@@ -22,8 +22,13 @@ curl -fsSL https://pve-mods-apt.meliox.workers.dev/pve-mods.gpg \
   -o /etc/apt/keyrings/pve-mods.gpg
 chmod 0644 /etc/apt/keyrings/pve-mods.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev stable main" \
-  > /etc/apt/sources.list.d/pve-mods.list
+cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
+Types: deb
+URIs: https://pve-mods-apt.meliox.workers.dev
+Suites: stable
+Components: main
+Signed-By: /etc/apt/keyrings/pve-mods.gpg
+EOF
 
 apt update
 apt install pve-mods
@@ -35,8 +40,13 @@ apt install pve-mods
     signing key above, replace the stable source with testing to opt in:</p>
 
   <pre>
-echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev testing main" \
-  > /etc/apt/sources.list.d/pve-mods.list
+cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
+Types: deb
+URIs: https://pve-mods-apt.meliox.workers.dev
+Suites: testing
+Components: main
+Signed-By: /etc/apt/keyrings/pve-mods.gpg
+EOF
 
 apt update
 apt install pve-mods

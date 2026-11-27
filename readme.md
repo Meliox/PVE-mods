@@ -87,8 +87,13 @@ curl -fsSL https://pve-mods-apt.meliox.workers.dev/pve-mods.gpg \
   -o /etc/apt/keyrings/pve-mods.gpg
 chmod 0644 /etc/apt/keyrings/pve-mods.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev stable main" \
-  > /etc/apt/sources.list.d/pve-mods.list
+cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
+Types: deb
+URIs: https://pve-mods-apt.meliox.workers.dev
+Suites: stable
+Components: main
+Signed-By: /etc/apt/keyrings/pve-mods.gpg
+EOF
 
 apt update
 apt install pve-mods
@@ -160,8 +165,13 @@ If a mod's patch no longer matches its file, the upgrade still completes and the
 The testing channel contains published prereleases and is for trying changes before they reach stable. After installing the signing key as described in [Option A](#option-a-apt-repository), replace the stable source:
 
 ```bash
-echo "deb [signed-by=/etc/apt/keyrings/pve-mods.gpg] https://pve-mods-apt.meliox.workers.dev testing main" \
-  > /etc/apt/sources.list.d/pve-mods.list
+cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
+Types: deb
+URIs: https://pve-mods-apt.meliox.workers.dev
+Suites: testing
+Components: main
+Signed-By: /etc/apt/keyrings/pve-mods.gpg
+EOF
 
 apt update
 apt install pve-mods
@@ -205,7 +215,7 @@ apt-get purge pve-mods
 Afterwards, remove the dependencies installed for the respective mods if no longer needed. If you added the APT repository, also remove its source and key:
 
 ```bash
-rm /etc/apt/sources.list.d/pve-mods.list /etc/apt/keyrings/pve-mods.gpg
+rm /etc/apt/sources.list.d/pve-mods.sources /etc/apt/keyrings/pve-mods.gpg
 apt update
 ```
 
