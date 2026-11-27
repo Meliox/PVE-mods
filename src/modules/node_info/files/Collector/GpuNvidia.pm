@@ -7,7 +7,7 @@ use Exporter 'import';
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
 use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json parse_csv_line);
-use PVE::PVEMods::Store  qw(update_nvidia_gpu_rrd gpu_history_id);
+use PVE::PVEMods::Store  qw(update_gpu_rrd flush_gpu_rrds gpu_history_id);
 
 our @EXPORT_OK = qw(
     get_nvidia_gpu_devices
@@ -191,7 +191,7 @@ sub _get_and_write_nvidia_stats {
         };
 
         safe_write_json($device_state_file, $device_data);
-        update_nvidia_gpu_rrd($history_id, $stats);
+        update_gpu_rrd(nvidia => $history_id, $stats);
     }
 
     unless (@all_stats) {
@@ -220,6 +220,7 @@ sub collector_for_nvidia_devices {
         sleep $config{intervals}{data_pull} unless $shutdown;
     }
 
+    flush_gpu_rrds();
     debug(__LINE__, "NVIDIA collector shutting down");
     POSIX::_exit(0);
 }

@@ -8,16 +8,16 @@ use File::Path qw(make_path);
 use PVE::INotify;
 use RRDs;
 
-use PVE::PVEMods::Config qw(%config $RRD_SOCKET $RRD_BASE);
+use PVE::PVEMods::Config qw(%config $RRD_BASE);
 use PVE::PVEMods::Utils  qw(debug);
 
 our @EXPORT_OK = qw(
     get_nodename
     gpu_history_id
     gpu_rrd_path
-    update_intel_gpu_rrd
-    update_nvidia_gpu_rrd
-    update_amd_gpu_rrd
+    update_gpu_rrd
+    flush_gpu_rrds
+    read_gpu_rrd_data
 );
 
 # ============================================================================
@@ -52,171 +52,222 @@ sub gpu_rrd_path {
 }
 
 # ============================================================================
-# Intel GPU RRD
+# GPU RRD schemas
 # ============================================================================
 
-sub _ensure_intel_gpu_rrd {
-    return unless $config{gpu}{gpu_history};
+# One schema per vendor: RRD data source name, minimum, maximum, and where the
+# collector publishes the value in its stats hash. All vendors share the same
+# step and archives, so a single code path creates, updates and reads every
+# GPU history file.
+my %gpu_rrd_schemas = (
+    intel => {
+        label  => 'Intel GPU',
+        fields => [
+            # name             min  max   location in $stats
+            ['freq_req',       0,   'U',  'frequency', 'requested'],
+            ['freq_act',       0,   'U',  'frequency', 'actual'],
+            ['rc6',            0,   100,  'rc6', 'value'],
+            ['power_gpu',      0,   'U',  'power', 'GPU'],
+            ['power_pkg',      0,   'U',  'power', 'Package'],
+            ['render_busy',    0,   100,  'engines', 'Render/3D', 'busy'],
+            ['blitter_busy',   0,   100,  'engines', 'Blitter', 'busy'],
+            ['video_busy',     0,   100,  'engines', 'Video', 'busy'],
+            ['videnh_busy',    0,   100,  'engines', 'VideoEnhance', 'busy'],
+        ],
+    },
+    nvidia => {
+        label  => 'NVIDIA GPU',
+        fields => [
+            ['gpu_util',       0,   100,  'utilization', 'gpu'],
+            ['mem_util',       0,   100,  'utilization', 'memory'],
+            ['mem_used',       0,   'U',  'memory', 'used'],
+            ['mem_total',      0,   'U',  'memory', 'total'],
+            ['power_draw',     0,   'U',  'power', 'draw'],
+            ['power_limit',    0,   'U',  'power', 'limit'],
+            ['temp_gpu',       0,   'U',  'temperature', 'gpu'],
+            ['fan_speed',      0,   100,  'fan', 'speed'],
+        ],
+    },
+    amd => {
+        label  => 'AMD GPU',
+        fields => [
+            ['gpu_util',       0,   100,  'utilization', 'gpu'],
+            ['mem_util',       0,   100,  'utilization', 'memory'],
+            ['mem_used',       0,   'U',  'memory', 'used'],
+            ['mem_total',      0,   'U',  'memory', 'total'],
+            ['gtt_used',       0,   'U',  'gtt', 'used'],
+            ['gtt_total',      0,   'U',  'gtt', 'total'],
+            ['freq_act',       0,   'U',  'frequency', 'actual'],
+            ['power_draw',     0,   'U',  'power', 'draw'],
+            ['temp_gpu',       'U', 'U',  'temperature', 'gpu'],
+            ['fan_rpm',        0,   'U',  'fan', 'speed'],
+        ],
+    },
+);
 
-    my ($id) = @_;
-    my $path = gpu_rrd_path($id);
-    return if -f $path;
+my @gpu_rrd_archives = map {
+    my $cf = $_;
+    map { "RRA:$cf:0.5:$_" } qw(1:1440 60:1440 1800:1440 21600:1464 604800:520)
+} qw(AVERAGE MAX);
+
+# ============================================================================
+# GPU RRD writer
+# ============================================================================
+
+# The history files are owned by www-data and accessed directly. rrdcached's
+# socket is root-only on Proxmox, so it cannot be used from here, and mixing
+# cached and direct access to the same file could lose pending updates.
+#
+# Samples are buffered in the collector and flushed on a later sample or when
+# the collector exits. This reduces disk writes at the cost of graph latency.
+my %rrd_buffer;   # path => { label => ..., samples => [...], first => ts }
+my %rrd_last_ts;  # path => newest queued timestamp, survives flushes
+my %rrd_failed;   # path => 1 after a warned-about failure, to log only once
+my %rrd_clock_warning;
+
+sub _now { return time(); }
+
+sub _ensure_gpu_rrd {
+    my ($schema, $path, $now) = @_;
+    return 1 if -f $path;
 
     my $dir = "$RRD_BASE/" . get_nodename();
     make_path($dir, { mode => 0755 }) unless -d $dir;
 
     RRDs::create(
         $path,
+        '--start', $now - 1,
         '--step', '1',
-        'DS:freq_req:GAUGE:120:0:U',
-        'DS:freq_act:GAUGE:120:0:U',
-        'DS:rc6:GAUGE:120:0:100',
-        'DS:power_gpu:GAUGE:120:0:U',
-        'DS:power_pkg:GAUGE:120:0:U',
-        'DS:render_busy:GAUGE:120:0:100',
-        'DS:blitter_busy:GAUGE:120:0:100',
-        'DS:video_busy:GAUGE:120:0:100',
-        'DS:videnh_busy:GAUGE:120:0:100',
-        'RRA:AVERAGE:0.5:1:1440',
-        'RRA:AVERAGE:0.5:60:1440',
-        'RRA:AVERAGE:0.5:1800:1440',
-        'RRA:AVERAGE:0.5:21600:1464',
-        'RRA:AVERAGE:0.5:604800:520',
-        'RRA:MAX:0.5:1:1440',
-        'RRA:MAX:0.5:60:1440',
-        'RRA:MAX:0.5:1800:1440',
-        'RRA:MAX:0.5:21600:1464',
-        'RRA:MAX:0.5:604800:520',
+        (map { "DS:$_->[0]:GAUGE:120:$_->[1]:$_->[2]" } @{ $schema->{fields} }),
+        @gpu_rrd_archives,
     );
-    my $err = RRDs::error();
-    debug(__LINE__, "Created Intel GPU RRD $path: " . ($err // 'OK'));
+    if (my $err = RRDs::error()) {
+        warn "$schema->{label}: cannot create RRD $path: $err\n" unless $rrd_failed{$path}++;
+        return 0;
+    }
+    debug(__LINE__, "Created $schema->{label} RRD $path");
+    return 1;
 }
 
-sub update_intel_gpu_rrd {
-    my ($id, $stats) = @_;
-    return unless $config{gpu}{gpu_history};
-
-    _ensure_intel_gpu_rrd($id);
-    my $path = gpu_rrd_path($id);
-
-    my $freq_req    = $stats->{frequency}{requested}        // 'U';
-    my $freq_act    = $stats->{frequency}{actual}           // 'U';
-    my $rc6         = $stats->{rc6}{value}                  // 'U';
-    my $power_gpu   = $stats->{power}{GPU}                  // 'U';
-    my $power_pkg   = $stats->{power}{Package}              // 'U';
-    my $render_busy = $stats->{engines}{'Render/3D'}{busy}  // 'U';
-    my $blitter     = $stats->{engines}{Blitter}{busy}      // 'U';
-    my $video       = $stats->{engines}{Video}{busy}        // 'U';
-    my $videnh      = $stats->{engines}{VideoEnhance}{busy} // 'U';
-
-    my @daemon_args = (-S $RRD_SOCKET) ? ('--daemon', "unix:$RRD_SOCKET") : ();
-    RRDs::update(
-        $path,
-        @daemon_args,
-        "N:$freq_req:$freq_act:$rc6:$power_gpu:$power_pkg:$render_busy:$blitter:$video:$videnh",
-    );
-    my $err = RRDs::error();
-    debug(__LINE__, "RRD update intel $id: $err") if $err;
+# Walks the stats hash without autovivifying missing branches.
+sub _stats_value {
+    my ($stats, @keys) = @_;
+    my $node = $stats;
+    for my $key (@keys) {
+        return undef unless ref($node) eq 'HASH';
+        $node = $node->{$key};
+    }
+    return $node;
 }
 
-# ============================================================================
-# NVIDIA GPU RRD
-# ============================================================================
+sub _flush_rrd {
+    my ($path) = @_;
+    my $buf = delete $rrd_buffer{$path} or return;
 
-sub _ensure_nvidia_gpu_rrd {
-    return unless $config{gpu}{gpu_history};
-
-    my ($id) = @_;
-    my $path = gpu_rrd_path($id);
-    return if -f $path;
-
-    my $dir = "$RRD_BASE/" . get_nodename();
-    make_path($dir, { mode => 0755 }) unless -d $dir;
-
-    RRDs::create(
-        $path,
-        '--step', '1',
-        'DS:gpu_util:GAUGE:120:0:100',
-        'DS:mem_util:GAUGE:120:0:100',
-        'DS:mem_used:GAUGE:120:0:U',
-        'DS:mem_total:GAUGE:120:0:U',
-        'DS:power_draw:GAUGE:120:0:U',
-        'DS:power_limit:GAUGE:120:0:U',
-        'DS:temp_gpu:GAUGE:120:0:U',
-        'DS:fan_speed:GAUGE:120:0:100',
-        'RRA:AVERAGE:0.5:1:1440',
-        'RRA:AVERAGE:0.5:60:1440',
-        'RRA:AVERAGE:0.5:1800:1440',
-        'RRA:AVERAGE:0.5:21600:1464',
-        'RRA:AVERAGE:0.5:604800:520',
-        'RRA:MAX:0.5:1:1440',
-        'RRA:MAX:0.5:60:1440',
-        'RRA:MAX:0.5:1800:1440',
-        'RRA:MAX:0.5:21600:1464',
-        'RRA:MAX:0.5:604800:520',
-    );
-    my $err = RRDs::error();
-    debug(__LINE__, "Created NVIDIA GPU RRD $path: " . ($err // 'OK'));
+    RRDs::update($path, @{ $buf->{samples} });
+    if (my $err = RRDs::error()) {
+        warn "$buf->{label}: cannot update RRD $path; buffered samples may be lost: $err\n"
+            unless $rrd_failed{$path}++;
+        return;
+    }
+    warn "$buf->{label}: RRD $path recovered, history recording resumed\n"
+        if delete $rrd_failed{$path};
 }
 
-sub update_nvidia_gpu_rrd {
-    my ($id, $stats) = @_;
+sub update_gpu_rrd {
+    my ($vendor, $id, $stats) = @_;
     return unless $config{gpu}{gpu_history};
 
-    _ensure_nvidia_gpu_rrd($id);
+    # RRDs also uses rrdcached implicitly when this environment variable is set.
+    local $ENV{RRDCACHED_ADDRESS};
+    delete $ENV{RRDCACHED_ADDRESS};
+    my $schema = $gpu_rrd_schemas{$vendor} or die "unknown GPU vendor '$vendor'\n";
     my $path = gpu_rrd_path($id);
+    my $now = _now();
+    return unless _ensure_gpu_rrd($schema, $path, $now);
 
-    my $gpu_util    = $stats->{utilization}{gpu}    // 'U';
-    my $mem_util    = $stats->{utilization}{memory} // 'U';
-    my $mem_used    = $stats->{memory}{used}        // 'U';
-    my $mem_total   = $stats->{memory}{total}       // 'U';
-    my $power_draw  = $stats->{power}{draw}         // 'U';
-    my $power_limit = $stats->{power}{limit}        // 'U';
-    my $temp_gpu    = $stats->{temperature}{gpu}    // 'U';
-    my $fan_speed   = $stats->{fan}{speed}          // 'U';
-
-    my @daemon_args = (-S $RRD_SOCKET) ? ('--daemon', "unix:$RRD_SOCKET") : ();
-    RRDs::update(
-        $path,
-        @daemon_args,
-        "N:$gpu_util:$mem_util:$mem_used:$mem_total:$power_draw:$power_limit:$temp_gpu:$fan_speed",
-    );
-    my $err = RRDs::error();
-    debug(__LINE__, "RRD update nvidia $id: $err") if $err;
-}
-
-sub update_amd_gpu_rrd {
-    my ($id, $stats) = @_;
-    return unless $config{gpu}{gpu_history};
-    my @fields = qw(gpu_util mem_util mem_used mem_total gtt_used gtt_total freq_act power_draw temp_gpu fan_rpm);
-    my @values = map {
-        my ($group, $key) = @$_;
-        ref($stats->{$group}) eq 'HASH' ? $stats->{$group}{$key} : undef;
-    } (
-        ['utilization', 'gpu'], ['utilization', 'memory'],
-        ['memory', 'used'], ['memory', 'total'],
-        ['gtt', 'used'], ['gtt', 'total'],
-        ['frequency', 'actual'], ['power', 'draw'],
-        ['temperature', 'gpu'], ['fan', 'speed'],
-    );
-    my $path = gpu_rrd_path($id);
-    unless (-f $path) {
-        my $dir = "$RRD_BASE/" . get_nodename();
-        make_path($dir, { mode => 0755 }) unless -d $dir;
-        RRDs::create($path, '--step', '1',
-            (map { "DS:$_:GAUGE:120:" . ($_ eq 'temp_gpu' ? 'U' : 0) . ':'
-                . (/^(gpu_util|mem_util)$/ ? 100 : 'U') } @fields),
-            (map { my $cf = $_; map { "RRA:$cf:0.5:$_" }
-                qw(1:1440 60:1440 1800:1440 21600:1464 604800:520) } qw(AVERAGE MAX)));
+    if (!defined $rrd_last_ts{$path}) {
+        my $last = RRDs::last($path);
         if (my $err = RRDs::error()) {
-            warn "AMD GPU: cannot create RRD $path: $err\n";
+            warn "$schema->{label}: cannot read last RRD timestamp $path: $err\n"
+                unless $rrd_failed{$path}++;
             return;
         }
+        $rrd_last_ts{$path} = $last;
     }
-    my @daemon_args = (-S $RRD_SOCKET) ? ('--daemon', "unix:$RRD_SOCKET") : ();
-    RRDs::update($path, @daemon_args, 'N:' . join(':', map { defined $_ ? $_ : 'U' } @values));
+
+    if ($now < $rrd_last_ts{$path}) {
+        warn "$schema->{label}: clock is behind the last RRD sample for $path; skipping history until it catches up\n"
+            unless $rrd_clock_warning{$path}++;
+        return;
+    }
+    delete $rrd_clock_warning{$path};
+
+    my $sample = join(':', $now,
+        map { _stats_value($stats, @{$_}[3 .. $#$_]) // 'U' } @{ $schema->{fields} });
+    if ($now == $rrd_last_ts{$path}) {
+        $rrd_buffer{$path}{samples}[-1] = $sample if $rrd_buffer{$path};
+        return;
+    }
+    $rrd_last_ts{$path} = $now;
+
+    my $buf = $rrd_buffer{$path} //= { label => $schema->{label}, samples => [], first => $now };
+    push @{ $buf->{samples} }, $sample;
+
+    _flush_rrd($path)
+        if $now - $buf->{first} + 1 >= ($config{intervals}{gpu_history_flush} || 1);
+}
+
+# Writes out all buffered samples; collectors call this before exiting.
+sub flush_gpu_rrds {
+    local $ENV{RRDCACHED_ADDRESS};
+    delete $ENV{RRDCACHED_ADDRESS};
+    _flush_rrd($_) for keys %rrd_buffer;
+}
+
+# ============================================================================
+# GPU RRD reader (gpurrddata API)
+# ============================================================================
+
+# Same windows as PVE::RRD::create_rrd_data, which cannot be used here because
+# it reads through the root-only rrdcached socket whenever that exists.
+my %timeframes = (
+    hour   => [60, 60],
+    day    => [60, 1440],
+    week   => [60 * 30, 336],
+    month  => [60 * 30, 1440],
+    year   => [3600 * 6, 1440],
+    decade => [86400 * 7, 570],
+);
+
+sub read_gpu_rrd_data {
+    my ($id, $timeframe, $cf) = @_;
+    die "invalid card name\n" unless defined $id && $id =~ /^[a-zA-Z0-9]+$/;
+    my $window = $timeframes{$timeframe // ''} or die "invalid timeframe\n";
+    local $ENV{RRDCACHED_ADDRESS};
+    delete $ENV{RRDCACHED_ADDRESS};
+    my ($reso, $count) = @$window;
+    my $ctime = $reso * int(time() / $reso);
+
+    my ($start, $step, $names, $rows) = RRDs::fetch(
+        gpu_rrd_path($id), $cf || 'AVERAGE',
+        '-s' => $ctime - $reso * $count, '-e' => $ctime - 1, '-r' => $reso,
+    );
     my $err = RRDs::error();
-    warn "AMD GPU: cannot update RRD $path: $err\n" if $err;
+    die "RRD error: $err\n" if $err;
+
+    my @res;
+    for my $row (@$rows) {
+        my %entry = (time => $start);
+        $start += $step;
+        for my $i (0 .. $#$names) {
+            $entry{ $names->[$i] } = $row->[$i] if defined $row->[$i];
+        }
+        push @res, \%entry;
+    }
+    # The newest bucket can still be empty right after a boundary.
+    pop @res if @res && keys %{ $res[-1] } == 1;
+    return \@res;
 }
 
 1;

@@ -9,7 +9,7 @@ use Time::HiRes qw(sleep);
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
 use PVE::PVEMods::Collector::GpuNvidia qw(get_nvidia_gpu_devices collector_for_nvidia_devices);
 use PVE::PVEMods::Config qw(%config);
-use PVE::PVEMods::Store qw(update_nvidia_gpu_rrd gpu_rrd_path);
+use PVE::PVEMods::Store qw(update_gpu_rrd gpu_rrd_path);
 use PVE::API2::PVEMods_SensorInfo;
 use RRDs;
 
@@ -147,9 +147,12 @@ my $devices = [
 my $rrd_dir = tempdir(CLEANUP => 1);
 {
     local $PVE::PVEMods::Store::RRD_BASE = $rrd_dir;
-    local $PVE::PVEMods::Store::RRD_SOCKET = "$rrd_dir/no-daemon";
+    local $config{intervals}{gpu_history_flush} = 1;
     local $config{gpu}{gpu_history} = 0;
-    update_nvidia_gpu_rrd('nvidiatest', $stats);
+    my $test_now = time() - 10;
+    no warnings 'redefine';
+    local *PVE::PVEMods::Store::_now = sub { $test_now++ };
+    update_gpu_rrd(nvidia => 'nvidiatest', $stats);
     ok(!-e gpu_rrd_path('nvidiatest'), 'disabled history does not create files');
 
     $config{gpu}{gpu_history} = 1;
@@ -157,8 +160,8 @@ my $rrd_dir = tempdir(CLEANUP => 1);
     {
         no warnings 'redefine';
         local *RRDs::update = sub { push @updates, [@_] };
-        update_nvidia_gpu_rrd('nvidiatest', $stats);
-        update_nvidia_gpu_rrd('nvidiatest', {});
+        update_gpu_rrd(nvidia => 'nvidiatest', $stats);
+        update_gpu_rrd(nvidia => 'nvidiatest', {});
     }
     my $path = gpu_rrd_path('nvidiatest');
     ok(-f $path, 'NVIDIA history file created in isolated directory');
@@ -167,9 +170,9 @@ my $rrd_dir = tempdir(CLEANUP => 1);
     for my $field (qw(gpu_util mem_util mem_used mem_total power_draw power_limit temp_gpu fan_speed)) {
         ok(exists $info->{"ds[$field].type"}, "history field $field exists");
     }
-    is($updates[0][-1], 'N:12:7:1024:10240:95.5:320:54:35', 'history values follow the schema order');
-    is($updates[1][-1], 'N:U:U:U:U:U:U:U:U', 'missing samples become unknown rather than zero');
-    update_nvidia_gpu_rrd('nvidiatest', $idle);
+    like($updates[0][-1], qr/^\d+:12:7:1024:10240:95\.5:320:54:35$/, 'history values follow the schema order');
+    like($updates[1][-1], qr/^\d+:U:U:U:U:U:U:U:U$/, 'missing samples become unknown rather than zero');
+    update_gpu_rrd(nvidia => 'nvidiatest', $idle);
     ok(!RRDs::error(), 'real RRD update succeeds');
     is(RRDs::info($path)->{'ds[gpu_util].last_ds'}, 0, 'real RRD stores zero GPU utilization');
 }

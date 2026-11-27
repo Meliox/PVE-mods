@@ -9,7 +9,7 @@ use Exporter 'import';
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
 use PVE::PVEMods::Utils qw(debug setup_collector_signals safe_write_json);
-use PVE::PVEMods::Store qw(gpu_history_id update_amd_gpu_rrd);
+use PVE::PVEMods::Store qw(gpu_history_id update_gpu_rrd flush_gpu_rrds);
 
 our @EXPORT_OK = qw(get_amd_gpu_devices collector_for_amd_device);
 my %read_errors;
@@ -161,15 +161,17 @@ sub collector_for_amd_device {
         unless (safe_write_json("$file.tmp", $data) && rename("$file.tmp", $file)) {
             warn "AMD GPU: failed to publish $file: $!\n";
             unlink("$file.tmp") or warn "AMD GPU: cannot remove $file.tmp: $!\n" if -f "$file.tmp";
+            flush_gpu_rrds();
             POSIX::_exit(1);
         }
-        update_amd_gpu_rrd($device->{history_id}, $stats);
+        update_gpu_rrd(amd => $device->{history_id}, $stats);
         unless ($present) {
             warn "AMD GPU: $device->{card} disappeared; readings are unavailable\n";
             last;
         }
         sleep $config{intervals}{data_pull} unless $shutdown;
     }
+    flush_gpu_rrds();
     debug(__LINE__, "AMD GPU collector $device->{card} stopped");
     POSIX::_exit(0);
 }

@@ -323,7 +323,7 @@ node_info_defaults() {
     ENABLE_STORAGE_HEALTH=0; STORAGE_SMART_ENABLED=1
     STORAGE_LIFE_WARNING=20; STORAGE_LIFE_CRITICAL=10
     STORAGE_ZFS_INTERVAL=15; STORAGE_SMART_INTERVAL=1800; STORAGE_SMART_WAKE=0
-    DATA_PULL_INTERVAL=1; COLLECTOR_TIMEOUT=10
+    DATA_PULL_INTERVAL=1; COLLECTOR_TIMEOUT=10; GPU_HISTORY_FLUSH=60
     DEBUG_LM_SENSORS=0; DEBUG_LM_SENSORS_FILE="/tmp/sensors-output.json"
     DEBUG_INTEL=0;       DEBUG_INTEL_FILE="/tmp/intel-gpu-devices.txt"
                          DEBUG_INTEL_OUTPUT_FILE="/tmp/intel-gpu-top-output.txt"
@@ -376,6 +376,7 @@ node_info_load_conf() {
             storage_health.smart_wake_disks) STORAGE_SMART_WAKE="$val" ;;
             intervals.data_pull)            DATA_PULL_INTERVAL="$val" ;;
             intervals.collector_timeout)    COLLECTOR_TIMEOUT="$val" ;;
+            intervals.gpu_history_flush)    GPU_HISTORY_FLUSH="$val" ;;
             debug.lm_sensors_mode)          DEBUG_LM_SENSORS="$val" ;;
             debug.lm_sensors_output_file)   DEBUG_LM_SENSORS_FILE="$val" ;;
             debug.intel_mode)               DEBUG_INTEL="$val" ;;
@@ -888,6 +889,9 @@ data_pull=${DATA_PULL_INTERVAL}
 # Seconds without a request before collectors stop. Keep above the polling
 # interval of external clients (e.g. Home Assistant).
 collector_timeout=${COLLECTOR_TIMEOUT}
+# Seconds of GPU history buffered in memory per RRD write. Larger values reduce
+# writes but add graph delay. 1 = write every sample.
+gpu_history_flush=${GPU_HISTORY_FLUSH}
 
 [system_info]
 enabled=${ENABLE_SYSTEM_INFO}

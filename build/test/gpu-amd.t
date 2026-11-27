@@ -115,7 +115,9 @@ write_file("$dir/devices.json", encode_json(\@devices));
 
 {
     local $PVE::PVEMods::Collector::GpuAmd::pve_mods_working_dir = $dir;
-    local $config{gpu}{gpu_history} = 0;
+    local $PVE::PVEMods::Store::RRD_BASE = "$dir/history";
+    local $config{gpu}{gpu_history} = 1;
+    local $config{intervals}{gpu_history_flush} = 60;
     local $config{intervals}{data_pull} = 1;
     my $file = "$dir/stats-$a->{card}.json";
     my $pid = fork();
@@ -140,5 +142,9 @@ write_file("$dir/devices.json", encode_json(\@devices));
     waitpid($pid, 0);
     is($? >> 8, 0, 'collector handles SIGTERM cleanly');
     ok(!-e "$file.tmp", 'atomic publication leaves no temporary file');
+    my $history = PVE::PVEMods::Store::gpu_rrd_path($a->{history_id});
+    ok(-f $history, 'collector creates history on shutdown');
+    is(RRDs::info($history)->{'ds[gpu_util].last_ds'}, 50,
+        'collector flushes buffered history on SIGTERM');
 }
 done_testing();
