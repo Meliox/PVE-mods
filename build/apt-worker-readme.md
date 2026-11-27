@@ -18,7 +18,8 @@ indexes their `.deb` assets, and uses `dpkg-scanpackages --multiversion`.
 Releases without `.deb` assets count toward the limit but add no packages.
 Package filenames must be unique within
 each channel; conflicting downloads fail rather than overwrite an asset.
-Signing and the Pages deployment cover both channels together.
+The stable and testing channels use the `trixie` and `trixie-testing` suites
+for Proxmox VE 9. Signing and the Pages deployment cover both suites together.
 
 The workflow extracts each package's embedded `changelog.gz` using its Debian
 package name, including the legacy `pve-mod` name, and publishes it under

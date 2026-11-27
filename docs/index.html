@@ -12,7 +12,7 @@
 
   <h2>Installation</h2>
 
-  <p>Run as root on the Proxmox VE host. Stable contains published
+  <p>Run as root on the Proxmox VE 9 host. The trixie suite contains published
     non-prereleases with Debian packages and is recommended for normal
     installations. APT selects the highest available version by default.</p>
 
@@ -25,7 +25,7 @@ chmod 0644 /etc/apt/keyrings/pve-mods.gpg
 cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
 Types: deb
 URIs: https://pve-mods-apt.meliox.workers.dev
-Suites: stable
+Suites: trixie
 Components: main
 Signed-By: /etc/apt/keyrings/pve-mods.gpg
 EOF
@@ -43,7 +43,7 @@ apt install pve-mods
 cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
 Types: deb
 URIs: https://pve-mods-apt.meliox.workers.dev
-Suites: testing
+Suites: trixie-testing
 Components: main
 Signed-By: /etc/apt/keyrings/pve-mods.gpg
 EOF
