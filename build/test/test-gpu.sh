@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # build/test/test-gpu.sh
 #
-# Runs the fixture-based tests for the node_info Intel and NVIDIA GPU support:
-# device discovery, stats parsing, collector loop, GPU history (RRD), API merge
-# and GUI helpers. Uses temporary fixture directories; needs no GPU and does not
-# touch the live configuration. Requires Perl (JSON, RRDs, PVE::INotify and the
-# PVE API modules), prove and Node.js. In CI the PVE modules come from
+# Runs fixture-based tests for node_info AMD, Intel and NVIDIA GPU support:
+# discovery, collection, history (RRD), API merge, GUI helpers and configuration.
+# Uses temporary fixture directories; needs no GPU and does not touch the live
+# configuration. Requires Perl (JSON, RRDs, PVE::INotify and the PVE API
+# modules), prove, Node.js and Bash. In CI the PVE modules come from
 # fetch-proxmox-files.sh.
 #
 # Usage: test-gpu.sh
@@ -14,12 +14,13 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-FILES_DIR="$REPO_DIR/src/modules/node_info/files"
+MOD_DIR="$REPO_DIR/src/modules/node_info"
+FILES_DIR="$MOD_DIR/files"
 
 info() { echo "[gpu] $*"; }
 warn() { echo "[gpu] WARNING: $*" >&2; }
 
-for cmd in perl prove node; do
+for cmd in perl prove node bash; do
     command -v "$cmd" >/dev/null 2>&1 || { warn "'$cmd' command not found."; exit 1; }
 done
 perl -MJSON -MRRDs -e1 2>/dev/null || { warn "Perl modules JSON and RRDs not found; install libjson-perl and librrds-perl."; exit 1; }
@@ -34,13 +35,19 @@ while read -r src dest _; do
     mkdir -p "$AMD_TEST_ROOT/$(dirname "$dest")"
     cp "$FILES_DIR/$src" "$AMD_TEST_ROOT/$dest"
 done < "$FILES_DIR/files.list"
+mkdir -p "$AMD_TEST_ROOT/usr/lib/pve-mods/configure.d"
+cp "$MOD_DIR/node_info.configure.sh" "$AMD_TEST_ROOT/usr/lib/pve-mods/configure.d/node_info.sh"
 
 rc=0
 
-info "Running Intel and NVIDIA collector, history and API tests"
-prove "$SCRIPT_DIR/gpu-intel.t" "$SCRIPT_DIR/gpu-nvidia.t" || rc=1
+info "Running collector, history and API tests"
+prove "$SCRIPT_DIR/gpu-amd.t" "$SCRIPT_DIR/amd-history.t" \
+    "$SCRIPT_DIR/gpu-intel.t" "$SCRIPT_DIR/gpu-nvidia.t" "$SCRIPT_DIR/gpu-history.t" || rc=1
 
 info "Running GUI tests"
-node --test "$SCRIPT_DIR/gpu-gui.test.js" || rc=1
+node --test "$SCRIPT_DIR/amd-gui.test.js" "$SCRIPT_DIR/gpu-gui.test.js" || rc=1
+
+info "Running wizard configuration test"
+bash "$SCRIPT_DIR/amd-config.sh" || rc=1
 
 exit "$rc"
