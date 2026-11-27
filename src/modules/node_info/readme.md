@@ -364,8 +364,6 @@ Set the collector's `_mode` flag to `1` in the `[debug]` section of `/etc/pve-mo
 | Storage health | `storage_health_mode` | `zpool_output_file` | Raw `zpool status -LP` output | `zpool status -LP > /tmp/zpool-status.txt` |
 | | | `smartctl_output_file` | `smartctl -a -j` JSON of one drive, or a JSON array of several (read directly by the collector; the SMART service is not used) | `smartctl -a -j /dev/sda > /tmp/smartctl-output.json` |
 
-Fixture-based tests for the storage health parsers and evaluation run without any hardware: `bash build/test/test-storage-health.sh`. The AMD GPU collector, history, API, GUI and wizard tests also need no hardware: `bash build/test/test-amd.sh`. The Intel and NVIDIA GPU collector, history, API and GUI tests run the same way: `bash build/test/test-gpu.sh`. The lm-sensors collector (output sanitizing, DIMM/drive/CPU enrichment, payload) and the GUI renderers that consume it are tested against a synthetic fixture and a real `sensors -j` capture: `bash build/test/test-lm-sensors.sh`.
-
 ### Verbose module logging (mod_debug)
 
 Set `mod_debug=1` in the `[debug]` section of `/etc/pve-mods/conf.d/node_info.conf`, then restart `pveproxy` (`systemctl restart pveproxy`) — the setting is only read at startup. With it enabled, the mod logs each internal step (collector start/stop, cache hits, file reads, etc.) to the journal, viewable with:
