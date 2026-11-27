@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "APT repository test failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 dir="$(mktemp -d)"
@@ -12,7 +13,7 @@ for channel in stable testing; do
     mkdir -p "$package/DEBIAN" "$package/usr/share/doc/pve-mods" "$dir/packages/$channel"
     printf 'Package: pve-mods\nVersion: %s\nArchitecture: all\nMaintainer: Test <test@example.invalid>\nDescription: Test package\n' "$version" > "$package/DEBIAN/control"
     printf 'pve-mods (%s) stable; urgency=low\n' "$version" | gzip -n > "$package/usr/share/doc/pve-mods/changelog.gz"
-    dpkg-deb --build "$package" "$dir/packages/$channel/pve-mods_${version}_all.deb" > /dev/null
+    dpkg-deb --root-owner-group --build "$package" "$dir/packages/$channel/pve-mods_${version}_all.deb" > /dev/null
 done
 
 bash "$repo_root/build/apt-repository.sh" "$dir/repo" "$dir/packages"
@@ -21,7 +22,7 @@ test -s "$dir/repo/changelogs/main/p/pve-mods/pve-mods_2.0~rc1/changelog"
 
 mkdir -m 700 "$dir/gnupg"
 gpg --batch --homedir "$dir/gnupg" --passphrase '' --quick-generate-key \
-    'APT repository test <apt-test@example.invalid>' rsa2048 sign 0 > /dev/null 2>&1
+    'APT repository test <apt-test@example.invalid>' rsa2048 sign 0 > /dev/null
 gpg --batch --homedir "$dir/gnupg" --export > "$dir/keyring.gpg"
 
 for channel in stable testing; do
@@ -48,12 +49,14 @@ apt_options=(
     -o "Dir::State::status=$dir/apt/status"
     -o "Dir::State::lists=$dir/apt/lists"
     -o "Dir::Cache::archives=$dir/apt/archives"
+    -o "Dir::Cache::pkgcache="
+    -o "Dir::Cache::srcpkgcache="
     -o "APT::Sandbox::User=$(id -un)"
     -o "APT::Architecture=amd64"
 )
 
 for suite in stable testing; do
-    printf 'Types: deb\nURIs: file:%s\nSuites: %s\nComponents: main\nSigned-By: %s\n' \
+    printf 'Types: deb\nURIs: file:%s\nSuites: %s\nComponents: main\nArchitectures: amd64\nSigned-By: %s\n' \
         "$dir/repo" "$suite" "$dir/keyring.gpg" > "$dir/apt/pve-mods.sources"
     if apt-get "${apt_options[@]}" update > "$dir/apt/update.log" 2>&1; then
         echo "Legacy suite $suite unexpectedly succeeded" >&2
@@ -64,7 +67,7 @@ done
 for suite in trixie trixie-testing; do
     version=1.0
     case "$suite" in *testing) version=2.0~rc1 ;; esac
-    printf 'Types: deb\nURIs: file:%s\nSuites: %s\nComponents: main\nSigned-By: %s\n' \
+    printf 'Types: deb\nURIs: file:%s\nSuites: %s\nComponents: main\nArchitectures: amd64\nSigned-By: %s\n' \
         "$dir/repo" "$suite" "$dir/keyring.gpg" > "$dir/apt/pve-mods.sources"
     apt-get "${apt_options[@]}" update > "$dir/apt/update.log" 2>&1 || {
         cat "$dir/apt/update.log" >&2
@@ -73,7 +76,13 @@ for suite in trixie trixie-testing; do
     if grep -E 'Conflicting distribution|changed its .*(Suite|Codename)' "$dir/apt/update.log"; then
         exit 1
     fi
-    apt-cache "${apt_options[@]}" policy pve-mods | grep -F "Candidate: $version" > /dev/null
+    policy="$(apt-cache "${apt_options[@]}" policy pve-mods)"
+    if ! grep -F "Candidate: $version" <<< "$policy" > /dev/null; then
+        echo "Expected candidate $version for suite $suite; APT reported:" >&2
+        printf '%s\n' "$policy" >&2
+        cat "$dir/apt/update.log" >&2
+        exit 1
+    fi
 done
 
 mkdir -p "$dir/empty-packages/stable" "$dir/empty-packages/testing"
