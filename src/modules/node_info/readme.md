@@ -118,6 +118,11 @@ Add custom sources or override defaults in `/etc/pve-mods/sysfs-temperature-sour
 using the same format. Entries match by `id`; set `enabled` to `false` to disable
 a source. Files must be readable by `www-data`.
 
+If lm-sensors already reports a temperature, a sysfs source for the same
+reading may create a duplicate. To keep the lm-sensors reading, remove the
+custom source or disable the built-in source by adding an entry such as
+`{"id": "coral", "enabled": false}` to the override file's `sources` array.
+
 ### Fan speeds
 
 Shows system fans (CPU, chassis) from `lm-sensors` and the fans of NVIDIA, AMD and Intel GPUs when available. Fans reporting zero speed can optionally be shown or hidden during `pve-mods-configure`.
