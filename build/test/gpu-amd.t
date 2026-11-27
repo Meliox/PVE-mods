@@ -9,6 +9,9 @@ use Time::HiRes qw(sleep);
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
 use PVE::PVEMods::Collector::GpuAmd qw(get_amd_gpu_devices collector_for_amd_device);
 use PVE::PVEMods::Config qw(%config);
+use PVE::PVEMods::Store qw(update_gpu_rrd gpu_rrd_path);
+use PVE::API2::PVEMods_SensorInfo;
+use RRDs;
 
 my $dir = tempdir(CLEANUP => 1);
 sub write_file {
@@ -146,5 +149,62 @@ write_file("$dir/devices.json", encode_json(\@devices));
     ok(-f $history, 'collector creates history on shutdown');
     is(RRDs::info($history)->{'ds[gpu_util].last_ds'}, 50,
         'collector flushes buffered history on SIGTERM');
+}
+
+{
+    my $history_dir = tempdir(CLEANUP => 1);
+    local $PVE::PVEMods::Store::RRD_BASE = $history_dir;
+    local $config{gpu}{gpu_history} = 1;
+    local $config{intervals}{gpu_history_flush} = 1;
+    my $test_now = time() - 100;
+    no warnings 'redefine';
+    local *PVE::PVEMods::Store::_now = sub { $test_now++ };
+    my @updates;
+    my $missing = {};
+    {
+        local *RRDs::update = sub { push @updates, [@_] };
+        update_gpu_rrd(amd => 'amdtest', $stats);
+        update_gpu_rrd(amd => 'amdtest', $missing);
+    }
+    my $path = gpu_rrd_path('amdtest');
+    ok(-f $path, 'AMD history created in isolated directory');
+    my $info = RRDs::info($path);
+    ok(!RRDs::error(), 'RRD schema valid');
+    for my $field (qw(gpu_util mem_util mem_used mem_total gtt_used gtt_total freq_act power_draw temp_gpu fan_rpm)) {
+        ok(exists $info->{"ds[$field].type"}, "history field $field exists");
+    }
+    like($updates[0][-1], qr/^\d+:0:U:64:4096:128:8192:800:10\.041:40:0$/,
+        'history units match live samples and zeroes are retained');
+    like($updates[1][-1], qr/^\d+:U:U:U:U:U:U:U:U:U:U$/, 'missing samples become unknown rather than zero');
+    is_deeply($missing, {}, 'history writer does not mutate collector readings');
+    update_gpu_rrd(amd => 'amdtest', $stats);
+    ok(!RRDs::error(), 'real AMD RRD update succeeds');
+    my $latest = RRDs::info($path);
+    ok(!RRDs::error(), 'updated AMD RRD can be read');
+    is($latest->{'ds[gpu_util].last_ds'}, 0, 'real RRD stores zero GPU utilization');
+    is($latest->{'ds[fan_rpm].last_ds'}, 0, 'real RRD stores zero fan RPM');
+}
+
+{
+    my $api_dir = tempdir(CLEANUP => 1);
+    my $file = "$api_dir/stats-amd3.json";
+    write_file($file, encode_json({ amd3 => { name => 'Radeon Test', stats => $stats } }));
+    my $merged = PVE::API2::PVEMods_SensorInfo::_merge_graphics_files([$file]);
+    is($merged->{Graphics}{AMD}{amd3}{card}, 'amd3', 'API merges AMD into its own vendor group');
+    is($merged->{Graphics}{AMD}{amd3}{stats}{fan}{unit}, 'RPM', 'AMD fan data retains RPM semantics');
+    ok(!keys %{$merged->{Graphics}{Intel}}, 'AMD data never becomes Intel data');
+
+    local $PVE::API2::PVEMods_SensorInfo::stats_dir = $api_dir;
+    local $config{gpu}{amd_enabled} = 1;
+    local $config{gpu}{intel_enabled} = 0;
+    local $config{gpu}{nvidia_enabled} = 0;
+    my $first = PVE::API2::PVEMods_SensorInfo::_load_graphics_data();
+    is($first->{Graphics}{AMD}{amd3}{stats}{utilization}{gpu}, 0, 'API loads initial sample');
+    my $mtime = (stat($file))[9];
+    write_file("$file.tmp", encode_json({ amd3 => { name => 'Radeon Test', stats => { utilization => { gpu => 50 } } } }));
+    utime($mtime, $mtime, "$file.tmp") or die $!;
+    rename("$file.tmp", $file) or die $!;
+    my $second = PVE::API2::PVEMods_SensorInfo::_load_graphics_data();
+    is($second->{Graphics}{AMD}{amd3}{stats}{utilization}{gpu}, 50, 'atomic replacement within same mtime second refreshes API cache');
 }
 done_testing();
