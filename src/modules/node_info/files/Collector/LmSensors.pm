@@ -70,7 +70,7 @@ sub _get_temperature_sensors {
             $sensors_output = '{}';
         }
     } else {
-        $sensors_output = `sensors -J 2>/dev/null | python3 -m json.tool`;
+        $sensors_output = `sensors -J 2>/dev/null`;
         debug(__LINE__, "Raw lm-sensors output collected from command");
     }
 

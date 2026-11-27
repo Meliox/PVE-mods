@@ -17,88 +17,92 @@ NODE_INFO_CONF="${CONFD_DIR}/node_info.conf"
 
 sanitize_sensors_output() {
     local input="$1"
-    echo "$input" | perl -0777 -pe '
+    printf "%s\n" "$input" | perl -0777 -pe '
         s/ERROR:.+\s(\w+):\s(.+)/"$1": 0.000,/g;
         s/ERROR:.+\s(\w+)!/"$1": 0.000,/g;
         s/,\s*(\})/$1/g;
         s/\bNaN\b/null/g;
         s/"SODIMM"\s*:\s*\{\s*"temp(\d+)_input"/"SODIMM $1": {\n  "temp$1_input"/g;
         s/"([^"]*Fan[^"]*)"\s*:\s*\{\s*"fan(\d+)_input"/"$1 $2": {\n  "fan$2_input"/g;
-    ' | python3 -m json.tool 2>/dev/null || echo "$input"
+    ' | perl -MJSON::PP=decode_json -0777 -ne '
+        my $data = eval { decode_json($_) };
+        exit 1 if $@;
+        print JSON::PP->new->pretty->encode($data);
+    ' 2>/dev/null || printf "%s\n" "$input"
 }
 
 detect_sensor_counts() {
-    python3 -c '
-import json, re, sys
+    perl -MJSON::PP=decode_json -MScalar::Util=looks_like_number -e '
+        use strict;
+        use warnings;
 
-data = json.load(sys.stdin)
-cpu_prefixes = ("coretemp-isa-", "k10temp-pci-", "cpu_thermal-virtual-")
-ram_prefixes = ("spd5118-", "jc42-", "SODIMM")
-cpu_sensors = []
-ram_sensors = []
-hdd_sensors = []
-nvme_sensors = []
-other_sensors = []
-fan_sensors = []
-ram_count = hdd_count = nvme_count = other_count = fan_count = 0
+        my $data = decode_json(do { local $/; <STDIN> });
+        die "Expected sensor object\n" unless ref($data) eq "HASH";
 
-def temperature_features(chip):
-    features = []
-    for name, feature in chip.items():
-        if not isinstance(feature, dict):
-            continue
-        reading = feature.get("input")
-        if (isinstance(reading, dict)
-                and reading.get("quantity") == "temperature"
-                and isinstance(reading.get("value"), (int, float))):
-            features.append((name, feature))
-    return features
+        my (@cpu_sensors, @ram_sensors, @hdd_sensors, @nvme_sensors, @other_sensors, @fan_sensors);
+        my ($ram_count, $hdd_count, $nvme_count, $other_count, $fan_count) = (0, 0, 0, 0, 0);
 
-def joined_names(items):
-    return ",".join(items) or "-"
+        for my $chip_name (sort keys %$data) {
+            my $chip = $data->{$chip_name};
+            next unless ref($chip) eq "HASH";
 
-for chip_name, chip in data.items():
-    if not isinstance(chip, dict):
-        continue
-    temperatures = temperature_features(chip)
-    if temperatures:
-        ram_by_label = any(
-            isinstance(feature.get("label"), str)
-            and re.search(r"(?:SODIMM|DIMM)", feature["label"], re.I)
-            for _, feature in temperatures
-        )
-        if chip_name.startswith(cpu_prefixes):
-            cpu_sensors.append(chip_name)
-        elif chip_name.startswith(ram_prefixes) or ram_by_label:
-            ram_count += 1
-            ram_sensors.append(chip_name)
-        elif chip_name.startswith("drivetemp-scsi-"):
-            hdd_count += 1
-            hdd_sensors.append(chip_name)
-        elif chip_name.startswith(("nvme-pci-", "drivetemp-nvme-")):
-            nvme_count += 1
-            nvme_sensors.append(chip_name)
-        else:
-            other_count += 1
-            label = chip.get("label")
-            other_sensors.append(label if chip.get("source") == "sysfs" and isinstance(label, str) else chip_name)
+            my @temperatures = grep {
+                my $feature = $chip->{$_};
+                my $reading = ref($feature) eq "HASH" ? $feature->{input} : undef;
+                ref($reading) eq "HASH"
+                    && ($reading->{quantity} // "") eq "temperature"
+                    && defined($reading->{value})
+                    && !ref($reading->{value})
+                    && looks_like_number($reading->{value})
+            } keys %$chip;
 
-    for name, feature in chip.items():
-        if not re.fullmatch(r"fan\d+", name) or not isinstance(feature, dict):
-            continue
-        reading = feature.get("input")
-        if (isinstance(reading, dict)
-                and reading.get("quantity") == "speed"
-                and isinstance(reading.get("value"), (int, float))):
-            fan_count += 1
-            fan_sensors.append(f"{chip_name}/{name}")
+            if (@temperatures) {
+                my $ram_by_label = grep {
+                    my $label = $chip->{$_}{label};
+                    defined($label) && !ref($label) && $label =~ /(?:SODIMM|DIMM)/i
+                } @temperatures;
+                if ($chip_name =~ /\A(?:coretemp-isa-|k10temp-pci-|cpu_thermal-virtual-)/) {
+                    push @cpu_sensors, $chip_name;
+                } elsif ($chip_name =~ /\A(?:spd5118-|jc42-|SODIMM)/ || $ram_by_label) {
+                    ++$ram_count;
+                    push @ram_sensors, $chip_name;
+                } elsif ($chip_name =~ /\Adrivetemp-scsi-/) {
+                    ++$hdd_count;
+                    push @hdd_sensors, $chip_name;
+                } elsif ($chip_name =~ /\A(?:nvme-pci-|drivetemp-nvme-)/) {
+                    ++$nvme_count;
+                    push @nvme_sensors, $chip_name;
+                } else {
+                    ++$other_count;
+                    my $label = $chip->{label};
+                    push @other_sensors,
+                        ($chip->{source} // "") eq "sysfs" && defined($label) && !ref($label)
+                        ? $label : $chip_name;
+                }
+            }
 
-print("\t".join(map(str, (
-    len(cpu_sensors), ram_count, hdd_count, nvme_count,
-    other_count, fan_count, joined_names(cpu_sensors), joined_names(ram_sensors),
-    joined_names(hdd_sensors), joined_names(nvme_sensors),
-    joined_names(other_sensors), joined_names(fan_sensors)
-))))
+            for my $name (sort keys %$chip) {
+                next unless $name =~ /\Afan\d+\z/;
+                my $feature = $chip->{$name};
+                my $reading = ref($feature) eq "HASH" ? $feature->{input} : undef;
+                next unless ref($reading) eq "HASH"
+                    && ($reading->{quantity} // "") eq "speed"
+                    && defined($reading->{value})
+                    && !ref($reading->{value})
+                    && looks_like_number($reading->{value});
+                ++$fan_count;
+                push @fan_sensors, "$chip_name/$name";
+            }
+        }
+
+        my $join_names = sub { return join(",", @_) || "-"; };
+        print join("\t",
+            scalar(@cpu_sensors), $ram_count, $hdd_count, $nvme_count,
+            $other_count, $fan_count, $join_names->(@cpu_sensors),
+            $join_names->(@ram_sensors), $join_names->(@hdd_sensors),
+            $join_names->(@nvme_sensors), $join_names->(@other_sensors),
+            $join_names->(@fan_sensors),
+        ), "\n";
     '
 }
 
