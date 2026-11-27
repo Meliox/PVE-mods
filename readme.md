@@ -79,7 +79,7 @@ For multiple nodes, install `pve-mods` on all nodes with identical configuration
 
 ### Option A: APT repository
 
-Adding the signed PVE-mods APT repository lets `apt` install and upgrade `pve-mods` together with the rest of the system. The stable channel contains published releases and is recommended:
+Adding the signed PVE-mods APT repository lets `apt` install and upgrade `pve-mods` together with the rest of the system. The `trixie` suite targets Proxmox VE 9 and contains published stable releases:
 
 ```bash
 install -d -m 0755 /etc/apt/keyrings
@@ -90,7 +90,7 @@ chmod 0644 /etc/apt/keyrings/pve-mods.gpg
 cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
 Types: deb
 URIs: https://pve-mods-apt.meliox.workers.dev
-Suites: stable
+Suites: trixie
 Components: main
 Signed-By: /etc/apt/keyrings/pve-mods.gpg
 EOF
@@ -168,7 +168,7 @@ The testing channel contains published prereleases and is for trying changes bef
 cat > /etc/apt/sources.list.d/pve-mods.sources <<'EOF'
 Types: deb
 URIs: https://pve-mods-apt.meliox.workers.dev
-Suites: testing
+Suites: trixie-testing
 Components: main
 Signed-By: /etc/apt/keyrings/pve-mods.gpg
 EOF
