@@ -1,14 +1,14 @@
 {
   "mod": "oidc_console_access",
   "status": "passing",
-  "last_checked": "2026-11-26",
-  "pve_mods_version": "2.2.4+daily.bae3134",
-  "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45890333666",
+  "last_checked": "2026-11-27",
+  "pve_mods_version": "2.2.4+daily.336383a",
+  "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45952386775",
   "last_passing": {
-    "date": "2026-11-26",
+    "date": "2026-11-27",
     "packages": {
       "pve-manager": "9.3.1"
     },
-    "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45890333666"
+    "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45952386775"
   }
 }
