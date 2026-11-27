@@ -74,7 +74,13 @@ for suite in trixie trixie-testing; do
     if grep -E 'Conflicting distribution|changed its .*(Suite|Codename)' "$dir/apt/update.log"; then
         exit 1
     fi
-    apt-cache "${apt_options[@]}" policy pve-mods | grep -F "Candidate: $version" > /dev/null
+    policy="$(apt-cache "${apt_options[@]}" policy pve-mods)"
+    if ! grep -F "Candidate: $version" <<< "$policy" > /dev/null; then
+        echo "Expected candidate $version for suite $suite; APT reported:" >&2
+        printf '%s\n' "$policy" >&2
+        cat "$dir/apt/update.log" >&2
+        exit 1
+    fi
 done
 
 mkdir -p "$dir/empty-packages/stable" "$dir/empty-packages/testing"
