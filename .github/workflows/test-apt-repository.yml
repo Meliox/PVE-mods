@@ -1,0 +1,24 @@
+name: Test APT Repository
+
+on:
+  pull_request:
+    paths:
+      - 'build/apt-repository.sh'
+      - 'build/test/apt-repository.sh'
+      - '.github/workflows/apt-repository.yml'
+      - '.github/workflows/test-apt-repository.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+      - name: Install Debian tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils gnupg
+      - name: Test repository suites
+        run: bash build/test/apt-repository.sh

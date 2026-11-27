@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "APT repository test failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 dir="$(mktemp -d)"
@@ -21,7 +22,7 @@ test -s "$dir/repo/changelogs/main/p/pve-mods/pve-mods_2.0~rc1/changelog"
 
 mkdir -m 700 "$dir/gnupg"
 gpg --batch --homedir "$dir/gnupg" --passphrase '' --quick-generate-key \
-    'APT repository test <apt-test@example.invalid>' rsa2048 sign 0 > /dev/null 2>&1
+    'APT repository test <apt-test@example.invalid>' rsa2048 sign 0 > /dev/null
 gpg --batch --homedir "$dir/gnupg" --export > "$dir/keyring.gpg"
 
 for channel in stable testing; do
