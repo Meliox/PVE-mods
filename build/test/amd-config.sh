@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-ROOT="${AMD_TEST_ROOT:?AMD_TEST_ROOT must point to the staged package layout (see test-amd.sh)}"
+ROOT="${AMD_TEST_ROOT:?AMD_TEST_ROOT must point to the staged package layout (see test-gpu.sh)}"
 CONFD_DIR="$(mktemp -d)"
 trap 'rm -f "$CONFD_DIR/node_info.conf"; rmdir "$CONFD_DIR"' EXIT
 info() { :; }
