@@ -56,7 +56,7 @@ jobs:
         run: bash build/test/test-syntax.sh all 
 
       - name: Test independent node summary columns
-        run: node --test build/test/summary-columns.test.js
+        run: node --test build/test/summary-columns.test.js build/test/ups-details.test.js
 
       - name: Test node search guest network information
         run: bash build/test/node-search.sh
