@@ -597,8 +597,7 @@ function renderUpsSummary(info) {
     return `<table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${rows.join('')}</table>`;
 }
 
-function getUpsDetailsHtml(data, key) {
-    const encode = value => Ext.htmlEncode(String(value));
+function getUpsDetailRows(data, key) {
     const sections = [
         [gettext('Device'), [
             [gettext('Connection'), null, key],
@@ -631,16 +630,16 @@ function getUpsDetailsHtml(data, key) {
             [gettext('Input frequency'), 'input.frequency', undefined, ' Hz'],
         ]],
     ];
-    const html = sections.map(([title, fields]) => {
-        const entries = fields.map(([label, field, fallback, unit = '']) => {
+    return sections.sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+        .flatMap(([section, fields]) =>
+        fields.flatMap(([label, field, fallback, unit = '']) => {
             const value = data?.[field] ?? fallback;
-            return value === undefined || value === null ? ''
-                : `<tr><td style="width: 50%; padding: 4px 12px 4px 0; vertical-align: top;">${encode(label)}</td>`
-                    + `<td style="padding: 4px 0; overflow-wrap: anywhere;">${encode(value)}${unit}</td></tr>`;
-        }).join('');
-        return entries ? `<h3>${encode(title)}</h3><table style="width: 100%; table-layout: fixed; border-collapse: collapse;">${entries}</table>` : '';
-    }).join('');
-    return data ? html : encode(gettext('UPS data unavailable'));
+            return value === undefined || value === null ? [] : [{
+                id: JSON.stringify([section, field || label]),
+                section, property: label, value: `${value}${unit}`,
+            }];
+        }),
+    );
 }
 
 function refreshUpsDetails(widget) {
@@ -652,24 +651,35 @@ function refreshUpsDetails(widget) {
     const devices = Object.entries(widget.upsInfo || {}).filter(([, data]) =>
         data && typeof data === 'object' && !Array.isArray(data));
     devices.forEach(([key, data]) => {
-        let panel = tabs.items.items.find(tab => tab.deviceId === key);
-        if (!panel) {
-            panel = tabs.add({
-                xtype: 'panel',
+        let grid = tabs.items.items.find(tab => tab.deviceId === key);
+        if (!grid) {
+            grid = tabs.add({
+                xtype: 'grid',
                 deviceId: key,
                 title: Ext.htmlEncode(`${data['ups.model'] || data['device.model'] || gettext('UPS')} (${key})`),
-                bodyPadding: 15,
                 scrollable: true,
+                viewConfig: { preserveScrollOnRefresh: true },
+                store: { fields: ['id', 'section', 'property', 'value'] },
+                columns: [
+                    { text: gettext('Section'), dataIndex: 'section', width: 150, renderer: Ext.htmlEncode },
+                    { text: gettext('Property'), dataIndex: 'property', flex: 1, minWidth: 140, renderer: Ext.htmlEncode },
+                    { text: gettext('Value'), dataIndex: 'value', flex: 1, minWidth: 140, renderer: Ext.htmlEncode },
+                ],
             });
         }
-        const html = getUpsDetailsHtml(data, key);
-        if (panel.detailsHtml !== html) {
-            const scrollable = panel.getScrollable();
-            const position = scrollable.getPosition();
-            panel.update(html);
-            panel.detailsHtml = html;
-            scrollable.scrollTo(position.x, position.y);
-        }
+        const store = grid.getStore();
+        const rows = getUpsDetailRows(data, key);
+        const ids = new Set(rows.map(row => row.id));
+        store.remove(store.getRange().filter(record => !ids.has(record.getId())));
+        rows.forEach(row => {
+            const record = store.getById(row.id);
+            if (record) {
+                record.set(row);
+                record.commit();
+            } else {
+                store.add(row);
+            }
+        });
     });
     tabs.items.items.slice().forEach(tab => {
         if (!devices.some(([key]) => key === tab.deviceId)) {
@@ -690,7 +700,7 @@ function showUpsDetails(widget) {
     widget.upsWindow = Ext.create('Ext.window.Window', {
         title: gettext('UPS details - live'),
         modal: true,
-        width: Math.min(760, size.width - 32),
+        width: Math.min(900, size.width - 32),
         height: Math.min(560, size.height - 64),
         layout: 'fit',
         items: [{ xtype: 'tabpanel' }],

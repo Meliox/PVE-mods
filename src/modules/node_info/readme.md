@@ -249,11 +249,13 @@ The screenshots use simulated data.
 
 Polls `upsc` for a configured NUT device and exposes all key-value pairs returned by the daemon. Supports any UPS accessible via NUT (local or remote).
 
-The node summary shows the UPS status, battery capacity with the runtime left, and load. Use the info button on the row to open a details window with the full device readings.
+The node summary shows the UPS status, battery capacity with the runtime left, and load. Use the info button on the row to open a live details grid, styled like the CPU sensor window, with one tab per UPS and Section, Property and Value columns. Sections are sorted alphabetically by their displayed names. Rows update in place to preserve scrolling and selection.
 
 <p align="center"><img src="images/ups-summary.png" alt="Node summary UPS row"></p>
 
 <p align="center"><img src="images/ups-details.png" alt="UPS details window"></p>
+
+The UPS details screenshot shows fictional readings in the actual Proxmox WebUI.
 
 Configuration: `device_name=ups@localhost`
 
