@@ -1242,8 +1242,9 @@ Ext.define('PVE.node.StatusView', {
 						});
 
 						if (tempParts.length > 0) {
-                            const label = sensorObj.source === 'sysfs' && typeof sensorObj.label === 'string'
-                                ? sensorObj.label : sensorKey;
+                            const label = sensorKey.startsWith('sysfs-')
+                                && typeof sensorObj.label === 'string' && sensorObj.label.trim()
+                                ? sensorObj.label.trim() : sensorKey;
 							rows.push({ label: Ext.util.Format.htmlEncode(label), temps: tempParts.join('&nbsp;| ') });
 						}
 					} catch(e) { /*_*/ }

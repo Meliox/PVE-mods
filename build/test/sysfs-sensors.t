@@ -55,6 +55,7 @@ is_deeply(poll(\%cache), {}, 'negative discovery is cached');
 $now += 60;
 my $sensors = poll(\%cache);
 my ($first_key) = keys %$sensors;
+is($sensors->{$first_key}{label}, 'Test <sensor>&', 'source label is shown without the encoded sysfs path');
 is_deeply($sensors->{$first_key}{temp1}{input},
     { value => 38.05, quantity => 'temperature', unit => 'C' }, 'source scale produces the lm-sensors feature schema');
 
@@ -83,7 +84,7 @@ my $extra = { id => 'extra', label => 'Extra', path => '/sys/class/extra/temp', 
 overrides($extra, { id => 'fixture', label => 'Renamed' });
 $sensors = poll(\%cache);
 is(scalar keys %$sensors, 3, 'overrides can add sources');
-is($sensors->{$first_key}{label}, 'Renamed (device0)', 'partial overrides retain the source path');
+is($sensors->{$first_key}{label}, 'Renamed', 'partial overrides retain the source label');
 is($sensors->{$first_key}{temp1}{input}{value}, 38.05, 'partial overrides retain the source scale');
 unlink "$dir/overrides.json" or die $!;
 is(scalar keys %{poll(\%cache)}, 2, 'removing overrides restores defaults');
@@ -132,5 +133,5 @@ open my $counts, '<', "$dir/counts" or die $!;
 my @counts = split /\t/, <$counts>;
 close $counts;
 is($counts[4], 4, 'wizard includes additional temperature sources');
-like($counts[10], qr/Test <sensor>& \(device1\)/, 'wizard uses friendly source labels');
+like($counts[10], qr/Test <sensor>&/, 'wizard uses friendly source labels');
 done_testing();

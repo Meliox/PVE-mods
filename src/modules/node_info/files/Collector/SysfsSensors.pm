@@ -5,7 +5,7 @@ use warnings;
 use Cwd qw(abs_path);
 use Exporter 'import';
 use Fcntl qw(O_RDONLY O_NOFOLLOW);
-use File::Basename qw(basename dirname);
+use File::Basename qw(dirname);
 use File::Glob qw(bsd_glob GLOB_NOSORT);
 use JSON::PP qw(decode_json);
 use POSIX qw(isfinite);
@@ -115,14 +115,13 @@ sub _discover {
             my $device_path = abs_path(dirname($path) . '/device');
             $device_path = $resolved if !defined($device_path) || index($device_path, "$root/") != 0;
             my @pci = $device_path =~ m{(?:^|/)([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7])(?=/|$)}g;
-            my $identity = @pci ? $pci[-1] . ', ' . basename(dirname($path)) : basename(dirname($path));
             # Encode separators instead of replacing them, so distinct paths cannot collide.
             $relative =~ s/([^a-zA-Z0-9_.:-])/sprintf('%%%02X', ord($1))/ge;
             push @devices, {
                 %$source,
                 key => "sysfs-$source->{id}-$relative",
                 path => $resolved,
-                label => "$source->{label} ($identity)",
+                label => $source->{label},
                 (@pci ? (pci_address => $pci[-1]) : ()),
             };
         }

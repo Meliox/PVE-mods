@@ -321,8 +321,7 @@ test('NVMe temperatures sort by chip, colour thresholds and omit empty serials',
 test('merged sysfs readings use escaped labels, display units and thresholds', () => {
     const merged = loadPayload('sysfs-merged.json');
     const html = renderers.otherThermals(merged);
-    assert.ok(html.includes('Test &lt;sensor&gt;&amp; (device0)'));
-    assert.ok(html.includes('Test &lt;sensor&gt;&amp; (device1)'));
+    assert.equal((html.match(/Test &lt;sensor&gt;&amp;/g) || []).length, 2);
     assert.ok(html.includes(`${(38.05).toFixed(1)}&deg;C`));
     assert.ok(!html.includes('<sensor>'));
     assert.ok(html.includes(`<span style="${YELLOW}">50.0&deg;C</span>`));
@@ -331,6 +330,15 @@ test('merged sysfs readings use escaped labels, display units and thresholds', (
     const fahrenheit = renderers.otherThermals({ ...merged, temp_unit: 'F' });
     assert.ok(fahrenheit.includes(`${(38.05 * 9 / 5 + 32).toFixed(1)}&deg;F`));
     assert.ok(fahrenheit.includes(`<span style="${YELLOW}">122.0&deg;F</span>`));
+});
+
+test('configured sysfs label is used when source metadata is missing', () => {
+    const key = 'sysfs-coral-devices%2Fpci0000:00%2F0000:00:1c.0%2F0000:02:00.0%2Fapex%2Fapex_0%2Ftemp';
+    const html = renderers.otherThermals(enabled({
+        [key]: { label: 'Coral Edge TPU', temp1: feature(33.5) },
+    }));
+    assert.ok(html.includes('>Coral Edge TPU</td>'));
+    assert.ok(!html.includes(key));
 });
 
 test('other temperatures exclude CPU, drive and DIMM chips and show labelled readings', () => {
