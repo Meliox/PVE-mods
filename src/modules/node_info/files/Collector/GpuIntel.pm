@@ -8,7 +8,7 @@ use JSON::PP;
 
 use PVE::PVEMods::Config qw(%config $process_type $pve_mods_working_dir);
 use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals safe_write_json read_sysfs);
-use PVE::PVEMods::Store  qw(update_intel_gpu_rrd gpu_history_id);
+use PVE::PVEMods::Store  qw(update_gpu_rrd flush_gpu_rrds gpu_history_id);
 
 our @EXPORT_OK = qw(
     get_intel_gpu_devices
@@ -268,7 +268,7 @@ sub collector_for_intel_device {
         };
 
         safe_write_json($device_state_file, $device_data);
-        update_intel_gpu_rrd($device->{history_id}, $stats);
+        update_gpu_rrd(intel => $device->{history_id}, $stats);
     };
 
     if ($config{debug}{intel_mode} && -f $config{debug}{intel_output_file}) {
@@ -326,6 +326,7 @@ sub collector_for_intel_device {
     }
 
     debug(__LINE__, "Collector for $device->{card} shutting down");
+    flush_gpu_rrds();
     POSIX::_exit(0);
 }
 

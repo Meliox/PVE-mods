@@ -228,6 +228,12 @@ With history enabled the GPU collectors run around the clock, even when the web 
 
 RRD files are stored in `/var/lib/rrdcached/db/pve-mods-gpu/<node>/`, one per GPU and named after its PCI address (for example `pci000000020`), so a GPU keeps its history if `cardN` or the NVIDIA index changes.
 
+GPU history is buffered in memory and normally written to disk every 60 seconds.
+Set `[intervals] gpu_history_flush` in `/etc/pve-mods/conf.d/node_info.conf` to
+change the interval in seconds; `1` writes every sample. A write occurs when a
+new sample arrives after the interval or the collector stops. Buffering adds
+graph delay, and an unexpected process termination can lose buffered samples.
+
 ### AMD GPU
 
 Reads device and `amdgpu` hwmon sysfs files directly, so no ROCm or AMD-SMI is needed. The GPU must be bound to the host's `amdgpu` driver; GPUs passed through to a VM (for example bound to `vfio-pci`) cannot be monitored. Supports multiple GPUs, including APUs, and each device is identified by its PCI address. Metrics can be stored in RRD for historical graphing (see [GPU graphs and history](#gpu-graphs-and-history)).

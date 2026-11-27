@@ -9,7 +9,7 @@ use Time::HiRes qw(sleep);
 use lib "$ENV{AMD_TEST_ROOT}/usr/share/perl5";
 use PVE::PVEMods::Collector::GpuIntel qw(get_intel_gpu_devices collector_for_intel_device);
 use PVE::PVEMods::Config qw(%config);
-use PVE::PVEMods::Store qw(update_intel_gpu_rrd gpu_rrd_path);
+use PVE::PVEMods::Store qw(update_gpu_rrd gpu_rrd_path);
 use PVE::API2::PVEMods_SensorInfo;
 use RRDs;
 
@@ -153,9 +153,12 @@ my $obj2 = encode_json({ n => 2 });
 my $rrd_dir = tempdir(CLEANUP => 1);
 {
     local $PVE::PVEMods::Store::RRD_BASE = $rrd_dir;
-    local $PVE::PVEMods::Store::RRD_SOCKET = "$rrd_dir/no-daemon";
+    local $config{intervals}{gpu_history_flush} = 1;
     local $config{gpu}{gpu_history} = 0;
-    update_intel_gpu_rrd('inteltest', $stats);
+    my $test_now = time() - 10;
+    no warnings 'redefine';
+    local *PVE::PVEMods::Store::_now = sub { $test_now++ };
+    update_gpu_rrd(intel => 'inteltest', $stats);
     ok(!-e gpu_rrd_path('inteltest'), 'disabled history does not create files');
 
     $config{gpu}{gpu_history} = 1;
@@ -163,8 +166,8 @@ my $rrd_dir = tempdir(CLEANUP => 1);
     {
         no warnings 'redefine';
         local *RRDs::update = sub { push @updates, [@_] };
-        update_intel_gpu_rrd('inteltest', $stats);
-        update_intel_gpu_rrd('inteltest', {});
+        update_gpu_rrd(intel => 'inteltest', $stats);
+        update_gpu_rrd(intel => 'inteltest', {});
     }
     my $path = gpu_rrd_path('inteltest');
     ok(-f $path, 'Intel history file created in isolated directory');
@@ -173,9 +176,9 @@ my $rrd_dir = tempdir(CLEANUP => 1);
     for my $field (qw(freq_req freq_act rc6 power_gpu power_pkg render_busy blitter_busy video_busy videnh_busy)) {
         ok(exists $info->{"ds[$field].type"}, "history field $field exists");
     }
-    is($updates[0][-1], 'N:1200.5:1150.25:87.5:3.25:11.5:12.5:0:45:5', 'history values follow the schema order');
-    is($updates[1][-1], 'N:U:U:U:U:U:U:U:U:U', 'missing samples become unknown rather than zero');
-    update_intel_gpu_rrd('inteltest', $stats);
+    like($updates[0][-1], qr/^\d+:1200\.5:1150\.25:87\.5:3\.25:11\.5:12\.5:0:45:5$/, 'history values follow the schema order');
+    like($updates[1][-1], qr/^\d+:U:U:U:U:U:U:U:U:U$/, 'missing samples become unknown rather than zero');
+    update_gpu_rrd(intel => 'inteltest', $stats);
     ok(!RRDs::error(), 'real RRD update succeeds');
     is(RRDs::info($path)->{'ds[render_busy].last_ds'}, 12.5, 'real RRD stores the render engine load');
 }

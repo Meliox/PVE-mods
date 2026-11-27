@@ -17,9 +17,11 @@
 +    name => 'gpurrddata',
 +    path => 'gpurrddata',
 +    method => 'GET',
-+    # Not protected: it is served by pveproxy (which pve-mods restarts) and only
-+    # reads the www-data owned GPU RRD files. A protected call would be forwarded
-+    # to pvedaemon, which keeps running the unpatched Nodes.pm.
++    # Not protected: it is served by pveproxy, which reads the www-data owned
++    # GPU RRD files directly. Routing it through PVE::RRD would go through the
++    # root-only rrdcached socket and fail, and a protected call would be
++    # forwarded to pvedaemon, which keeps running the unpatched Nodes.pm until
++    # it is restarted.
 +    proxyto => 'node',
 +    permissions => {
 +        check => ['perm', '/nodes/{node}', ['Sys.Audit']],
@@ -56,11 +58,9 @@
 +    },
 +    code => sub {
 +        my ($param) = @_;
-+        my $nodename = PVE::INotify::nodename();
-+        my $card = $param->{card};
-+        die "invalid card name\n" unless $card =~ /^[a-zA-Z0-9]+$/;
-+        return PVE::RRD::create_rrd_data(
-+            "pve-mods-gpu/$nodename/$card", $param->{timeframe}, $param->{cf},
++        require PVE::PVEMods::Store;
++        return PVE::PVEMods::Store::read_gpu_rrd_data(
++            $param->{card}, $param->{timeframe}, $param->{cf},
 +        );
 +    },
 +});

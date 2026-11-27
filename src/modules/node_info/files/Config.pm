@@ -11,7 +11,7 @@ our @EXPORT_OK = qw(
     $sensors_state_file $ups_state_file $storage_health_state_file
     $smart_snapshot_dir $smart_snapshot_file
     $pve_mods_worker_lock $startup_lock
-    $RRD_SOCKET $RRD_BASE
+    $RRD_BASE
 );
 
 # ============================================================================
@@ -66,6 +66,7 @@ our %config = (
     intervals => {
         data_pull         => 1,          # seconds between data pulls
         collector_timeout => 10,         # stop collectors after N seconds of inactivity
+        gpu_history_flush => 60,         # seconds of GPU history buffered per RRD write (1 = write every sample)
     },
     lm_sensors => {
         enabled               => 0,
@@ -123,8 +124,7 @@ our $startup_lock        = "$pve_mods_working_dir/startup.lock";
 # RRD paths
 # ============================================================================
 
-our $RRD_SOCKET = '/var/run/rrdcached.sock';
-our $RRD_BASE   = '/var/lib/rrdcached/db/pve-mods-gpu';
+our $RRD_BASE = '/var/lib/rrdcached/db/pve-mods-gpu';
 
 # ============================================================================
 # Load configuration from /etc/pve-mods/pve-mods.conf (INI format).

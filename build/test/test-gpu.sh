@@ -41,8 +41,8 @@ cp "$MOD_DIR/node_info.configure.sh" "$AMD_TEST_ROOT/usr/lib/pve-mods/configure.
 rc=0
 
 info "Running collector, history and API tests"
-prove "$SCRIPT_DIR/gpu-amd.t" "$SCRIPT_DIR/amd-history.t" \
-    "$SCRIPT_DIR/gpu-intel.t" "$SCRIPT_DIR/gpu-nvidia.t" || rc=1
+prove "$SCRIPT_DIR/gpu-amd.t" "$SCRIPT_DIR/gpu-intel.t" \
+    "$SCRIPT_DIR/gpu-nvidia.t" "$SCRIPT_DIR/gpu-history.t" || rc=1
 
 info "Running GUI tests"
 node --test "$SCRIPT_DIR/amd-gui.test.js" "$SCRIPT_DIR/gpu-gui.test.js" || rc=1

@@ -35,7 +35,7 @@ my @warnings;
     die $@ if $@;
 }
 is_deeply($PVE::PVEMods::Config::config{intervals},
-    { data_pull => 1, collector_timeout => 10 }, 'missing files preserve defaults');
+    { data_pull => 1, collector_timeout => 10, gpu_history_flush => 60 }, 'missing files preserve defaults');
 
 sub load_ini {
     write_file("$dir/input.conf", $_[0]);
@@ -43,9 +43,9 @@ sub load_ini {
     PVE::PVEMods::Config::_load_ini_file("$dir/input.conf");
 }
 
-load_ini("[gpu]\nintel_enabled=1\n[intervals]\ndata_pull = 5 # seconds\ncollector_timeout=120\nunknown=7\n[debug]\nmod_debug=1\n[ups]\ndevice_name=test\n[lm_sensors]\nenabled=1\n[system_info]\ntemp_unit=F\n");
+load_ini("[gpu]\nintel_enabled=1\n[intervals]\ndata_pull = 5 # seconds\ncollector_timeout=120\ngpu_history_flush=30\nunknown=7\n[debug]\nmod_debug=1\n[ups]\ndevice_name=test\n[lm_sensors]\nenabled=1\n[system_info]\ntemp_unit=F\n");
 is_deeply($PVE::PVEMods::Config::config{intervals},
-    { data_pull => 5, collector_timeout => 120 }, 'known intervals loaded');
+    { data_pull => 5, collector_timeout => 120, gpu_history_flush => 30 }, 'known intervals loaded');
 is($PVE::PVEMods::Config::config{gpu}{intel_enabled}, 1, 'GPU config preserved');
 is($PVE::PVEMods::Config::config{debug}{mod_debug}, 1, 'debug config preserved');
 is($PVE::PVEMods::Config::config{ups}{device_name}, 'test', 'UPS config preserved');
@@ -56,20 +56,20 @@ is(scalar @warnings, 0, 'valid values and unknown keys do not warn');
 for my $v (['1', 1], ['120', 120], ['007', 7], ['2147483647', 2147483647], ['5 # seconds', 5], [' 5 ', 5]) {
     my ($raw, $norm) = @$v;
     @warnings = ();
-    load_ini("[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\n");
+    load_ini("[intervals]\ndata_pull=$raw\ncollector_timeout=$raw\ngpu_history_flush=$raw\n");
     is_deeply($PVE::PVEMods::Config::config{intervals},
-        { data_pull => $norm, collector_timeout => $norm }, "accept '$raw' as $norm");
+        { data_pull => $norm, collector_timeout => $norm, gpu_history_flush => $norm }, "accept '$raw' as $norm");
     is(scalar @warnings, 0, 'no warning for valid value');
 }
-load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\n");
+load_ini("[intervals]\ndata_pull=5\ncollector_timeout=120\ngpu_history_flush=30\n");
 
 for my $bad ('', '0', '-1', '1.5', 'abc', '1e2', '+5', '5 seconds',
              '2147483648', '999999999999999999999999999999') {
     @warnings = ();
-    load_ini("[intervals]\ndata_pull=$bad\ncollector_timeout=$bad\n");
+    load_ini("[intervals]\ndata_pull=$bad\ncollector_timeout=$bad\ngpu_history_flush=$bad\n");
     is_deeply($PVE::PVEMods::Config::config{intervals},
-        { data_pull => 5, collector_timeout => 120 }, "reject '$bad' and retain values");
-    is(scalar @warnings, 2, 'one warning per invalid option');
+        { data_pull => 5, collector_timeout => 120, gpu_history_flush => 30 }, "reject '$bad' and retain values");
+    is(scalar @warnings, 3, 'one warning per invalid option');
     like($warnings[0], qr/input\.conf line 2: invalid \[intervals\] data_pull/,
         'warning identifies file, line and option');
 }
@@ -95,7 +95,7 @@ warn() { echo "\$*" >&2; }
 info() { :; }
 section() { :; }
 source '$wizard'
-show() { echo "\$DATA_PULL_INTERVAL \$COLLECTOR_TIMEOUT"; }
+show() { echo "\$DATA_PULL_INTERVAL \$COLLECTOR_TIMEOUT \$GPU_HISTORY_FLUSH"; }
 SH
     my @out = `bash $dir/run.sh < $dir/in.txt 2> $dir/err.txt`;
     open my $fh, '<', "$dir/err.txt" or die $!;
@@ -106,27 +106,27 @@ SH
 }
 my $reload = 'node_info_defaults; node_info_load_conf; ';
 
-is((wizard('node_info_defaults; show'))[0], '1 10', 'wizard defaults');
-is((wizard('node_info_defaults; _configure_intervals; show', "\n\n"))[0], '1 10',
+is((wizard('node_info_defaults; show'))[0], '1 10 60', 'wizard defaults');
+is((wizard('node_info_defaults; _configure_intervals; show', "\n\n"))[0], '1 10 60',
     'Enter accepts the defaults');
 is((wizard('node_info_defaults; _configure_intervals; show', "0\nabc\n2147483648\n7\n-1\n300\n"))[0],
-    '7 300', 'prompts reject invalid answers');
+    '7 300 60', 'prompts reject invalid answers');
 
 # configure -> save -> reload
 is((wizard('node_info_defaults; _configure_intervals; node_info_write_conf; ' . $reload . 'show',
-    "9\n450\n"))[0], '9 450', 'configured values survive save and reload');
+    "9\n450\n"))[0], '9 450 60', 'configured values survive save and reload');
 {
     local $SIG{__WARN__} = sub { push @warnings, @_ };
     @warnings = ();
     PVE::PVEMods::Config::_load_ini_file($wconf);
     is_deeply($PVE::PVEMods::Config::config{intervals},
-        { data_pull => 9, collector_timeout => 450 }, 'Config.pm loads the wizard-written file');
+        { data_pull => 9, collector_timeout => 450, gpu_history_flush => 60 }, 'Config.pm loads the wizard-written file');
     is(scalar @warnings, 0, 'no warnings for the wizard-written file');
 }
-is((wizard($reload . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT"', ''))[0], '0 9 450',
+is((wizard($reload . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT $GPU_HISTORY_FLUSH"', ''))[0], '0 9 450 60',
     'saved values reload');
 is((wizard($reload . 'ENABLE_UPS=1; node_info_write_conf; ' . $reload
-    . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT"'))[0], '1 9 450',
+    . 'echo "$ENABLE_UPS $DATA_PULL_INTERVAL $COLLECTOR_TIMEOUT $GPU_HISTORY_FLUSH"'))[0], '1 9 450 60',
     'unrelated change keeps the saved values');
 my $saved = read_source($wconf);
 wizard($reload . 'node_info_write_conf');
@@ -145,7 +145,7 @@ write_file("$dir/conf.d/99-ignored.txt", "[intervals]\ndata_pull=9\n");
     die $@ if $@;
 }
 is_deeply($PVE::PVEMods::Config::config{intervals},
-    { data_pull => 5, collector_timeout => 120 }, 'startup merges main then sorted .conf files');
+    { data_pull => 5, collector_timeout => 120, gpu_history_flush => 60 }, 'startup merges main then sorted .conf files');
 
 # Run the unchanged worker loop with a deterministic clock and stub collectors.
 # No real processes, signals, system tools or /run files are touched.
