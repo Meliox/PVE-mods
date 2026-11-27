@@ -105,6 +105,9 @@ my %gpu_rrd_schemas = (
     },
 );
 
+# Keep the existing archive layout for both new and existing files. The graph
+# API uses minute-or-coarser data, but removing the per-second archives would
+# change the schema and requires a separate decision about existing files.
 my @gpu_rrd_archives = map {
     my $cf = $_;
     map { "RRA:$cf:0.5:$_" } qw(1:1440 60:1440 1800:1440 21600:1464 604800:520)
@@ -117,9 +120,17 @@ my @gpu_rrd_archives = map {
 # The history files are owned by www-data and accessed directly. rrdcached's
 # socket is root-only on Proxmox, so it cannot be used from here, and mixing
 # cached and direct access to the same file could lose pending updates.
+# Running the existing worker as root would prevent pveproxy from signalling
+# it; a separate root recorder and protected reader would require another
+# service, validation across a privilege boundary, and pvedaemon reloads.
 #
-# Samples are buffered in the collector and flushed on a later sample or when
-# the collector exits. This reduces disk writes at the cost of graph latency.
+# Each direct update has a substantial fixed disk-write cost. In a short ext4
+# test, buffering 60s rather than 1s reduced writes from about 275 to 75 MiB/day
+# per GPU; 300s reduced them further to about 31 MiB/day but adds graph delay.
+# These are comparative measurements, not production guarantees. We keep each
+# sample's timestamp, flush on collector exit, and accept that a crash or forced
+# stop can lose the buffer. Unlike rrdcached, a direct reader cannot flush it.
+# Host-wide kernel writeback changes would affect unrelated data and crash safety.
 my %rrd_buffer;   # path => { label => ..., samples => [...], first => ts }
 my %rrd_last_ts;  # path => newest queued timestamp, survives flushes
 my %rrd_failed;   # path => 1 after a warned-about failure, to log only once
