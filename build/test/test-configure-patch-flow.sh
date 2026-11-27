@@ -53,6 +53,16 @@ echo "$*" >> "$PVE_MODs_TEST_SYSTEMCTL_CALLS"
 STUB
 chmod +x "$TMP_DIR/bin/systemctl"
 
+cat > "$TMP_DIR/bin/apply-patches" <<'STUB'
+#!/usr/bin/env bash
+exec bash "$PVE_MODs_TEST_APPLY_SOURCE" "$@"
+STUB
+cat > "$TMP_DIR/bin/revert-patches" <<'STUB'
+#!/usr/bin/env bash
+exec bash "$PVE_MODs_TEST_REVERT_SOURCE" "$@"
+STUB
+chmod +x "$TMP_DIR/bin/apply-patches" "$TMP_DIR/bin/revert-patches"
+
 cat > "$MAIN_CONF" <<'CONF'
 [modules]
 node_info=0
@@ -83,10 +93,12 @@ run_configure() {
     printf '%s\n' "$input" | env \
         PATH="$TMP_DIR/bin:$PATH" \
         PVE_MODs_TEST_SYSTEMCTL_CALLS="$CALLS" \
+        PVE_MODs_TEST_APPLY_SOURCE="$ROOT/src/scripts/apply-patches.sh" \
+        PVE_MODs_TEST_REVERT_SOURCE="$ROOT/src/scripts/revert-patches.sh" \
         PVE_MODs_CONF_FILE="$MAIN_CONF" \
         PVE_MODs_CONFD_DIR="$CONFD_DIR" \
-        PVE_MODs_APPLY_PATCHES="$ROOT/src/scripts/apply-patches.sh" \
-        PVE_MODs_REVERT_PATCHES="$ROOT/src/scripts/revert-patches.sh" \
+        PVE_MODs_APPLY_PATCHES="$TMP_DIR/bin/apply-patches" \
+        PVE_MODs_REVERT_PATCHES="$TMP_DIR/bin/revert-patches" \
         PVE_MODs_NODES_PM="$NODES_PM" \
         PVE_MODs_CONFIGURE_D="$CONFIGURE_D" \
         PVE_MODs_MAIN_CONF="$MAIN_CONF" \
