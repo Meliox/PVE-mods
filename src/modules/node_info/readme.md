@@ -249,7 +249,7 @@ The screenshots use simulated data.
 
 Polls `upsc` for a configured NUT device and exposes all key-value pairs returned by the daemon. Supports any UPS accessible via NUT (local or remote).
 
-The node summary shows the UPS status, battery capacity with the runtime left, and load. Use the info button on the row to open a live details grid, styled like the CPU sensor window, with one tab per UPS and Section, Property and Value columns. Sections are sorted alphabetically by their displayed names. Rows update in place to preserve scrolling and selection.
+The node summary shows the UPS status, battery charge, remaining runtime, and load. Select the info button to view all readings reported by the UPS.
 
 <p align="center"><img src="images/ups-summary.png" alt="Node summary UPS row"></p>
 
