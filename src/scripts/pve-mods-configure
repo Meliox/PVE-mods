@@ -10,11 +10,11 @@
 
 set -euo pipefail
 
-CONF_FILE="/etc/pve-mods/pve-mods.conf"
-CONFD_DIR="/etc/pve-mods/conf.d"
-APPLY_PATCHES="/usr/lib/pve-mods/apply-patches.sh"
-REVERT_PATCHES="/usr/lib/pve-mods/revert-patches.sh"
-NODES_PM="/usr/share/perl5/PVE/API2/Nodes.pm"
+CONF_FILE="${PVE_MODs_CONF_FILE:-/etc/pve-mods/pve-mods.conf}"
+CONFD_DIR="${PVE_MODs_CONFD_DIR:-/etc/pve-mods/conf.d}"
+APPLY_PATCHES="${PVE_MODs_APPLY_PATCHES:-/usr/lib/pve-mods/apply-patches.sh}"
+REVERT_PATCHES="${PVE_MODs_REVERT_PATCHES:-/usr/lib/pve-mods/revert-patches.sh}"
+NODES_PM="${PVE_MODs_NODES_PM:-/usr/share/perl5/PVE/API2/Nodes.pm}"
 
 #region helpers
 # Blank-line spacing rule: section() is the only place that emits a leading
@@ -177,7 +177,6 @@ main() {
                 MOD_NODE_INFO=0; info "Node Info will be removed."
             else
                 MOD_NODE_INFO=1; patching_needed=1
-                refresh_patches=1
                 section "Node Info Configuration"
                 node_info_configure
             fi
@@ -198,12 +197,15 @@ main() {
             ;;
         3)
             selected_mod="oidc_console_access"
+            local _oidc_prev_state="$MOD_OIDC_CONSOLE_ACCESS"
             section "OIDC Console Access Configuration"
             oidc_console_access_configure
             if [[ -n "$OIDC_CONSOLE_ACCESS_UPGRADE_GROUPS" || -n "$OIDC_CONSOLE_ACCESS_SHELL_GROUPS" ]]; then
                 MOD_OIDC_CONSOLE_ACCESS=1
                 patching_needed=1
-                refresh_patches=1
+                # Only an active module can have patches for features that were
+                # just switched off; from state 0/2 a revert would fail falsely.
+                [[ "$_oidc_prev_state" == "1" ]] && refresh_patches=1
             else
                 MOD_OIDC_CONSOLE_ACCESS=0
                 info "No OIDC Console Access features enabled; the module will be removed."

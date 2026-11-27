@@ -43,6 +43,9 @@ jobs:
       - name: Test package upgrade patch reversion
         run: bash build/test/test-upgrade-revert.sh
 
+      - name: Test configure patch flow
+        run: bash build/test/test-configure-patch-flow.sh
+
       - name: Test Intel GPU permission lifecycle
         run: bash build/test/test-intel-permissions.sh
 
