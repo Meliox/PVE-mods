@@ -8,10 +8,11 @@
 # fixture, so both sides are checked against the same contract. Needs no
 # sensors hardware and does not touch the live configuration. Requires Perl
 # with the JSON module, prove and Node.js.
+# Includes fake-sysfs tests for cached temperature source discovery.
 #
 # fixtures/lm_sensors hold `sensors -J` output, the only layout supported. They are
 # numbered NN-<hardware>.json; add the next number and every data-driven test picks it up.
-# All are formatted like the live collector's input (`python3 -m json.tool`, 4-space indent).
+# All use the JSON layout emitted by `sensors -J`.
 #
 #   01 synthetic            hand-built to mirror prog/sensors/chips.c in lm-sensors
 #   02 intel it8620         captured with `sensors -J` on the maintainer's machine
@@ -64,7 +65,7 @@ mkdir -p "$LM_SENSORS_PAYLOADS"
 rc=0
 
 info "Running collector tests"
-prove "$SCRIPT_DIR/lm-sensors.t" || rc=1
+prove "$SCRIPT_DIR/lm-sensors.t" "$SCRIPT_DIR/sysfs-sensors.t" || rc=1
 
 info "Generating the collector payloads for the GUI tests"
 for fixture in "$LM_SENSORS_FIXTURES"/*.json; do

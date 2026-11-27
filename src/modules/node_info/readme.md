@@ -17,6 +17,7 @@ Extends the Proxmox VE node status view with live hardware sensor data. A backgr
     - [Memory](#memory)
     - [HDD/SSD and NVMe](#hddssd-and-nvme)
     - [Other](#other)
+    - [Additional sysfs temperatures](#additional-sysfs-temperatures)
   - [Fan speeds](#fan-speeds)
   - [NVIDIA GPU](#nvidia-gpu)
   - [Intel GPU](#intel-gpu)
@@ -106,6 +107,16 @@ Drives are listed with model and serial number.
 Remaining temperature sensors are grouped together.
 
 <p align="center"><img src="images/other-temperatures.png" alt="Other temperatures"></p>
+
+#### Additional sysfs temperatures
+
+Supported sysfs temperatures are automatically added to **Other Temperatures**
+when lm-sensors is enabled. See [the source definitions](files/sysfs-temperature-sources.json)
+for supported devices and the JSON format.
+
+Add custom sources or override defaults in `/etc/pve-mods/sysfs-temperature-sources.json`
+using the same format. Entries match by `id`; set `enabled` to `false` to disable
+a source. Files must be readable by `www-data`.
 
 ### Fan speeds
 

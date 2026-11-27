@@ -9,6 +9,7 @@ use JSON;
 
 use PVE::PVEMods::Config qw(%config $process_type $sensors_state_file);
 use PVE::PVEMods::Utils  qw(debug check_executable setup_collector_signals read_sysfs);
+use PVE::PVEMods::Collector::SysfsSensors qw(merge_sysfs_temperatures);
 
 our @EXPORT_OK = qw(
     collector_for_temperature_sensors
@@ -69,7 +70,7 @@ sub _get_temperature_sensors {
             $sensors_output = '{}';
         }
     } else {
-        $sensors_output = `sensors -J 2>/dev/null | python3 -m json.tool`;
+        $sensors_output = `sensors -J 2>/dev/null`;
         debug(__LINE__, "Raw lm-sensors output collected from command");
     }
 
@@ -93,6 +94,10 @@ sub _get_temperature_sensors {
     if ($@) {
         debug(__LINE__, "Failed to parse final lm-sensors JSON: $@");
         return $data;
+    }
+
+    if ($config{lm_sensors}{enabled} && ref($sensors_json) eq 'HASH') {
+        merge_sysfs_temperatures($sensors_json, $cache_ref->{sysfs_temperatures} //= {});
     }
 
     $data = JSON->new->pretty->encode({
