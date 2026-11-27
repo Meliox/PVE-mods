@@ -1,3 +1,14 @@
+pve-mods (2.3.0) stable; urgency=low
+
+  * a050e2f fix(node_info): Prevent GPU history rrdcached permission errors from flooding logs (#493) by @Meliox
+  * 06c123f test(node_info): consolidate GPU test runners (#494) by @Meliox
+  * a536f4f docs(node_info): explain duplicate sysfs temperatures (#492) by @Meliox
+  * cdc7870 feat(node_info): add configurable sysfs temperatures (#475) by @Meliox
+  * 9955626 feat(node_info): show UPS details in a live sorted grid (#490) by @Meliox
+  * de67e48 fix(configure): avoid false revert failure when enabling a module (#487) by @Meliox
+
+ -- github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>  Fri, 27 Nov 2026 21:54:56 +0000
+
 pve-mods (2.2.4) stable; urgency=low
 
   * 111921c fix(node_info, nag_screen, node_search): support pve-manager 9.3.1 and proxmox-widget-toolkit 5.2.23 (#481) by @ccooss
