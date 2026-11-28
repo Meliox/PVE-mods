@@ -6,15 +6,15 @@ Each mod's patches are tested daily against the latest Proxmox VE packages
 from the `pve-no-subscription` repository. "Packages" lists the exact
 versions of the packages the mod patches, as downloaded for that run.
 
-Last updated: 2026-11-27T06:32:59Z
+Last updated: 2026-11-28T06:30:01Z
 
 | Mod | Status | Last checked | Last passing | Failing since | Last failing |
 |-----|--------|--------------|--------------|---------------|--------------|
-| `guest_summary` | passing | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775) | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775)<br>`pve-manager 9.3.1` | – | – |
-| `nag_screen` | passing | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775) | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775)<br>`proxmox-widget-toolkit 5.2.23`<br>`pve-manager 9.3.1`<br>`pve-yew-mobile-gui 0.8.0` | – | – |
-| `node_info` | passing | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775) | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775)<br>`pve-manager 9.3.1` | – | – |
-| `node_search` | passing | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775) | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775)<br>`pve-manager 9.3.1` | – | – |
-| `oidc_console_access` | passing | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775) | [2026-11-27](https://github.com/Meliox/PVE-mods/actions/runs/45952386775)<br>`pve-manager 9.3.1` | – | – |
+| `guest_summary` | passing | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338) | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338)<br>`pve-manager 9.3.1` | – | – |
+| `nag_screen` | passing | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338) | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338)<br>`proxmox-widget-toolkit 5.2.23`<br>`pve-manager 9.3.1`<br>`pve-yew-mobile-gui 0.8.0` | – | – |
+| `node_info` | passing | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338) | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338)<br>`pve-manager 9.3.1` | – | – |
+| `node_search` | passing | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338) | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338)<br>`pve-manager 9.3.1` | – | – |
+| `oidc_console_access` | passing | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338) | [2026-11-28](https://github.com/Meliox/PVE-mods/actions/runs/46116752338)<br>`pve-manager 9.3.1` | – | – |
 
 A failing mod means its patches no longer apply cleanly to the newest
 Proxmox packages; a fix is tracked in an open

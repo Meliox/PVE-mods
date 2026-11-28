@@ -1,16 +1,16 @@
 {
   "mod": "nag_screen",
   "status": "passing",
-  "last_checked": "2026-11-27",
-  "pve_mods_version": "2.2.4+daily.336383a",
-  "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45952386775",
+  "last_checked": "2026-11-28",
+  "pve_mods_version": "2.2.4+daily.b6b3712",
+  "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/46116752338",
   "last_passing": {
-    "date": "2026-11-27",
+    "date": "2026-11-28",
     "packages": {
       "proxmox-widget-toolkit": "5.2.23",
       "pve-manager": "9.3.1",
       "pve-yew-mobile-gui": "0.8.0"
     },
-    "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/45952386775"
+    "run_url": "https://github.com/Meliox/PVE-mods/actions/runs/46116752338"
   }
 }
